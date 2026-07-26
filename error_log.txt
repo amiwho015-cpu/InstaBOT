@@ -1,0 +1,254 @@
+﻿2026-07-26T06:41:04.5513875Z Current runner version: '2.336.0'
+2026-07-26T06:41:04.5554625Z ##[group]Runner Image Provisioner
+2026-07-26T06:41:04.5556110Z Hosted Compute Agent
+2026-07-26T06:41:04.5557106Z Version: 20260707.563
+2026-07-26T06:41:04.5558372Z Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+2026-07-26T06:41:04.5560270Z Build Date: 2026-07-07T19:33:50Z
+2026-07-26T06:41:04.5561522Z Worker ID: {5d490993-5314-4207-8191-96b15f2bf059}
+2026-07-26T06:41:04.5563033Z Azure Region: westus
+2026-07-26T06:41:04.5564034Z ##[endgroup]
+2026-07-26T06:41:04.5566392Z ##[group]Operating System
+2026-07-26T06:41:04.5567500Z Ubuntu
+2026-07-26T06:41:04.5568295Z 24.04.4
+2026-07-26T06:41:04.5589705Z LTS
+2026-07-26T06:41:04.5590819Z ##[endgroup]
+2026-07-26T06:41:04.5591841Z ##[group]Runner Image
+2026-07-26T06:41:04.5593060Z Image: ubuntu-24.04
+2026-07-26T06:41:04.5594072Z Version: 20260720.247.2
+2026-07-26T06:41:04.5596498Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md
+2026-07-26T06:41:04.5599732Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260720.247
+2026-07-26T06:41:04.5601410Z ##[endgroup]
+2026-07-26T06:41:04.5603655Z ##[group]GITHUB_TOKEN Permissions
+2026-07-26T06:41:04.5607043Z Contents: read
+2026-07-26T06:41:04.5608060Z Metadata: read
+2026-07-26T06:41:04.5613236Z Packages: read
+2026-07-26T06:41:04.5614271Z ##[endgroup]
+2026-07-26T06:41:04.5617294Z Secret source: Actions
+2026-07-26T06:41:04.5620407Z Prepare workflow directory
+2026-07-26T06:41:04.6931042Z Prepare all required actions
+2026-07-26T06:41:04.7076352Z Getting action download info
+2026-07-26T06:41:05.1085174Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-07-26T06:41:05.5646431Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-07-26T06:41:05.7758892Z Complete job name: run-bot
+2026-07-26T06:41:05.8736705Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T06:41:05.8745986Z ##[group]Run actions/checkout@v4
+2026-07-26T06:41:05.8746738Z with:
+2026-07-26T06:41:05.8747203Z   repository: frnAlt/GoatBot-IG-Port
+2026-07-26T06:41:05.8751600Z   token: ***
+2026-07-26T06:41:05.8752341Z   ssh-strict: true
+2026-07-26T06:41:05.8753061Z   ssh-user: git
+2026-07-26T06:41:05.8753811Z   persist-credentials: true
+2026-07-26T06:41:05.8754599Z   clean: true
+2026-07-26T06:41:05.8755183Z   sparse-checkout-cone-mode: true
+2026-07-26T06:41:05.8755704Z   fetch-depth: 1
+2026-07-26T06:41:05.8756124Z   fetch-tags: false
+2026-07-26T06:41:05.8756561Z   show-progress: true
+2026-07-26T06:41:05.8756995Z   lfs: false
+2026-07-26T06:41:05.8757464Z   submodules: false
+2026-07-26T06:41:05.8757922Z   set-safe-directory: true
+2026-07-26T06:41:05.8758437Z   allow-unsafe-pr-checkout: false
+2026-07-26T06:41:05.8759624Z ##[endgroup]
+2026-07-26T06:41:05.9958414Z Syncing repository: frnAlt/GoatBot-IG-Port
+2026-07-26T06:41:05.9962953Z ##[group]Getting Git version info
+2026-07-26T06:41:05.9964860Z Working directory is '/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port'
+2026-07-26T06:41:06.0040424Z [command]/usr/bin/git version
+2026-07-26T06:41:06.0231463Z git version 2.54.0
+2026-07-26T06:41:06.0252848Z ##[endgroup]
+2026-07-26T06:41:06.0311455Z Temporarily overriding HOME='/home/runner/work/_temp/1ecd2808-26ee-4c76-978a-970bed905869' before making global git config changes
+2026-07-26T06:41:06.0314848Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T06:41:06.0318298Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T06:41:06.0328616Z Deleting the contents of '/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port'
+2026-07-26T06:41:06.0331559Z ##[group]Initializing the repository
+2026-07-26T06:41:06.0333892Z [command]/usr/bin/git init /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T06:41:06.0453199Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-07-26T06:41:06.0455450Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-07-26T06:41:06.0457578Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-07-26T06:41:06.0459431Z hint: call:
+2026-07-26T06:41:06.0460834Z hint:
+2026-07-26T06:41:06.0461953Z hint: 	git config --global init.defaultBranch <name>
+2026-07-26T06:41:06.0463442Z hint:
+2026-07-26T06:41:06.0466607Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-07-26T06:41:06.0468112Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-07-26T06:41:06.0469634Z hint:
+2026-07-26T06:41:06.0470369Z hint: 	git branch -m <name>
+2026-07-26T06:41:06.0471129Z hint:
+2026-07-26T06:41:06.0472098Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-07-26T06:41:06.0473719Z Initialized empty Git repository in /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/.git/
+2026-07-26T06:41:06.0476580Z [command]/usr/bin/git remote add origin https://github.com/frnAlt/GoatBot-IG-Port
+2026-07-26T06:41:06.0592157Z ##[endgroup]
+2026-07-26T06:41:06.0596399Z ##[group]Disabling automatic garbage collection
+2026-07-26T06:41:06.0597538Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-26T06:41:06.0600332Z ##[endgroup]
+2026-07-26T06:41:06.0601437Z ##[group]Setting up auth
+2026-07-26T06:41:06.0602533Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T06:41:06.0650795Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T06:41:06.1348948Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T06:41:06.1554071Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T06:41:06.1561593Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T06:41:06.1602555Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T06:41:06.1941400Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-26T06:41:06.2090264Z ##[endgroup]
+2026-07-26T06:41:06.2093064Z ##[group]Fetching the repository
+2026-07-26T06:41:06.2096362Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5c117fa1bbc4f339d56b3922e4a9a6d061c888b7:refs/remotes/origin/main
+2026-07-26T06:41:06.9447443Z From https://github.com/frnAlt/GoatBot-IG-Port
+2026-07-26T06:41:06.9449641Z  * [new ref]         5c117fa1bbc4f339d56b3922e4a9a6d061c888b7 -> origin/main
+2026-07-26T06:41:06.9453625Z ##[endgroup]
+2026-07-26T06:41:06.9455627Z ##[group]Determining the checkout info
+2026-07-26T06:41:06.9457834Z ##[endgroup]
+2026-07-26T06:41:06.9459502Z [command]/usr/bin/git sparse-checkout disable
+2026-07-26T06:41:06.9463308Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-26T06:41:06.9555164Z ##[group]Checking out the ref
+2026-07-26T06:41:06.9557876Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-26T06:41:07.0001849Z Switched to a new branch 'main'
+2026-07-26T06:41:07.0011598Z branch 'main' set up to track 'origin/main'.
+2026-07-26T06:41:07.0017082Z ##[endgroup]
+2026-07-26T06:41:07.0087433Z [command]/usr/bin/git log -1 --format=%H
+2026-07-26T06:41:07.0282813Z 5c117fa1bbc4f339d56b3922e4a9a6d061c888b7
+2026-07-26T06:41:07.0767668Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T06:41:07.0776990Z ##[group]Run actions/setup-node@v4
+2026-07-26T06:41:07.0778866Z with:
+2026-07-26T06:41:07.0780786Z   node-version: 18.x
+2026-07-26T06:41:07.0782447Z   cache: npm
+2026-07-26T06:41:07.0783971Z   always-auth: false
+2026-07-26T06:41:07.0785589Z   check-latest: false
+2026-07-26T06:41:07.0800655Z   token: ***
+2026-07-26T06:41:07.0802183Z ##[endgroup]
+2026-07-26T06:41:07.2653077Z Attempting to download 18.x...
+2026-07-26T06:41:07.2766922Z (node:2080) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-26T06:41:07.2769415Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-26T06:41:07.9759757Z Acquiring 18.20.8 - x64 from https://github.com/actions/node-versions/releases/download/18.20.8-14110393767/node-18.20.8-linux-x64.tar.gz
+2026-07-26T06:41:08.6373315Z Extracting ...
+2026-07-26T06:41:08.6528256Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/c30326aa-509a-456e-99c5-55b6fb1f32fb -f /home/runner/work/_temp/d258de12-e447-4167-b11d-d46c98f6d7ec
+2026-07-26T06:41:09.7565839Z Adding to the cache ...
+2026-07-26T06:41:12.1221689Z ##[group]Environment details
+2026-07-26T06:41:12.4341987Z node: v18.20.8
+2026-07-26T06:41:12.4343126Z npm: 10.8.2
+2026-07-26T06:41:12.4343921Z yarn: 1.22.22
+2026-07-26T06:41:12.4345272Z ##[endgroup]
+2026-07-26T06:41:12.4420349Z [command]/opt/hostedtoolcache/node/18.20.8/x64/bin/npm config get cache
+2026-07-26T06:41:12.5741267Z /home/runner/.npm
+2026-07-26T06:41:12.8494009Z npm cache is not found
+2026-07-26T06:41:12.8774694Z ##[group]Run npm install
+2026-07-26T06:41:12.8775074Z [36;1mnpm install[0m
+2026-07-26T06:41:12.8827050Z shell: /usr/bin/bash -e {0}
+2026-07-26T06:41:12.8827387Z ##[endgroup]
+2026-07-26T06:41:13.6021442Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6022818Z npm warn EBADENGINE   package: '@distube/ytdl-core@4.16.12',
+2026-07-26T06:41:13.6024062Z npm warn EBADENGINE   required: { node: '>=20.18.1' },
+2026-07-26T06:41:13.6025286Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6026251Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6027160Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6028158Z npm warn EBADENGINE   package: 'agent-base@9.0.0',
+2026-07-26T06:41:13.6029424Z npm warn EBADENGINE   required: { node: '>= 20' },
+2026-07-26T06:41:13.6030578Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6031584Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6032480Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6033523Z npm warn EBADENGINE   package: 'http-cookie-agent@7.0.4',
+2026-07-26T06:41:13.6034580Z npm warn EBADENGINE   required: { node: '>=20.0.0' },
+2026-07-26T06:41:13.6035807Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6036807Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6037744Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6038649Z npm warn EBADENGINE   package: 'undici@7.28.0',
+2026-07-26T06:41:13.6039951Z npm warn EBADENGINE   required: { node: '>=20.18.1' },
+2026-07-26T06:41:13.6041085Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6042093Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6045709Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6046744Z npm warn EBADENGINE   package: '@neoaz07/nkxica@1.0.3',
+2026-07-26T06:41:13.6047768Z npm warn EBADENGINE   required: { node: '>=20.0.0' },
+2026-07-26T06:41:13.6048882Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6050081Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6055226Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6056765Z npm warn EBADENGINE   package: 'cheerio@1.2.0',
+2026-07-26T06:41:13.6057798Z npm warn EBADENGINE   required: { node: '>=20.18.1' },
+2026-07-26T06:41:13.6058914Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6060232Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6061055Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6061980Z npm warn EBADENGINE   package: 'undici@7.28.0',
+2026-07-26T06:41:13.6062973Z npm warn EBADENGINE   required: { node: '>=20.18.1' },
+2026-07-26T06:41:13.6064064Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6064952Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6072061Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6073048Z npm warn EBADENGINE   package: 'file-type@21.3.4',
+2026-07-26T06:41:13.6074050Z npm warn EBADENGINE   required: { node: '>=20' },
+2026-07-26T06:41:13.6075092Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6075990Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6086288Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6087293Z npm warn EBADENGINE   package: 'ora@9.4.1',
+2026-07-26T06:41:13.6088262Z npm warn EBADENGINE   required: { node: '>=20' },
+2026-07-26T06:41:13.6089777Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6090737Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6091578Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6092538Z npm warn EBADENGINE   package: 'string-width@8.2.1',
+2026-07-26T06:41:13.6093524Z npm warn EBADENGINE   required: { node: '>=20' },
+2026-07-26T06:41:13.6094621Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6095517Z npm warn EBADENGINE }
+2026-07-26T06:41:13.6098594Z npm warn EBADENGINE Unsupported engine {
+2026-07-26T06:41:13.6100267Z npm warn EBADENGINE   package: 'simple-xml-to-json@1.2.7',
+2026-07-26T06:41:13.6101391Z npm warn EBADENGINE   required: { node: '>=20.12.2' },
+2026-07-26T06:41:13.6102527Z npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+2026-07-26T06:41:13.6103420Z npm warn EBADENGINE }
+2026-07-26T06:41:15.6355079Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+2026-07-26T06:41:15.6386395Z npm warn deprecated tinyurl@1.1.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-07-26T06:41:15.8915880Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-07-26T06:41:16.0811770Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+2026-07-26T06:41:16.1944770Z npm warn deprecated npmlog@6.0.2: This package is no longer supported.
+2026-07-26T06:41:16.7560310Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-07-26T06:41:16.8031044Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:41:17.0745682Z npm warn deprecated dottie@2.0.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-07-26T06:41:17.1576048Z npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:41:17.3204102Z npm warn deprecated gauge@4.0.4: This package is no longer supported.
+2026-07-26T06:41:17.4123511Z npm warn deprecated are-we-there-yet@3.0.1: This package is no longer supported.
+2026-07-26T06:41:17.4910167Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+2026-07-26T06:41:17.5881581Z npm warn deprecated @npmcli/move-file@1.1.2: This functionality has been moved to @npmcli/fs
+2026-07-26T06:41:17.8106102Z npm notice This endpoint is being retired. Use the bulk advisory endpoint instead. See the following docs for more info: https://api-docs.npmjs.com/#tag/Audit
+2026-07-26T06:41:18.8165082Z npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+2026-07-26T06:41:18.8297002Z npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+2026-07-26T06:41:19.0962816Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:41:24.4545771Z
+2026-07-26T06:41:24.4560740Z added 459 packages in 11s
+2026-07-26T06:41:24.4561421Z
+2026-07-26T06:41:24.4562042Z 91 packages are looking for funding
+2026-07-26T06:41:24.4562925Z   run `npm fund` for details
+2026-07-26T06:41:24.4835074Z ##[group]Run npm start
+2026-07-26T06:41:24.4835405Z [36;1mnpm start[0m
+2026-07-26T06:41:24.4884150Z shell: /usr/bin/bash -e {0}
+2026-07-26T06:41:24.4884403Z ##[endgroup]
+2026-07-26T06:41:24.6280240Z
+2026-07-26T06:41:24.6290769Z > goatbot-ig@1.0.0 start
+2026-07-26T06:41:24.6300497Z > node index.js
+2026-07-26T06:41:24.6301033Z
+2026-07-26T06:41:24.9277191Z /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/node_modules/cheerio/node_modules/undici/lib/web/webidl/index.js:537
+2026-07-26T06:41:24.9278828Z webidl.is.File = webidl.util.MakeTypeAssertion(File)
+2026-07-26T06:41:24.9281005Z                                                ^
+2026-07-26T06:41:24.9289760Z
+2026-07-26T06:41:24.9290266Z ReferenceError: File is not defined
+2026-07-26T06:41:24.9291837Z     at Object.<anonymous> (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/node_modules/cheerio/node_modules/undici/lib/web/webidl/index.js:537:48)
+2026-07-26T06:41:24.9293551Z     at Module._compile (node:internal/modules/cjs/loader:1364:14)
+2026-07-26T06:41:24.9294592Z     at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+2026-07-26T06:41:24.9295672Z     at Module.load (node:internal/modules/cjs/loader:1203:32)
+2026-07-26T06:41:24.9296594Z     at Module._load (node:internal/modules/cjs/loader:1019:12)
+2026-07-26T06:41:24.9297504Z     at Module.require (node:internal/modules/cjs/loader:1231:19)
+2026-07-26T06:41:24.9298366Z     at require (node:internal/modules/helpers:177:18)
+2026-07-26T06:41:24.9300099Z     at Object.<anonymous> (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/node_modules/cheerio/node_modules/undici/lib/web/fetch/util.js:12:20)
+2026-07-26T06:41:24.9301696Z     at Module._compile (node:internal/modules/cjs/loader:1364:14)
+2026-07-26T06:41:24.9302584Z     at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+2026-07-26T06:41:24.9303145Z
+2026-07-26T06:41:24.9303366Z Node.js v18.20.8
+2026-07-26T06:41:24.9438393Z ##[error]Process completed with exit code 1.
+2026-07-26T06:41:24.9590440Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T06:41:24.9591718Z Post job cleanup.
+2026-07-26T06:41:25.0801547Z [command]/usr/bin/git version
+2026-07-26T06:41:25.0802252Z git version 2.54.0
+2026-07-26T06:41:25.0806769Z Temporarily overriding HOME='/home/runner/work/_temp/5c2faa5b-f502-412b-a81e-f6d974be371a' before making global git config changes
+2026-07-26T06:41:25.0807936Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T06:41:25.0808731Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T06:41:25.0810519Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T06:41:25.0934846Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T06:41:25.1261418Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T06:41:25.1318394Z http.https://github.com/.extraheader
+2026-07-26T06:41:25.1371808Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-26T06:41:25.1407151Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T06:41:25.1832828Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T06:41:25.1844593Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T06:41:25.2379574Z Cleaning up orphan processes
+2026-07-26T06:41:25.2705132Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
