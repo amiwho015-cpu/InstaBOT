@@ -1,14 +1,14 @@
 {
-  "deviceId": "android-c9f4a4d6093f80ad",
-  "phoneId": "53a121ec-cda2-42fd-af88-da685351862d",
-  "uuid": "5debeddd-d30b-47b1-9917-079d0a7cf440",
-  "advertisingId": "41ba3975-7fb2-4521-a8dd-3d1225fbe48b",
-  "sessionId": "35537476-5cd6-43ed-ad1b-8350fe1a0341",
-  "clientSessionId": "f682f593-80c5-4cec-88a4-947f99cb5627",
+  "deviceId": "android-65f99a54cb87d9df",
+  "phoneId": "250cc8be-d15d-42fc-916b-a485ba644c50",
+  "uuid": "cecab8dc-bfd5-4569-9d46-ac987f1a641a",
+  "advertisingId": "e1d42b7e-2fc6-4828-b9d2-da4249b168a5",
+  "sessionId": "1b55229b-936f-42d5-bd02-ad6111b837a9",
+  "clientSessionId": "fd386dce-97d3-4c2d-b2ea-1130636224b8",
   "username": null,
   "userId": null,
   "fullName": null,
-  "userAgent": "Instagram 350.0.0.0.0 Android (13/90252842; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)",
+  "userAgent": "Instagram 350.0.0.0.0 Android (13/53274657; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)",
   "cookies": [
     {
       "name": "ps_n",

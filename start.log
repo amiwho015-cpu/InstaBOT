@@ -1,0 +1,148 @@
+
+> goatbot-ig@1.0.0 start
+> node index.js
+
+[36m
+  ██╗███╗   ██╗███████╗████████╗ █████╗ ██████╗  ██████╗ ████████╗
+  ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝
+  ██║██╔██╗ ██║███████╗   ██║   ███████║██████╔╝██║   ██║   ██║
+  ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██╔══██╗██║   ██║   ██║
+  ██║██║ ╚████║███████║   ██║   ██║  ██║██████╔╝╚██████╔╝   ██║
+  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝    ╚═╝
+                              GoatBot-IG v1.0.0 by Gtajisan
+[0m
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Starting Instagram Bot...
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Created new database
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Auto-save enabled
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Dashboard running on port 3000 — visit http://localhost:3000/ to open
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loading 94 commands...
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: 4k][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: adduser
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: admin][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: ai][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: aiphoto
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: alldl][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: anigen][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: animate
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: anisearch
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: approve
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: art][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: autotalk
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: ban][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: bank][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: bby][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: blur][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: bot][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: busy][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: catbox][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: choose][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: claude][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: coinflip
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: couple][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: creart][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: daily][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: dalle3][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: dhbc][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: dice][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: dih][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: echo][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: economy
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: edit][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: eval][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: fbcover
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: filter][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: flux][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: flux2][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: flux3][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: fluxdev
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: gay][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: gcimg][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: gemini][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: genx][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: gpt][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: help][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: hgen][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: hubble][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: i][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: imagen3
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: imagen4
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: imggen][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: imgur][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: info][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: jail][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: kick][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: metaai][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: nano][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: nijix][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: pair][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: pfp][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: pfpframe
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: ping][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: prefix][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: quote][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: rank][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: remind][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: restart
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: rip][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: rps][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: rules][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: say][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: shell][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: ship][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: sing][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: slap][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: slot][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: screenshot
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: stats][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: texttoimage
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: thread][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: tiktok][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: time][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: translate
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: ttp][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: uid][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: unsend][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: unsendall
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m  Loaded: userinfo
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: veo][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: video][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: wanted][0m {}
+[90m2026-07-26 06:40:17[0m [32mINFO   [0m [35m[Loaded: warn][0m {}
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded: weather
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m [35m[Loaded: ytb][0m {}
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Successfully loaded 236 command triggers
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loading 7 events...
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: bot_added
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: error
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: gc_join
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: gc_leave
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: message
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: message_reaction
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded event: ready
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Successfully loaded 7 events
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loading cookies from account.txt...
+[NKXICA] Logging in with cookies...
+[NKXICA] Successfully logged in as goyim49
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Connected to Instagram
+[90m{
+  "userID": "29952506516"
+}[0m
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Session state saved cleanly
+[90m{
+  "file": "./account.txt"
+}[0m
+[90m2026-07-26 06:40:19[0m [36mSUCCESS[0m  GoatBot-IG started successfully
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  User: @29952506516 (29952506516)
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Loaded 93 commands and 7 events
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m [35m[Prefix: !][0m {}
+[90m2026-07-26 06:40:19[0m [36mSUCCESS[0m  Listening for messages...
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  ✅ GoatBot-IG online — 93 cmds | 7 events | prefix: "!"
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Starting message listener...
+[MQTT] Registering with Iris...
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Reminder scheduler started (checks every 30s)
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Auto-remove scheduler started (checks every 5s)
+[90m2026-07-26 06:40:19[0m [32mINFO   [0m  Session checker started (checks every 3m)
+[MQTT] Got seq_id from inbox: 59711
+[MQTT] Connecting to wss://edge-chat.instagram.com/chat?sid=1920068352660548&cid=cecab8dc-bfd5-4569-9d46-ac987f1a641a [cookie-auth]...
+[MQTT] Connected to Instagram MQTT via wss://edge-chat.instagram.com/chat?sid=1920068352660548&cid=cecab8dc-bfd5-4569-9d46-ac987f1a641a [cookie-auth]
+[NKXICA] Connected via Instagram MQTT
