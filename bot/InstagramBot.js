@@ -426,11 +426,16 @@ class InstagramBot {
 
   saveSession() {
     try {
-      if (!this.ig || typeof this.ig.getSession !== 'function') return;
-      const session = this.ig.getSession();
-      if (session) {
-        fs.writeFileSync(config.ACCOUNT_FILE, JSON.stringify(session, null, 2), 'utf-8');
-        logger.info('Session state saved', { file: config.ACCOUNT_FILE });
+      if (!this.ig) return;
+      let sessionData;
+      if (typeof this.ig.exportSession === 'function') {
+        sessionData = this.ig.exportSession('json');
+      } else if (typeof this.ig.getSession === 'function') {
+        sessionData = JSON.stringify(this.ig.getSession(), null, 2);
+      }
+      if (sessionData) {
+        fs.writeFileSync(config.ACCOUNT_FILE, sessionData, 'utf-8');
+        logger.info('Session state saved cleanly', { file: config.ACCOUNT_FILE });
       }
     } catch (e) {
       logger.error('Failed to save session', { error: e.message });
