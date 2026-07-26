@@ -93,7 +93,7 @@ module.exports = {
       ctx.fillText('In Loving Memory', 300, 520);
       ctx.fillText('Gone but never forgotten 🌹', 300, 560);
 
-      const buffer = canvas.toBuffer('image/png');
+      const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
 
       return message.reply({

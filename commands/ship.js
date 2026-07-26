@@ -134,7 +134,7 @@ module.exports = {
       ctx.fillStyle = '#E0E7FF';
       ctx.fillText(`${name1} 💕 ${name2}`, 400, 350);
 
-      const buffer = canvas.toBuffer('image/png');
+      const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
       api.setMessageReaction('💘', event.messageID, () => {}, true);
 
       return message.reply({

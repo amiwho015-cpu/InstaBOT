@@ -872,7 +872,7 @@ class InstagramBot {
                       if (!rawExt && item.mimeType) {
                           rawExt = utils.getExtFromMimeType(item.mimeType);
                       }
-                      if (!rawExt || rawExt === '.') rawExt = '.png';
+                      if (!rawExt || rawExt === '.' || rawExt === '') rawExt = '.jpg';
                       const ext = rawExt.startsWith('.') ? rawExt : `.${rawExt}`;
                       const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);
                       await fs.ensureDir(path.dirname(tempPath));
