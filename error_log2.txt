@@ -1,0 +1,516 @@
+﻿2026-07-26T06:49:02.1295169Z Current runner version: '2.336.0'
+2026-07-26T06:49:02.1332143Z ##[group]Runner Image Provisioner
+2026-07-26T06:49:02.1333860Z Hosted Compute Agent
+2026-07-26T06:49:02.1334765Z Version: 20260707.563
+2026-07-26T06:49:02.1335830Z Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+2026-07-26T06:49:02.1336992Z Build Date: 2026-07-07T19:33:50Z
+2026-07-26T06:49:02.1338089Z Worker ID: {9b95bfe3-5ab0-4f6a-a810-9c8a2b23389d}
+2026-07-26T06:49:02.1339359Z Azure Region: centralus
+2026-07-26T06:49:02.1340233Z ##[endgroup]
+2026-07-26T06:49:02.1342488Z ##[group]Operating System
+2026-07-26T06:49:02.1343895Z Ubuntu
+2026-07-26T06:49:02.1344760Z 24.04.4
+2026-07-26T06:49:02.1345633Z LTS
+2026-07-26T06:49:02.1346396Z ##[endgroup]
+2026-07-26T06:49:02.1347166Z ##[group]Runner Image
+2026-07-26T06:49:02.1348280Z Image: ubuntu-24.04
+2026-07-26T06:49:02.1349164Z Version: 20260720.247.2
+2026-07-26T06:49:02.1351715Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md
+2026-07-26T06:49:02.1354692Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260720.247
+2026-07-26T06:49:02.1356361Z ##[endgroup]
+2026-07-26T06:49:02.1358199Z ##[group]GITHUB_TOKEN Permissions
+2026-07-26T06:49:02.1361222Z Contents: read
+2026-07-26T06:49:02.1362109Z Metadata: read
+2026-07-26T06:49:02.1362968Z Packages: read
+2026-07-26T06:49:02.1364269Z ##[endgroup]
+2026-07-26T06:49:02.1367312Z Secret source: Actions
+2026-07-26T06:49:02.1369532Z Prepare workflow directory
+2026-07-26T06:49:02.2134685Z Prepare all required actions
+2026-07-26T06:49:02.2257999Z Getting action download info
+2026-07-26T06:49:02.5054378Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-07-26T06:49:02.9799729Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-07-26T06:49:03.1902865Z Complete job name: build (20.x)
+2026-07-26T06:49:03.2685362Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T06:49:03.2696370Z ##[group]Run actions/checkout@v4
+2026-07-26T06:49:03.2697365Z with:
+2026-07-26T06:49:03.2698014Z   repository: frnAlt/GoatBot-IG-Port
+2026-07-26T06:49:03.2702542Z   token: ***
+2026-07-26T06:49:03.2702982Z   ssh-strict: true
+2026-07-26T06:49:03.2703693Z   ssh-user: git
+2026-07-26T06:49:03.2704150Z   persist-credentials: true
+2026-07-26T06:49:03.2704632Z   clean: true
+2026-07-26T06:49:03.2705073Z   sparse-checkout-cone-mode: true
+2026-07-26T06:49:03.2705583Z   fetch-depth: 1
+2026-07-26T06:49:03.2706002Z   fetch-tags: false
+2026-07-26T06:49:03.2706450Z   show-progress: true
+2026-07-26T06:49:03.2706885Z   lfs: false
+2026-07-26T06:49:03.2707333Z   submodules: false
+2026-07-26T06:49:03.2707774Z   set-safe-directory: true
+2026-07-26T06:49:03.2708277Z   allow-unsafe-pr-checkout: false
+2026-07-26T06:49:03.2709092Z ##[endgroup]
+2026-07-26T06:49:03.3899475Z Syncing repository: frnAlt/GoatBot-IG-Port
+2026-07-26T06:49:03.3902373Z ##[group]Getting Git version info
+2026-07-26T06:49:03.3904113Z Working directory is '/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port'
+2026-07-26T06:49:03.3952207Z [command]/usr/bin/git version
+2026-07-26T06:49:03.4116167Z git version 2.54.0
+2026-07-26T06:49:03.4136160Z ##[endgroup]
+2026-07-26T06:49:03.4165261Z Temporarily overriding HOME='/home/runner/work/_temp/4db0d176-41b8-40c8-9158-c5032e07e671' before making global git config changes
+2026-07-26T06:49:03.4172030Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T06:49:03.4174209Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T06:49:03.4229983Z Deleting the contents of '/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port'
+2026-07-26T06:49:03.4232294Z ##[group]Initializing the repository
+2026-07-26T06:49:03.4239073Z [command]/usr/bin/git init /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T06:49:03.4366954Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-07-26T06:49:03.4387637Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-07-26T06:49:03.4393093Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-07-26T06:49:03.4434243Z hint: call:
+2026-07-26T06:49:03.4434989Z hint:
+2026-07-26T06:49:03.4453270Z hint: 	git config --global init.defaultBranch <name>
+2026-07-26T06:49:03.4454534Z hint:
+2026-07-26T06:49:03.4455486Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-07-26T06:49:03.4457052Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-07-26T06:49:03.4474119Z hint:
+2026-07-26T06:49:03.4485474Z hint: 	git branch -m <name>
+2026-07-26T06:49:03.4494312Z hint:
+2026-07-26T06:49:03.4498711Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-07-26T06:49:03.4500930Z Initialized empty Git repository in /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/.git/
+2026-07-26T06:49:03.4504680Z [command]/usr/bin/git remote add origin https://github.com/frnAlt/GoatBot-IG-Port
+2026-07-26T06:49:03.4507704Z ##[endgroup]
+2026-07-26T06:49:03.4510695Z ##[group]Disabling automatic garbage collection
+2026-07-26T06:49:03.4511889Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-26T06:49:03.4514888Z ##[endgroup]
+2026-07-26T06:49:03.4516040Z ##[group]Setting up auth
+2026-07-26T06:49:03.4517304Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T06:49:03.4596106Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T06:49:03.5317433Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T06:49:03.5321480Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T06:49:03.5506136Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T06:49:03.5547319Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T06:49:03.5806119Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-26T06:49:03.5851894Z ##[endgroup]
+2026-07-26T06:49:03.5853852Z ##[group]Fetching the repository
+2026-07-26T06:49:03.5864174Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a8eb47ac776aeb0b731f625783ff923c9c49b8b4:refs/remotes/origin/main
+2026-07-26T06:49:04.3617108Z From https://github.com/frnAlt/GoatBot-IG-Port
+2026-07-26T06:49:04.3664761Z  * [new ref]         a8eb47ac776aeb0b731f625783ff923c9c49b8b4 -> origin/main
+2026-07-26T06:49:04.3713910Z ##[endgroup]
+2026-07-26T06:49:04.3715177Z ##[group]Determining the checkout info
+2026-07-26T06:49:04.3716496Z ##[endgroup]
+2026-07-26T06:49:04.3717057Z [command]/usr/bin/git sparse-checkout disable
+2026-07-26T06:49:04.3785606Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-26T06:49:04.3805939Z ##[group]Checking out the ref
+2026-07-26T06:49:04.3810650Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-26T06:49:04.4349158Z Switched to a new branch 'main'
+2026-07-26T06:49:04.4364813Z branch 'main' set up to track 'origin/main'.
+2026-07-26T06:49:04.4369252Z ##[endgroup]
+2026-07-26T06:49:04.4427796Z [command]/usr/bin/git log -1 --format=%H
+2026-07-26T06:49:04.4474703Z a8eb47ac776aeb0b731f625783ff923c9c49b8b4
+2026-07-26T06:49:04.4967175Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T06:49:04.4973629Z ##[group]Run actions/setup-node@v4
+2026-07-26T06:49:04.4974726Z with:
+2026-07-26T06:49:04.4975533Z   node-version: 20.x
+2026-07-26T06:49:04.4976439Z   cache: npm
+2026-07-26T06:49:04.4977284Z   always-auth: false
+2026-07-26T06:49:04.4978207Z   check-latest: false
+2026-07-26T06:49:04.4986983Z   token: ***
+2026-07-26T06:49:04.4987871Z ##[endgroup]
+2026-07-26T06:49:04.6637003Z Attempting to download 20.x...
+2026-07-26T06:49:04.6749491Z (node:2022) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-26T06:49:04.6753127Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-26T06:49:05.3732081Z Acquiring 20.20.2 - x64 from https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz
+2026-07-26T06:49:06.0070610Z Extracting ...
+2026-07-26T06:49:06.0238760Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/8bde3f5d-642a-439d-92b6-0711da87ac32 -f /home/runner/work/_temp/99582c80-a683-4906-ae02-271cadf73fa6
+2026-07-26T06:49:07.2835185Z Adding to the cache ...
+2026-07-26T06:49:11.1854915Z ##[group]Environment details
+2026-07-26T06:49:11.4573608Z node: v20.20.2
+2026-07-26T06:49:11.4574296Z npm: 10.8.2
+2026-07-26T06:49:11.4574615Z yarn: 1.22.22
+2026-07-26T06:49:11.4575375Z ##[endgroup]
+2026-07-26T06:49:11.4616255Z [command]/opt/hostedtoolcache/node/20.20.2/x64/bin/npm config get cache
+2026-07-26T06:49:11.5746677Z /home/runner/.npm
+2026-07-26T06:49:11.7314150Z npm cache is not found
+2026-07-26T06:49:11.7507764Z ##[group]Run npm install
+2026-07-26T06:49:11.7508095Z [36;1mnpm install[0m
+2026-07-26T06:49:11.7563708Z shell: /usr/bin/bash -e {0}
+2026-07-26T06:49:11.7564108Z ##[endgroup]
+2026-07-26T06:49:13.9763905Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+2026-07-26T06:49:14.0835721Z npm warn deprecated tinyurl@1.1.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-07-26T06:49:14.3885347Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-07-26T06:49:14.5216508Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+2026-07-26T06:49:14.6354178Z npm warn deprecated npmlog@6.0.2: This package is no longer supported.
+2026-07-26T06:49:15.1207225Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-07-26T06:49:15.2688915Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:49:15.5206230Z npm warn deprecated dottie@2.0.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-07-26T06:49:15.5266267Z npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:49:15.6775108Z npm warn deprecated gauge@4.0.4: This package is no longer supported.
+2026-07-26T06:49:15.6844543Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+2026-07-26T06:49:15.7679681Z npm warn deprecated are-we-there-yet@3.0.1: This package is no longer supported.
+2026-07-26T06:49:15.9075394Z npm warn deprecated @npmcli/move-file@1.1.2: This functionality has been moved to @npmcli/fs
+2026-07-26T06:49:16.2382830Z npm notice This endpoint is being retired. Use the bulk advisory endpoint instead. See the following docs for more info: https://api-docs.npmjs.com/#tag/Audit
+2026-07-26T06:49:16.9264496Z npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+2026-07-26T06:49:16.9454420Z npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+2026-07-26T06:49:17.1126048Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-07-26T06:49:21.2091887Z
+2026-07-26T06:49:21.2134532Z added 459 packages in 9s
+2026-07-26T06:49:21.2134936Z
+2026-07-26T06:49:21.2135208Z 91 packages are looking for funding
+2026-07-26T06:49:21.2135682Z   run `npm fund` for details
+2026-07-26T06:49:21.2492880Z ##[group]Run npm start
+2026-07-26T06:49:21.2493265Z [36;1mnpm start[0m
+2026-07-26T06:49:21.2559764Z shell: /usr/bin/bash -e {0}
+2026-07-26T06:49:21.2560149Z env:
+2026-07-26T06:49:21.2560436Z   PORT: 80
+2026-07-26T06:49:21.2560726Z ##[endgroup]
+2026-07-26T06:49:21.4347391Z
+2026-07-26T06:49:21.4364538Z > goatbot-ig@1.0.0 start
+2026-07-26T06:49:21.4595116Z > node index.js
+2026-07-26T06:49:21.4595398Z
+2026-07-26T06:49:23.3654648Z [36m
+2026-07-26T06:49:23.3684542Z   ██╗███╗   ██╗███████╗████████╗ █████╗ ██████╗  ██████╗ ████████╗
+2026-07-26T06:49:23.3685619Z   ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝
+2026-07-26T06:49:23.3696137Z   ██║██╔██╗ ██║███████╗   ██║   ███████║██████╔╝██║   ██║   ██║
+2026-07-26T06:49:23.3714608Z   ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██╔══██╗██║   ██║   ██║
+2026-07-26T06:49:23.3724816Z   ██║██║ ╚████║███████║   ██║   ██║  ██║██████╔╝╚██████╔╝   ██║
+2026-07-26T06:49:23.3764740Z   ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝    ╚═╝
+2026-07-26T06:49:23.3774331Z                               GoatBot-IG v1.0.0 by Gtajisan
+2026-07-26T06:49:23.3794057Z [0m
+2026-07-26T06:49:23.3824814Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Starting Instagram Bot...
+2026-07-26T06:49:23.3844542Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Created new database
+2026-07-26T06:49:23.3874517Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Auto-save enabled
+2026-07-26T06:49:23.3894380Z [90m2026-07-26 06:49:23[0m [31mERROR  [0m  Dashboard server error
+2026-07-26T06:49:23.3895007Z [90m{
+2026-07-26T06:49:23.3914316Z   "error": "listen EACCES: permission denied 0.0.0.0:80"
+2026-07-26T06:49:23.3934033Z }[0m
+2026-07-26T06:49:23.3954274Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loading 94 commands...
+2026-07-26T06:49:23.3955234Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: 4k][0m {}
+2026-07-26T06:49:23.3972247Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: adduser
+2026-07-26T06:49:23.3973202Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: admin][0m {}
+2026-07-26T06:49:23.3994431Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ai][0m {}
+2026-07-26T06:49:23.4021252Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: aiphoto
+2026-07-26T06:49:23.4025729Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: alldl][0m {}
+2026-07-26T06:49:23.4054433Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: anigen][0m {}
+2026-07-26T06:49:23.4073884Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: animate
+2026-07-26T06:49:23.4094391Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: anisearch
+2026-07-26T06:49:23.4114332Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: approve
+2026-07-26T06:49:23.4115504Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: art][0m {}
+2026-07-26T06:49:23.4133126Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: autotalk
+2026-07-26T06:49:23.4154362Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ban][0m {}
+2026-07-26T06:49:23.4174390Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: bank][0m {}
+2026-07-26T06:49:23.4184574Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: bby][0m {}
+2026-07-26T06:49:23.4194366Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: blur][0m {}
+2026-07-26T06:49:23.4214331Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: bot][0m {}
+2026-07-26T06:49:23.4224713Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: busy][0m {}
+2026-07-26T06:49:23.4244424Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: catbox][0m {}
+2026-07-26T06:49:23.4254302Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: choose][0m {}
+2026-07-26T06:49:23.4294320Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: claude][0m {}
+2026-07-26T06:49:23.4304433Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: coinflip
+2026-07-26T06:49:23.4324413Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: couple][0m {}
+2026-07-26T06:49:23.4335037Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: creart][0m {}
+2026-07-26T06:49:23.4354348Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: daily][0m {}
+2026-07-26T06:49:23.4374366Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: dalle3][0m {}
+2026-07-26T06:49:23.4405109Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: dhbc][0m {}
+2026-07-26T06:49:23.4414340Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: dice][0m {}
+2026-07-26T06:49:23.4434265Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: dih][0m {}
+2026-07-26T06:49:23.4444550Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: echo][0m {}
+2026-07-26T06:49:23.4464369Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: economy
+2026-07-26T06:49:23.5950515Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: edit][0m {}
+2026-07-26T06:49:23.5964707Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: eval][0m {}
+2026-07-26T06:49:23.5984610Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: fbcover
+2026-07-26T06:49:23.6004404Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: filter][0m {}
+2026-07-26T06:49:23.6005726Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: flux][0m {}
+2026-07-26T06:49:23.6024511Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: flux2][0m {}
+2026-07-26T06:49:23.6044469Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: flux3][0m {}
+2026-07-26T06:49:23.6054300Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: fluxdev
+2026-07-26T06:49:23.6073808Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: gay][0m {}
+2026-07-26T06:49:23.6094506Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: gcimg][0m {}
+2026-07-26T06:49:23.6114449Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: gemini][0m {}
+2026-07-26T06:49:23.6134432Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: genx][0m {}
+2026-07-26T06:49:23.6135826Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: gpt][0m {}
+2026-07-26T06:49:23.6154524Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: help][0m {}
+2026-07-26T06:49:23.6174509Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: hgen][0m {}
+2026-07-26T06:49:23.6175486Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: hubble][0m {}
+2026-07-26T06:49:23.6176397Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: i][0m {}
+2026-07-26T06:49:23.6177246Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: imagen3
+2026-07-26T06:49:23.6178083Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: imagen4
+2026-07-26T06:49:23.6179342Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: imggen][0m {}
+2026-07-26T06:49:23.6180265Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: imgur][0m {}
+2026-07-26T06:49:23.6181158Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: info][0m {}
+2026-07-26T06:49:23.6182060Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: jail][0m {}
+2026-07-26T06:49:23.6182953Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: kick][0m {}
+2026-07-26T06:49:23.6184044Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: metaai][0m {}
+2026-07-26T06:49:23.6184873Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: nano][0m {}
+2026-07-26T06:49:23.6185734Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: nijix][0m {}
+2026-07-26T06:49:23.6186611Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: pair][0m {}
+2026-07-26T06:49:23.6187519Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: pfp][0m {}
+2026-07-26T06:49:23.6188369Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: pfpframe
+2026-07-26T06:49:23.6189217Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ping][0m {}
+2026-07-26T06:49:23.6190105Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: prefix][0m {}
+2026-07-26T06:49:23.6191229Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: quote][0m {}
+2026-07-26T06:49:23.6192084Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: rank][0m {}
+2026-07-26T06:49:23.6192964Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: remind][0m {}
+2026-07-26T06:49:23.6214337Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: restart
+2026-07-26T06:49:23.6215221Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: rip][0m {}
+2026-07-26T06:49:23.6216059Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: rps][0m {}
+2026-07-26T06:49:23.6216870Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: rules][0m {}
+2026-07-26T06:49:23.6217728Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: say][0m {}
+2026-07-26T06:49:23.6218588Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: shell][0m {}
+2026-07-26T06:49:23.6219452Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ship][0m {}
+2026-07-26T06:49:23.7354479Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: sing][0m {}
+2026-07-26T06:49:23.7384869Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: slap][0m {}
+2026-07-26T06:49:23.7404401Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: slot][0m {}
+2026-07-26T06:49:23.7424573Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: screenshot
+2026-07-26T06:49:23.7444440Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: stats][0m {}
+2026-07-26T06:49:23.7445408Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: texttoimage
+2026-07-26T06:49:23.7455466Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: thread][0m {}
+2026-07-26T06:49:23.7456626Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: tiktok][0m {}
+2026-07-26T06:49:23.7458890Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: time][0m {}
+2026-07-26T06:49:23.7460051Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: translate
+2026-07-26T06:49:23.7463197Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ttp][0m {}
+2026-07-26T06:49:23.7464599Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: uid][0m {}
+2026-07-26T06:49:23.7467006Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: unsend][0m {}
+2026-07-26T06:49:23.7468062Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: unsendall
+2026-07-26T06:49:23.7469436Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: userinfo
+2026-07-26T06:49:23.7470443Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: veo][0m {}
+2026-07-26T06:49:23.7472145Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: video][0m {}
+2026-07-26T06:49:23.7473736Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: wanted][0m {}
+2026-07-26T06:49:23.7476101Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: warn][0m {}
+2026-07-26T06:49:23.7601272Z Unable to revert mtime: /usr/share/fonts
+2026-07-26T06:49:23.7622350Z Unable to revert mtime: /usr/share/fonts/truetype
+2026-07-26T06:49:23.7635606Z Unable to revert mtime: /usr/share/fonts/truetype/dejavu
+2026-07-26T06:49:23.7889143Z Unable to revert mtime: /usr/share/fonts/truetype/lato
+2026-07-26T06:49:23.8310029Z Unable to revert mtime: /usr/share/fonts/truetype/liberation
+2026-07-26T06:49:23.8894683Z Unable to revert mtime: /usr/share/fonts/truetype/noto
+2026-07-26T06:49:23.8913330Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded: weather
+2026-07-26T06:49:23.8921696Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m [35m[Loaded: ytb][0m {}
+2026-07-26T06:49:23.8923111Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Successfully loaded 236 command triggers
+2026-07-26T06:49:23.8926331Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loading 7 events...
+2026-07-26T06:49:23.8931036Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: bot_added
+2026-07-26T06:49:23.8944169Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: error
+2026-07-26T06:49:23.8945418Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: gc_join
+2026-07-26T06:49:23.8946983Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: gc_leave
+2026-07-26T06:49:23.8960243Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: message
+2026-07-26T06:49:23.8964992Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: message_reaction
+2026-07-26T06:49:23.8968780Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loaded event: ready
+2026-07-26T06:49:23.8970115Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Successfully loaded 7 events
+2026-07-26T06:49:23.8975908Z [90m2026-07-26 06:49:23[0m [32mINFO   [0m  Loading cookies from account.txt...
+2026-07-26T06:49:23.9010716Z [NKXICA] Logging in with cookies...
+2026-07-26T06:49:24.2624718Z [NKXICA] Successfully logged in as goyim49
+2026-07-26T06:49:24.2640300Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Connected to Instagram
+2026-07-26T06:49:24.2641181Z [90m{
+2026-07-26T06:49:24.2641685Z   "userID": "29952506516"
+2026-07-26T06:49:24.2642187Z }[0m
+2026-07-26T06:49:24.2649003Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Session state saved cleanly
+2026-07-26T06:49:24.2649800Z [90m{
+2026-07-26T06:49:24.2650217Z   "file": "./account.txt"
+2026-07-26T06:49:24.2650703Z }[0m
+2026-07-26T06:49:24.2654730Z [90m2026-07-26 06:49:24[0m [36mSUCCESS[0m  GoatBot-IG started successfully
+2026-07-26T06:49:24.2656013Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  User: @29952506516 (29952506516)
+2026-07-26T06:49:24.2657211Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Loaded 93 commands and 7 events
+2026-07-26T06:49:24.2658327Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m [35m[Prefix: !][0m {}
+2026-07-26T06:49:24.2659370Z [90m2026-07-26 06:49:24[0m [36mSUCCESS[0m  Listening for messages...
+2026-07-26T06:49:24.2660778Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  ✅ GoatBot-IG online — 93 cmds | 7 events | prefix: "!"
+2026-07-26T06:49:24.2665375Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Starting message listener...
+2026-07-26T06:49:24.2668205Z [MQTT] Registering with Iris...
+2026-07-26T06:49:24.2675599Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Reminder scheduler started (checks every 30s)
+2026-07-26T06:49:24.2677726Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Auto-remove scheduler started (checks every 5s)
+2026-07-26T06:49:24.2679722Z [90m2026-07-26 06:49:24[0m [32mINFO   [0m  Session checker started (checks every 3m)
+2026-07-26T06:49:26.9216888Z [MQTT] Got seq_id from inbox: 59711
+2026-07-26T06:49:26.9439714Z [MQTT] Connecting to wss://edge-chat.instagram.com/chat?sid=1627451304794172&cid=753938b1-e57e-45b9-a265-1d809f86e767 [cookie-auth]...
+2026-07-26T06:49:27.2041868Z [MQTT] Connected to Instagram MQTT via wss://edge-chat.instagram.com/chat?sid=1627451304794172&cid=753938b1-e57e-45b9-a265-1d809f86e767 [cookie-auth]
+2026-07-26T06:49:27.2066977Z [NKXICA] Connected via Instagram MQTT
+2026-07-26T06:53:54.4245543Z [90m2026-07-26 06:53:54[0m [32mINFO   [0m  📩 Message from 49212864825: "!help"
+2026-07-26T06:53:54.4247355Z [90m2026-07-26 06:53:54[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !help
+2026-07-26T06:53:54.4295315Z [90m2026-07-26 06:53:54[0m [36mSUCCESS[0m [35m[COMMAND][0m help executed by 49212864825
+2026-07-26T06:53:54.4296828Z [90m2026-07-26 06:53:54[0m [32mINFO   [0m  Executing command: help for 49212864825
+2026-07-26T06:54:10.4438401Z [90m2026-07-26 06:54:10[0m [32mINFO   [0m  📩 Message from 49212864825: "!bby ji"
+2026-07-26T06:54:10.4440198Z [90m2026-07-26 06:54:10[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !bby ji
+2026-07-26T06:54:10.4448992Z [90m2026-07-26 06:54:10[0m [36mSUCCESS[0m [35m[COMMAND][0m bby executed by 49212864825
+2026-07-26T06:54:10.4450371Z [90m2026-07-26 06:54:10[0m [32mINFO   [0m  Executing command: bby for 49212864825
+2026-07-26T06:54:18.8883877Z [90m2026-07-26 06:54:18[0m [32mINFO   [0m  📩 Message from 49212864825: "Why"
+2026-07-26T06:54:18.8885599Z [90m2026-07-26 06:54:18[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Why
+2026-07-26T06:54:37.4302075Z [90m2026-07-26 06:54:37[0m [32mINFO   [0m  📩 Message from 49212864825: "Keno"
+2026-07-26T06:54:37.4304061Z [90m2026-07-26 06:54:37[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Keno
+2026-07-26T06:55:15.7475163Z [90m2026-07-26 06:55:15[0m [32mINFO   [0m  📩 Message from 49212864825: "Hmm"
+2026-07-26T06:55:15.7496510Z [90m2026-07-26 06:55:15[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Hmm
+2026-07-26T06:58:35.0656743Z [90m2026-07-26 06:58:35[0m [32mINFO   [0m  📩 Message from 49212864825: "!pfp"
+2026-07-26T06:58:35.0659187Z [90m2026-07-26 06:58:35[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !pfp
+2026-07-26T06:58:35.0668493Z [90m2026-07-26 06:58:35[0m [36mSUCCESS[0m [35m[COMMAND][0m pfp executed by 49212864825
+2026-07-26T06:58:35.0669925Z [90m2026-07-26 06:58:35[0m [32mINFO   [0m  Executing command: pfp for 49212864825
+2026-07-26T06:58:50.5662070Z [NKXICA] Server error 500, retry 1/3 after 2000ms
+2026-07-26T06:58:53.5982514Z [NKXICA] Server error 500, retry 2/3 after 4000ms
+2026-07-26T06:58:58.1272802Z [NKXICA] Server error 500, retry 3/3 after 8000ms
+2026-07-26T06:59:06.6007031Z [90m2026-07-26 06:59:06[0m [31mERROR  [0m  Failed to send message
+2026-07-26T06:59:06.6008084Z [90m{
+2026-07-26T06:59:06.6008671Z   "error": "Instagram API Error: None",
+2026-07-26T06:59:06.6009423Z   "threadID": "340282366841710301244259858732076457584"
+2026-07-26T06:59:06.6010216Z }[0m
+2026-07-26T06:59:06.6011292Z [90m2026-07-26 06:59:06[0m [31mERROR  [0m  Failed to send profile picture buffer
+2026-07-26T06:59:06.6012191Z [90m{
+2026-07-26T06:59:06.6012719Z   "error": "Instagram API Error: None"
+2026-07-26T06:59:06.6013299Z }[0m
+2026-07-26T06:59:09.7080450Z [NKXICA] Server error 500, retry 1/3 after 2000ms
+2026-07-26T06:59:12.3409143Z [NKXICA] Server error 500, retry 2/3 after 4000ms
+2026-07-26T06:59:16.9081016Z [NKXICA] Server error 500, retry 3/3 after 8000ms
+2026-07-26T06:59:25.4953627Z [90m2026-07-26 06:59:25[0m [31mERROR  [0m  Failed to send photo from url
+2026-07-26T06:59:25.4954660Z [90m{
+2026-07-26T06:59:25.4980357Z   "error": "Instagram API Error: None",
+2026-07-26T06:59:25.4981016Z   "threadID": "340282366841710301244259858732076457584"
+2026-07-26T06:59:25.4981640Z }[0m
+2026-07-26T06:59:49.2475431Z [90m2026-07-26 06:59:49[0m [32mINFO   [0m  📩 Message from 49212864825: "!rank"
+2026-07-26T06:59:49.2505112Z [90m2026-07-26 06:59:49[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !rank
+2026-07-26T06:59:49.2507070Z [90m2026-07-26 06:59:49[0m [36mSUCCESS[0m [35m[COMMAND][0m rank executed by 49212864825
+2026-07-26T06:59:49.2508321Z [90m2026-07-26 06:59:49[0m [32mINFO   [0m  Executing command: rank for 49212864825
+2026-07-26T07:00:02.9858032Z [NKXICA] Server error 500, retry 1/3 after 2000ms
+2026-07-26T07:00:06.0224966Z [NKXICA] Server error 500, retry 2/3 after 4000ms
+2026-07-26T07:00:10.3921130Z [NKXICA] Server error 500, retry 3/3 after 8000ms
+2026-07-26T07:00:18.7430957Z [90m2026-07-26 07:00:18[0m [31mERROR  [0m  Failed to send message
+2026-07-26T07:00:18.7431618Z [90m{
+2026-07-26T07:00:18.7432593Z   "error": "Instagram API Error: None",
+2026-07-26T07:00:18.7433246Z   "threadID": "340282366841710301244259858732076457584"
+2026-07-26T07:00:18.7434052Z }[0m
+2026-07-26T07:00:18.7446350Z Error: Instagram API Error: None
+2026-07-26T07:00:18.7447489Z     at HttpClient.handleError (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/lib/ica/src/utils/http.js:349:16)
+2026-07-26T07:00:18.7449112Z     at HttpClient.request (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/lib/ica/src/utils/http.js:285:18)
+2026-07-26T07:00:18.7450459Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-26T07:00:18.7451851Z     at async SendMedia.photo (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/lib/ica/src/methods/sendMedia.js:200:24)
+2026-07-26T07:00:18.7453918Z     at async Object.sendMessage (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/bot/InstagramBot.js:904:36)
+2026-07-26T07:00:18.7455462Z     at async Proxy.<anonymous> (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/events/message.js:278:36)
+2026-07-26T07:00:18.7456783Z     at async Object.onStart (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/commands/rank.js:100:7)
+2026-07-26T07:00:18.7458110Z     at async Object.executeCommand (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/events/message.js:378:15)
+2026-07-26T07:00:18.7459379Z     at async Object.run (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/events/message.js:267:7)
+2026-07-26T07:00:18.7460296Z     at async EventLoader.handleEvent (/home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port/utils/eventLoader.js:59:11)
+2026-07-26T07:00:36.2117121Z [90m2026-07-26 07:00:36[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: (no text)
+2026-07-26T07:00:44.5285492Z [90m2026-07-26 07:00:44[0m [32mINFO   [0m  📩 Message from 49212864825: "!edit make 4k"
+2026-07-26T07:00:44.5287756Z [90m2026-07-26 07:00:44[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !edit make 4k
+2026-07-26T07:00:44.5295698Z [90m2026-07-26 07:00:44[0m [36mSUCCESS[0m [35m[COMMAND][0m edit executed by 49212864825
+2026-07-26T07:00:44.5297260Z [90m2026-07-26 07:00:44[0m [32mINFO   [0m  Executing command: edit for 49212864825
+2026-07-26T07:00:45.2456848Z [90m2026-07-26 07:00:45[0m [31mERROR  [0m  Failed to download attachment from URL
+2026-07-26T07:00:45.2457725Z [90m{
+2026-07-26T07:00:45.2458783Z   "url": "https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049244530",
+2026-07-26T07:00:45.2459801Z   "error": "Request failed with status code 500"
+2026-07-26T07:00:45.2460454Z }[0m
+2026-07-26T07:00:45.2470991Z [90m2026-07-26 07:00:45[0m [31mERROR  [0m  Failed to send message
+2026-07-26T07:00:45.2471837Z [90m{
+2026-07-26T07:00:45.2473903Z   "error": "Cannot stat media file https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049244530: ENOENT: no such file or directory, stat 'https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049244530'",
+2026-07-26T07:00:45.2475739Z   "threadID": "340282366841710301244259858732076457584"
+2026-07-26T07:00:45.2476467Z }[0m
+2026-07-26T07:00:45.2477266Z [90m2026-07-26 07:00:45[0m [31mERROR  [0m  Command error: edit
+2026-07-26T07:00:45.2477982Z [90m{
+2026-07-26T07:00:45.2479615Z   "error": "Cannot stat media file https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049244530: ENOENT: no such file or directory, stat 'https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049244530'"
+2026-07-26T07:00:45.2481744Z }[0m
+2026-07-26T07:00:45.2482743Z [90m2026-07-26 07:00:45[0m [31mERROR  [0m [35m[COMMAND][0m edit executed by 49212864825
+2026-07-26T07:00:59.6593344Z [90m2026-07-26 07:00:59[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:00:59.6594175Z [90m{
+2026-07-26T07:00:59.6594675Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:00:59.6595271Z   "messageID": "32928346615281657740256265229041664"
+2026-07-26T07:00:59.6595722Z }[0m
+2026-07-26T07:01:09.1946164Z [90m2026-07-26 07:01:09[0m [32mINFO   [0m  📩 Message from 49212864825: "!jail"
+2026-07-26T07:01:09.1947924Z [90m2026-07-26 07:01:09[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !jail
+2026-07-26T07:01:09.1963825Z [90m2026-07-26 07:01:09[0m [36mSUCCESS[0m [35m[COMMAND][0m jail executed by 49212864825
+2026-07-26T07:01:09.1975002Z [90m2026-07-26 07:01:09[0m [32mINFO   [0m  Executing command: jail for 49212864825
+2026-07-26T07:01:12.7175427Z [NKXICA] Server error 500, retry 1/3 after 2000ms
+2026-07-26T07:01:15.6227617Z [NKXICA] Server error 500, retry 2/3 after 4000ms
+2026-07-26T07:01:20.2234174Z [NKXICA] Server error 500, retry 3/3 after 8000ms
+2026-07-26T07:01:28.8378579Z [90m2026-07-26 07:01:28[0m [31mERROR  [0m  Failed to send message
+2026-07-26T07:01:28.8379589Z [90m{
+2026-07-26T07:01:28.8380868Z   "error": "Instagram API Error: None",
+2026-07-26T07:01:28.8381627Z   "threadID": "340282366841710301244259858732076457584"
+2026-07-26T07:01:28.8382304Z }[0m
+2026-07-26T07:01:28.8382732Z Jail error: Instagram API Error: None
+2026-07-26T07:01:44.7652388Z [90m2026-07-26 07:01:44[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:01:44.7653309Z [90m{
+2026-07-26T07:01:44.7654726Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:01:44.7655501Z   "messageID": "32928347415290698500222630123012096"
+2026-07-26T07:01:44.7656224Z }[0m
+2026-07-26T07:01:51.2942535Z [90m2026-07-26 07:01:51[0m [32mINFO   [0m  📩 Message from 49212864825: "!gay"
+2026-07-26T07:01:51.2944474Z [90m2026-07-26 07:01:51[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !gay
+2026-07-26T07:01:51.2952434Z [90m2026-07-26 07:01:51[0m [36mSUCCESS[0m [35m[COMMAND][0m gay executed by 49212864825
+2026-07-26T07:01:51.2953929Z [90m2026-07-26 07:01:51[0m [32mINFO   [0m  Executing command: gay for 49212864825
+2026-07-26T07:02:17.1536527Z [90m2026-07-26 07:02:17[0m [32mINFO   [0m  📩 Message from 49212864825: "!gay"
+2026-07-26T07:02:17.1538205Z [90m2026-07-26 07:02:17[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !gay
+2026-07-26T07:02:17.1555039Z [90m2026-07-26 07:02:17[0m [36mSUCCESS[0m [35m[COMMAND][0m gay executed by 49212864825
+2026-07-26T07:02:17.1563621Z [90m2026-07-26 07:02:17[0m [32mINFO   [0m  Executing command: gay for 49212864825
+2026-07-26T07:02:48.3989314Z [90m2026-07-26 07:02:48[0m [32mINFO   [0m  📩 Message from 49212864825: "!u all"
+2026-07-26T07:02:48.3991037Z [90m2026-07-26 07:02:48[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !u all
+2026-07-26T07:02:48.3999359Z [90m2026-07-26 07:02:48[0m [36mSUCCESS[0m [35m[COMMAND][0m unsend executed by 49212864825
+2026-07-26T07:02:48.4000850Z [90m2026-07-26 07:02:48[0m [32mINFO   [0m  Executing command: unsend for 49212864825
+2026-07-26T07:02:50.0795140Z [90m2026-07-26 07:02:50[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:50.0796166Z [90m{
+2026-07-26T07:02:50.0796924Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:50.0797738Z   "messageID": "32928348324229607689851268264624128"
+2026-07-26T07:02:50.0798429Z }[0m
+2026-07-26T07:02:51.5621503Z [90m2026-07-26 07:02:51[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:51.5622550Z [90m{
+2026-07-26T07:02:51.5624060Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:51.5624906Z   "messageID": "32928347844579803255473236806205440"
+2026-07-26T07:02:51.5625615Z }[0m
+2026-07-26T07:02:53.0758061Z [90m2026-07-26 07:02:53[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:53.0758970Z [90m{
+2026-07-26T07:02:53.0760486Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:53.0761360Z   "messageID": "32928347415290698500222630123012096"
+2026-07-26T07:02:53.0762060Z }[0m
+2026-07-26T07:02:54.5724272Z [90m2026-07-26 07:02:54[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:54.5725021Z [90m{
+2026-07-26T07:02:54.5726150Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:54.5726974Z   "messageID": "32928346615281657740256265229041664"
+2026-07-26T07:02:54.5727580Z }[0m
+2026-07-26T07:02:56.0859184Z [90m2026-07-26 07:02:56[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:56.0859998Z [90m{
+2026-07-26T07:02:56.0860808Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:56.0861558Z   "messageID": "32928346126882968420087415049289728"
+2026-07-26T07:02:56.0862185Z }[0m
+2026-07-26T07:02:57.6224220Z [90m2026-07-26 07:02:57[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:57.6225072Z [90m{
+2026-07-26T07:02:57.6226839Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:57.6227683Z   "messageID": "32928345143043102507753324331139072"
+2026-07-26T07:02:57.6228350Z }[0m
+2026-07-26T07:02:59.0772896Z [90m2026-07-26 07:02:59[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:02:59.0773962Z [90m{
+2026-07-26T07:02:59.0775369Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:02:59.0776158Z   "messageID": "32928344221097264944543565378224128"
+2026-07-26T07:02:59.0776873Z }[0m
+2026-07-26T07:03:00.5873207Z [90m2026-07-26 07:03:00[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:03:00.5874154Z [90m{
+2026-07-26T07:03:00.5874614Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:03:00.5875151Z   "messageID": "32928340701555027492498839129030656"
+2026-07-26T07:03:00.5875582Z }[0m
+2026-07-26T07:03:02.0783241Z [90m2026-07-26 07:03:02[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:03:02.0784410Z [90m{
+2026-07-26T07:03:02.0785190Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:03:02.0785982Z   "messageID": "32928340001429258273798330307837952"
+2026-07-26T07:03:02.0786577Z }[0m
+2026-07-26T07:03:03.5864180Z [90m2026-07-26 07:03:03[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:03:03.5864895Z [90m{
+2026-07-26T07:03:03.5865667Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:03:03.5866428Z   "messageID": "32928339662602635967881964268027904"
+2026-07-26T07:03:03.5867050Z }[0m
+2026-07-26T07:03:05.0787968Z [90m2026-07-26 07:03:05[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:03:05.0788664Z [90m{
+2026-07-26T07:03:05.0789519Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:03:05.0790702Z   "messageID": "32928339366630511816571721936273408"
+2026-07-26T07:03:05.0791359Z }[0m
+2026-07-26T07:03:06.5909297Z [90m2026-07-26 07:03:06[0m [31mERROR  [0m  Failed to unsend message
+2026-07-26T07:03:06.5910009Z [90m{
+2026-07-26T07:03:06.5910892Z   "error": "Failed to unsend message: HTTP Error 404: Not Found",
+2026-07-26T07:03:06.5911837Z   "messageID": "32928339049654094759452467204718592"
+2026-07-26T07:03:06.5912584Z }[0m
+2026-07-26T07:03:44.6247633Z ##[error]The operation was canceled.
+2026-07-26T07:03:44.6385944Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T07:03:44.6387299Z Post job cleanup.
+2026-07-26T07:03:44.9487610Z [command]/usr/bin/git version
+2026-07-26T07:03:44.9488071Z git version 2.54.0
+2026-07-26T07:03:44.9491572Z Temporarily overriding HOME='/home/runner/work/_temp/616d3615-d8a2-434b-a4cf-750f30ca4842' before making global git config changes
+2026-07-26T07:03:44.9493226Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T07:03:44.9494654Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GoatBot-IG-Port/GoatBot-IG-Port
+2026-07-26T07:03:44.9496234Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T07:03:44.9498425Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T07:03:44.9500525Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T07:03:44.9501434Z http.https://github.com/.extraheader
+2026-07-26T07:03:44.9502699Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-26T07:03:44.9524699Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T07:03:44.9526546Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T07:03:44.9527617Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T07:03:44.9583982Z Cleaning up orphan processes
+2026-07-26T07:03:44.9791432Z Terminate orphan process: pid (2110) (npm start)
+2026-07-26T07:03:44.9841975Z Terminate orphan process: pid (2121) (sh)
+2026-07-26T07:03:44.9867649Z Terminate orphan process: pid (2122) (node)
+2026-07-26T07:03:44.9972641Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

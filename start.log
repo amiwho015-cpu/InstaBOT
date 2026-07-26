@@ -146,3 +146,954 @@
 [MQTT] Connecting to wss://edge-chat.instagram.com/chat?sid=1920068352660548&cid=cecab8dc-bfd5-4569-9d46-ac987f1a641a [cookie-auth]...
 [MQTT] Connected to Instagram MQTT via wss://edge-chat.instagram.com/chat?sid=1920068352660548&cid=cecab8dc-bfd5-4569-9d46-ac987f1a641a [cookie-auth]
 [NKXICA] Connected via Instagram MQTT
+[MQTT] WS close code=1006
+[MQTT] Client went offline
+[MQTT] Connection closed
+[MQTT] Reconnecting... next attempt in 1424ms (attempt 2)
+[MQTT] Connected to Instagram MQTT via wss://edge-chat.instagram.com/chat?sid=1920068352660548&cid=cecab8dc-bfd5-4569-9d46-ac987f1a641a [cookie-auth]
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  📩 Message from 49212864825: "!help"
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !help
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  📩 Message from 49212864825: "!bby ji"
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !bby ji
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  📩 Message from 49212864825: "Why"
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Why
+[90m2026-07-26 07:05:19[0m [36mSUCCESS[0m [35m[COMMAND][0m help executed by 49212864825
+[90m2026-07-26 07:05:19[0m [32mINFO   [0m  Executing command: help for 49212864825
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m bby executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: bby for 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "Keno"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Keno
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "Hmm"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: Hmm
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!pfp"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !pfp
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m pfp executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: pfp for 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!rank"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !rank
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: (no text)
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!edit make 4k"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !edit make 4k
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m rank executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: rank for 49212864825
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m edit executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: edit for 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!jail"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !jail
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!gay"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !gay
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!gay"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !gay
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  📩 Message from 49212864825: "!u all"
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Message from 49212864825 in 340282366841710301244259858732076457584: !u all
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m gay executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: gay for 49212864825
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m gay executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: gay for 49212864825
+[90m2026-07-26 07:05:20[0m [36mSUCCESS[0m [35m[COMMAND][0m unsend executed by 49212864825
+[90m2026-07-26 07:05:20[0m [32mINFO   [0m  Executing command: unsend for 49212864825
+[90m2026-07-26 07:05:20[0m [31mERROR  [0m  Failed to download attachment from URL
+[90m{
+  "url": "https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049520073",
+  "error": "Request failed with status code 500"
+}[0m
+[90m2026-07-26 07:05:20[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Cannot stat media file https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049520073: ENOENT: no such file or directory, stat 'https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049520073'",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:20[0m [31mERROR  [0m  Command error: edit
+[90m{
+  "error": "Cannot stat media file https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049520073: ENOENT: no such file or directory, stat 'https://image.pollinations.ai/prompt/make%204k?nologo=true&seed=1785049520073'"
+}[0m
+[90m2026-07-26 07:05:20[0m [31mERROR  [0m [35m[COMMAND][0m edit executed by 49212864825
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2326ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2150ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2330ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2344ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2250ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2032ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2107ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2266ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2005ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2071ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2069ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2282ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2185ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2135ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2037ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2134ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2301ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2144ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2353ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2196ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2299ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2323ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2286ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2311ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2072ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2363ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2112ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2241ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2191ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2329ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2274ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2183ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2177ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2154ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2021ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2273ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2000ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2212ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2133ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2084ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2130ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2335ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2149ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4209ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4302ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4606ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4571ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4783ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4694ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4745ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4342ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4746ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4425ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4142ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4202ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4482ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4566ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4754ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4394ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4045ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4296ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4264ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2323ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2199ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2170ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2165ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2132ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2080ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2263ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2316ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4041ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4115ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4426ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4173ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4078ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4158ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4285ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4727ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4693ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4162ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4726ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4262ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4736ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4493ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4698ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2379ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4430ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4719ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2349ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4674ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4303ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4078ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4685ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4684ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4462ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4677ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4134ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4680ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4583ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4234ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4680ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4523ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4097ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4771ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4344ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4112ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8120ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8344ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8662ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8812ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8474ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8514ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8875ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8055ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8049ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8020ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8272ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8071ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8769ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8277ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8318ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8409ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8388ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8662ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8560ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8734ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8510ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8174ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8979ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8879ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8837ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2390ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8078ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8050ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8757ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8724ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8200ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8428ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8380ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8127ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8804ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8718ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8859ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2351ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8941ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8692ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8372ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8400ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8015ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8699ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8910ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8483ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8681ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4613ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8210ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8466ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8552ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8789ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8917ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8559ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8127ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8641ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2099ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4008ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2371ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2382ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4038ms
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:39[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8053ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2256ms
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4731ms
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2140ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4095ms
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8200ms
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2387ms
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Command error: help
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m [35m[COMMAND][0m help executed by 49212864825
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m  Command error: unsend
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
+}[0m
+[90m2026-07-26 07:05:40[0m [31mERROR  [0m [35m[COMMAND][0m unsend executed by 49212864825
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m  Command error: gay
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
+}[0m
+[90m2026-07-26 07:05:42[0m [31mERROR  [0m [35m[COMMAND][0m gay executed by 49212864825
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4237ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4762ms
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4299ms
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8569ms
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:43[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:45[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[90m2026-07-26 07:05:45[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "AggregateError"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8882ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8026ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8132ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8784ms
+[90m2026-07-26 07:05:49[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+AxiosError [AggregateError]
+    at AxiosError.from (/app/node_modules/axios/dist/node/axios.cjs:1355:24)
+    at RedirectableRequest.handleRequestError (/app/node_modules/axios/dist/node/axios.cjs:4082:25)
+    at RedirectableRequest.emit (node:events:531:35)
+    at eventHandlers.<computed> (/app/node_modules/follow-redirects/index.js:56:24)
+    at ClientRequest.emit (node:events:519:28)
+    at req.emit (/app/node_modules/http-cookie-agent/dist/http/create_cookie_agent.js:86:16)
+    at emitErrorEvent (node:_http_client:108:11)
+    at TLSSocket.socketErrorListener (node:_http_client:575:5)
+    at TLSSocket.emit (node:events:531:35)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async /app/lib/ica/src/utils/http.js:281:26
+    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)
+    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)
+    at async SendMedia.photo (/app/lib/ica/src/methods/sendMedia.js:200:24)
+    at async Object.sendMessage (/app/bot/InstagramBot.js:904:36)
+    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async /app/lib/ica/src/utils/http.js:281:26
+    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)
+    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)
+    at async SendMedia.photo (/app/lib/ica/src/methods/sendMedia.js:200:24)
+    at async Object.sendMessage (/app/bot/InstagramBot.js:904:36)
+    at async Proxy.<anonymous> (/app/events/message.js:278:36)
+    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)
+    at async /app/lib/ica/src/utils/http.js:281:26
+    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)
+    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)
+    at async SendMedia.photo (/app/lib/ica/src/methods/sendMedia.js:200:24)
+    at async Object.sendMessage (/app/bot/InstagramBot.js:904:36)
+    at async Proxy.<anonymous> (/app/events/message.js:278:36)
+    at async Object.onStart (/app/commands/rank.js:100:7)
+    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /app/lib/ica/src/utils/http.js:281:26
+    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)
+    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)
+    at async SendMedia.photo (/app/lib/ica/src/methods/sendMedia.js:200:24)
+    at async Object.sendMessage (/app/bot/InstagramBot.js:904:36)
+    at async Proxy.<anonymous> (/app/events/message.js:278:36)
+    at async Object.onStart (/app/commands/rank.js:100:7)
+    at async Object.executeCommand (/app/events/message.js:378:15) {
+  isAxiosError: true,
+  code: 'ETIMEDOUT',
+  config: [Object: null prototype] {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false,
+      legacyInterceptorReqResOrdering: true,
+      advertiseZstdAcceptEncoding: false,
+      validateStatusUndefinedResolves: true
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 30000,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'User-Agent': 'Instagram 350.0.0.0.0 Android (13/53274657; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate',
+      'X-IG-App-Locale': 'en_US',
+      'X-IG-Device-Locale': 'en_US',
+      'X-IG-Mapped-Locale': 'en_US',
+      'X-Pigeon-Session-Id': 'fd386dce-97d3-4c2d-b2ea-1130636224b8',
+      'X-IG-Bandwidth-Speed-KBPS': '-1.000',
+      'X-IG-Bandwidth-TotalBytes-B': '0',
+      'X-IG-Bandwidth-TotalTime-MS': '0',
+      'X-Bloks-Version-Id': '5f56efad68e1edec7801f630b5c7887033973f4275dcca1805e0a5a25c7fc5b7',
+      'X-IG-Device-ID': 'cecab8dc-bfd5-4569-9d46-ac987f1a641a',
+      'X-IG-Family-Device-ID': '250cc8be-d15d-42fc-916b-a485ba644c50',
+      'X-IG-Android-ID': 'android-65f99a54cb87d9df',
+      'X-IG-Timezone-Offset': '0',
+      'X-IG-Capabilities': '3brTvx0=',
+      'X-IG-App-ID': '936619743392459',
+      'X-IG-App-Startup-Country': 'US',
+      'X-FB-HTTP-EQ': 'true',
+      Priority: 'u=3, i',
+      'X-Pigeon-Rawclienttime': '1785049549',
+      Cookie: 'ps_n=1; datr=DMQ8asXLdM9RpJCOrl_zlaWA; ds_user_id=29952506516; csrftoken=iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V; ig_did=C75B4087-A132-4231-BC6A-EE9C491721D0; ps_l=1; wd=392x657; mid=ajzEIgABAAHdXaC9kkfYZgBUqMTg; sessionid=29952506516%3AZNmZ6YaGM2OYgQ%3A3%3AAYhZ1-fMpZSiRm9nl7k26d4Lgu8AQldXx8GmuWcLuA; dpr=2.75; rur=VLL%2C17841429835504063%2C1786248502%3A01ff3f8283aa81c608ac339de02e58d0c767b87daa37277ca64b50743aa50fc16bcf976a',
+      'X-CSRFToken': 'iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V',
+      'X-Requested-With': 'XMLHttpRequest',
+      'IG-D': 'C75B4087-A132-4231-BC6A-EE9C491721D0',
+      'X-IG-Connection-Type': 'WIFI',
+      'X-IG-WWW-Claim': '0',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin',
+      Referer: 'https://www.instagram.com/',
+      Origin: 'https://www.instagram.com',
+      'Viewport-Width': '392',
+      'Viewport-Height': '657',
+      'Content-Length': '464'
+    },
+    jar: CookieJar {
+      rejectPublicSuffixes: true,
+      enableLooseMode: false,
+      allowSpecialUseDomain: true,
+      store: { idx: [Object: null prototype] {
+        '.instagram.com': [Object: null prototype] {
+          '/': [Object: null prototype] {
+            ps_n: Cookie="ps_n=1; Expires=Fri, 30 Jul 2027 06:02:18 GMT; Domain=.instagram.com; Path=/; Secure; HttpOnly; hostOnly=false; aAge=1530566ms; cAge=1530566ms",
+            datr: Cookie="datr=DMQ8asXLdM9RpJCOrl_zlaWA; Expires=Fri, 30 Jul 2027 06:00:44 GMT; Domain=.instagram.com; Path=/; Secure; HttpOnly; hostOnly=false; aAge=1530565ms; cAge=1530565ms",
+            ds_user_id: Cookie="ds_user_id=29952506516; Expires=Sat, 24 Oct 2026 04:08:14 GMT; Domain=.instagram.com; Path=/; Secure; hostOnly=false; aAge=1530564ms; cAge=1530564ms",
+            csrftoken: Cookie="csrftoken=iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V; Expires=Mon, 30 Aug 2027 04:08:14 GMT; Domain=.instagram.com; Path=/; Secure; SameSite=Lax; hostOnly=false; aAge=1530564ms; cAge=1530564ms",
+            ig_did: Cookie="ig_did=C75B4087-A132-4231-BC6A-EE9C491721D0; Expires=Fri, 25 Jun 2027 06:00:44 GMT; Domain=.instagram.com; Path=/; Secure; HttpOnly; hostOnly=false; aAge=1530564ms; cAge=1530564ms",
+            ps_l: Cookie="ps_l=1; Expires=Fri, 30 Jul 2027 06:02:18 GMT; Domain=.instagram.com; Path=/; Secure; HttpOnly; SameSite=Lax; hostOnly=false; aAge=1530564ms; cAge=1530564ms",
+            wd: Cookie="wd=392x657; Expires=Tue, 28 Jul 2026 16:26:17 GMT; Domain=.instagram.com; Path=/; Secure; SameSite=Lax; hostOnly=false; aAge=1530563ms; cAge=1530563ms",
+            mid: Cookie="mid=ajzEIgABAAHdXaC9kkfYZgBUqMTg; Expires=Fri, 30 Jul 2027 06:01:09 GMT; Domain=.instagram.com; Path=/; Secure; SameSite=Lax; hostOnly=false; aAge=1530563ms; cAge=1530563ms",
+            sessionid: Cookie="sessionid=29952506516%3AZNmZ6YaGM2OYgQ%3A3%3AAYhZ1-fMpZSiRm9nl7k26d4Lgu8AQldXx8GmuWcLuA; Expires=Wed, 21 Jul 2027 13:09:33 GMT; Domain=.instagram.com; Path=/; Secure; HttpOnly; SameSite=Lax; hostOnly=false; aAge=1530563ms; cAge=1530563ms",
+            dpr: Cookie="dpr=2.75; Expires=Tue, 28 Jul 2026 16:26:17 GMT; Domain=.instagram.com; Path=/; Secure; hostOnly=false; aAge=1530562ms; cAge=1530562ms",
+            rur: Cookie="rur=VLL%2C17841429835504063%2C1786248502%3A01ff3f8283aa81c608ac339de02e58d0c767b87daa37277ca64b50743aa50fc16bcf976a; Domain=.instagram.com; Path=/; Secure; HttpOnly; SameSite=Lax; hostOnly=false; aAge=1530562ms; cAge=1530562ms"
+          }
+        }
+      } },
+      prefixSecurity: 'silent',
+      _cloneSync: [Function (anonymous)],
+      _importCookiesSync: [Function (anonymous)],
+      getCookiesSync: [Function (anonymous)],
+      getCookieStringSync: [Function (anonymous)],
+      getSetCookieStringsSync: [Function (anonymous)],
+      removeAllCookiesSync: [Function (anonymous)],
+      setCookieSync: [Function (anonymous)],
+      serializeSync: [Function (anonymous)]
+    },
+    withCredentials: true,
+    method: 'post',
+    url: 'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+    data: 'action=send_item&send_attribution=direct_thread&thread_ids=%5B%22340282366841710301244259858732076457584%22%5D&client_context=6e8ef352-9c08-48ea-b7be-513b9a02ab2c&mutation_token=6e8ef352-9c08-48ea-b7be-513b9a02ab2c&offline_threading_id=6e8ef352-9c08-48ea-b7be-513b9a02ab2c&device_id=android-65f99a54cb87d9df&_csrftoken=iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V&_uuid=cecab8dc-bfd5-4569-9d46-ac987f1a641a&_uid=29952506516&allow_full_aspect_ratio=true&upload_id=1785049530211',
+    allowAbsoluteUrls: true,
+    httpAgent: CookieAgent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      options: [Object: null prototype],
+      defaultPort: 80,
+      protocol: 'http:',
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype] {},
+      keepAliveMsecs: 1000,
+      keepAlive: false,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 0,
+      agentKeepAliveTimeoutBuffer: 1000,
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(cookieOptions)]: [Object]
+    },
+    httpsAgent: CookieAgent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      options: [Object: null prototype],
+      defaultPort: 443,
+      protocol: 'https:',
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype],
+      freeSockets: [Object: null prototype] {},
+      keepAliveMsecs: 1000,
+      keepAlive: false,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 1,
+      agentKeepAliveTimeoutBuffer: 1000,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(cookieOptions)]: [Object]
+    },
+    _retryCount: 3
+  },
+  request: <ref *1> Writable {
+    _events: {
+      close: undefined,
+      error: [Function: handleRequestError],
+      prefinish: undefined,
+      finish: undefined,
+      drain: undefined,
+      response: [Function: handleResponse],
+      socket: [Array],
+      timeout: undefined,
+      abort: undefined
+    },
+    _writableState: WritableState {
+      highWaterMark: 65536,
+      length: 0,
+      corked: 0,
+      onwrite: [Function: bound onwrite],
+      writelen: 0,
+      bufferedIndex: 0,
+      pendingcb: 0,
+      [Symbol(kState)]: 17581054,
+      [Symbol(kBufferedValue)]: null,
+      [Symbol(kErroredValue)]: [AggregateError]
+    },
+    _maxListeners: undefined,
+    _options: {
+      maxRedirects: 21,
+      maxBodyLength: Infinity,
+      protocol: 'https:',
+      path: '/api/v1/direct_v2/threads/broadcast/configure_photo/',
+      method: 'POST',
+      headers: [Object: null prototype],
+      agents: [Object],
+      auth: undefined,
+      family: undefined,
+      beforeRedirect: [Function: dispatchBeforeRedirect],
+      beforeRedirects: [Object: null prototype],
+      http2Options: undefined,
+      hostname: 'www.instagram.com',
+      port: '',
+      agent: [CookieAgent],
+      sensitiveHeaders: [],
+      insecureHTTPParser: false,
+      nativeProtocols: [Object],
+      pathname: '/api/v1/direct_v2/threads/broadcast/configure_photo/'
+    },
+    _ended: true,
+    _ending: true,
+    _redirectCount: 0,
+    _redirects: [],
+    _requestBodyLength: 464,
+    _requestBodyBuffers: [ [Object] ],
+    _eventsCount: 3,
+    _onNativeResponse: [Function (anonymous)],
+    _headerFilter: /^(?:Authorization|Proxy-Authorization|Cookie)$/i,
+    _currentRequest: ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: false,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: true,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 464,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: false,
+      _header: 'POST /api/v1/direct_v2/threads/broadcast/configure_photo/ HTTP/1.1\r\n' +
+        'Accept: */*\r\n' +
+        'Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n' +
+        'User-Agent: Instagram 350.0.0.0.0 Android (13/53274657; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)\r\n' +
+        'Accept-Language: en-US,en;q=0.9\r\n' +
+        'Accept-Encoding: gzip, deflate\r\n' +
+        'X-IG-App-Locale: en_US\r\n' +
+        'X-IG-Device-Locale: en_US\r\n' +
+        'X-IG-Mapped-Locale: en_US\r\n' +
+        'X-Pigeon-Session-Id: fd386dce-97d3-4c2d-b2ea-1130636224b8\r\n' +
+        'X-IG-Bandwidth-Speed-KBPS: -1.000\r\n' +
+        'X-IG-Bandwidth-TotalBytes-B: 0\r\n' +
+        'X-IG-Bandwidth-TotalTime-MS: 0\r\n' +
+        'X-Bloks-Version-Id: 5f56efad68e1edec7801f630b5c7887033973f4275dcca1805e0a5a25c7fc5b7\r\n' +
+        'X-IG-Device-ID: cecab8dc-bfd5-4569-9d46-ac987f1a641a\r\n' +
+        'X-IG-Family-Device-ID: 250cc8be-d15d-42fc-916b-a485ba644c50\r\n' +
+        'X-IG-Android-ID: android-65f99a54cb87d9df\r\n' +
+        'X-IG-Timezone-Offset: 0\r\n' +
+        'X-IG-Capabilities: 3brTvx0=\r\n' +
+        'X-IG-App-ID: 936619743392459\r\n' +
+        'X-IG-App-Startup-Country: US\r\n' +
+        'X-FB-HTTP-EQ: true\r\n' +
+        'Priority: u=3, i\r\n' +
+        'X-Pigeon-Rawclienttime: 1785049549\r\n' +
+        'Cookie: ps_n=1; datr=DMQ8asXLdM9RpJCOrl_zlaWA; ds_user_id=29952506516; csrftoken=iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V; ig_did=C75B4087-A132-4231-BC6A-EE9C491721D0; ps_l=1; wd=392x657; mid=ajzEIgABAAHdXaC9kkfYZgBUqMTg; sessionid=29952506516%3AZNmZ6YaGM2OYgQ%3A3%3AAYhZ1-fMpZSiRm9nl7k26d4Lgu8AQldXx8GmuWcLuA; dpr=2.75; rur=VLL%2C17841429835504063%2C1786248502%3A01ff3f8283aa81c608ac339de02e58d0c767b87daa37277ca64b50743aa50fc16bcf976a\r\n' +
+        'X-CSRFToken: iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V\r\n' +
+        'X-Requested-With: XMLHttpRequest\r\n' +
+        'IG-D: C75B4087-A132-4231-BC6A-EE9C491721D0\r\n' +
+        'X-IG-Connection-Type: WIFI\r\n' +
+        'X-IG-WWW-Claim: 0\r\n' +
+        'Sec-Fetch-Dest: empty\r\n' +
+        'Sec-Fetch-Mode: cors\r\n' +
+        'Sec-Fetch-Site: same-origin\r\n' +
+        'Referer: https://www.instagram.com/\r\n' +
+        'Origin: https://www.instagram.com\r\n' +
+        'Viewport-Width: 392\r\n' +
+        'Viewport-Height: 657\r\n' +
+        'Content-Length: 464\r\n' +
+        'Host: www.instagram.com\r\n' +
+        'Connection: close\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [CookieAgent],
+      socketPath: undefined,
+      method: 'POST',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: false,
+      joinDuplicateHeaders: undefined,
+      path: '/api/v1/direct_v2/threads/broadcast/configure_photo/',
+      _ended: false,
+      res: null,
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: false,
+      host: 'www.instagram.com',
+      protocol: 'https:',
+      _implicitHeader: [Function (anonymous)],
+      emit: [Function (anonymous)],
+      _redirectable: [Circular *1],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kChunkedBuffer)]: [],
+      [Symbol(kChunkedLength)]: 0,
+      [Symbol(kSocket)]: [TLSSocket],
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 65536,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null,
+      [Symbol(kError)]: [AggregateError]
+    },
+    _currentUrl: 'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+    _timeout: null,
+    [Symbol(shapeMode)]: true,
+    [Symbol(kCapture)]: false
+  },
+  [cause]: AggregateError [ETIMEDOUT]:
+      at internalConnectMultiple (node:net:1134:18)
+      at internalConnectMultiple (node:net:1210:5)
+      at Timeout.internalConnectMultipleTimeout (node:net:1742:5)
+      at listOnTimeout (node:internal/timers:587:11)
+      at process.processTimers (node:internal/timers:521:7) {
+    code: 'ETIMEDOUT',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8282ms
+[90m2026-07-26 07:05:50[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:50[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
+}[0m
+[90m2026-07-26 07:05:50[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "Error: Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
+}[0m
+[90m2026-07-26 07:05:54[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/340282366841710301244259858732076457584/"
+}[0m
+[90m2026-07-26 07:05:54[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "Error: Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/340282366841710301244259858732076457584/"
+}[0m
+[90m2026-07-26 07:05:57[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:57[0m [31mERROR  [0m  Error in pfp command
+[90m{
+  "error": ""
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2383ms
+[90m2026-07-26 07:05:58[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:58[0m [31mERROR  [0m  Command error: gay
+[90m{
+  "error": ""
+}[0m
+[90m2026-07-26 07:05:58[0m [31mERROR  [0m [35m[COMMAND][0m gay executed by 49212864825
+[90m2026-07-26 07:05:58[0m [31mERROR  [0m  Failed to send message
+[90m{
+  "error": "",
+  "threadID": "340282366841710301244259858732076457584"
+}[0m
+[90m2026-07-26 07:05:58[0m [31mERROR  [0m  Error in message event handler
+[90m{
+  "error": "",
+  "stack": "AggregateError\n    at AxiosError.from (/app/node_modules/axios/dist/node/axios.cjs:1355:24)\n    at RedirectableRequest.handleRequestError (/app/node_modules/axios/dist/node/axios.cjs:4082:25)\n    at RedirectableRequest.emit (node:events:531:35)\n    at eventHandlers.<computed> (/app/node_modules/follow-redirects/index.js:56:24)\n    at ClientRequest.emit (node:events:519:28)\n    at req.emit (/app/node_modules/http-cookie-agent/dist/http/create_cookie_agent.js:86:16)\n    at emitErrorEvent (node:_http_client:108:11)\n    at TLSSocket.socketErrorListener (node:_http_client:575:5)\n    at TLSSocket.emit (node:events:531:35)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async /app/lib/ica/src/utils/http.js:281:26\n    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)\n    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)\n    at async SendMessage._sendText (/app/lib/ica/src/methods/sendMessage.js:150:22)\n    at async SendMessage._dispatch (/app/lib/ica/src/methods/sendMessage.js:196:20)\n    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async /app/lib/ica/src/utils/http.js:281:26\n    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)\n    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)\n    at async SendMessage._sendText (/app/lib/ica/src/methods/sendMessage.js:150:22)\n    at async SendMessage._dispatch (/app/lib/ica/src/methods/sendMessage.js:196:20)\n    at async SendMessage.toThread (/app/lib/ica/src/methods/sendMessage.js:277:11)\n    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5513:14)\n    at async /app/lib/ica/src/utils/http.js:281:26\n    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)\n    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)\n    at async SendMessage._sendText (/app/lib/ica/src/methods/sendMessage.js:150:22)\n    at async SendMessage._dispatch (/app/lib/ica/src/methods/sendMessage.js:196:20)\n    at async SendMessage.toThread (/app/lib/ica/src/methods/sendMessage.js:277:11)\n    at async Object.sendMessage (/app/bot/InstagramBot.js:917:32)\n    at Axios.request (/app/node_modules/axios/dist/node/axios.cjs:5517:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async /app/lib/ica/src/utils/http.js:281:26\n    at async CircuitBreaker.run (/app/lib/ica/src/utils/circuitBreaker.js:107:22)\n    at async HttpClient.request (/app/lib/ica/src/utils/http.js:278:14)\n    at async SendMessage._sendText (/app/lib/ica/src/methods/sendMessage.js:150:22)\n    at async SendMessage._dispatch (/app/lib/ica/src/methods/sendMessage.js:196:20)\n    at async SendMessage.toThread (/app/lib/ica/src/methods/sendMessage.js:277:11)\n    at async Object.sendMessage (/app/bot/InstagramBot.js:917:32)\n    at async Proxy.<anonymous> (/app/events/message.js:278:36)"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2041ms
+[90m2026-07-26 07:06:02[0m [31mERROR  [0m  Unhandled Rejection
+[90m{
+  "reason": "Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/340282366841710301244259858732076457584/"
+}[0m
+[90m2026-07-26 07:06:02[0m [31mERROR  [0m  Unhandled rejection
+[90m{
+  "reason": "Error: Circuit breaker is OPEN for www.instagram.com/api/v1/direct_v2/threads/340282366841710301244259858732076457584/"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4276ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8250ms
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2293ms
+[90m2026-07-26 07:06:18[0m [31mERROR  [0m  Failed to unsend message
+[90m{
+  "error": "Failed to unsend message: HTTP Error 404: Not Found",
+  "messageID": "32928352430921102130228639458918400"
+}[0m
+[NKXICA] Network error ETIMEDOUT, retry 1/3 after 2184ms
+[NKXICA] Network error ETIMEDOUT, retry 2/3 after 4635ms
+[NKXICA] Network error ETIMEDOUT, retry 3/3 after 8817ms
+[90m2026-07-26 07:06:47[0m [31mERROR  [0m  Failed to unsend message
+[90m{
+  "error": "Failed to unsend message: Message cannot be unsent",
+  "messageID": "32928352742359216320609928089698304"
+}[0m
