@@ -117,7 +117,7 @@ module.exports = {
       ctx.fillStyle = '#F3F4F6';
       ctx.fillText(`💥 ${name1} slapped ${name2}!`, 350, 365);
 
-      const buffer = canvas.toBuffer('image/png');
+      const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
 
       return message.reply({

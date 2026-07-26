@@ -166,7 +166,7 @@ module.exports = {
       ctx.fillStyle = '#FCE7F3';
       ctx.fillText(`✨ PERFECT COUPLE • ${name1.toUpperCase()} 💞 ${name2.toUpperCase()} ✨`, 450, 420);
 
-      const buffer = canvas.toBuffer('image/png');
+      const buffer = canvas.toBuffer('image/jpeg', { quality: 0.9 });
       api.setMessageReaction('💖', event.messageID, () => {}, true);
 
       return message.reply({
