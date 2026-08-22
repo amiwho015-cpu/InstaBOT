@@ -1,13 +1,13 @@
 <div align="center">
-  <img src="assets/banner.jpg" alt="GoatBot-IG 2D Anime Hatsune Miku Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+  <img src="assets/banner.jpg" alt="InstaBOT Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
 
-  # 🐐 GoatBot Instagram Port (GoatBot-IG-Port)
+  # ⚡ InstaBOT
   *Next-Generation High-Performance Instagram Chatbot Engine*
 
-  [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-  [![Architecture](https://img.shields.io/badge/Architecture-GoatBot_V2_ICA-purple.svg?style=for-the-badge&logo=instagram)](https://github.com/Gtajisan/GoatBot-IG-Port)
-  [![Status](https://img.shields.io/badge/Status-100%25_Verified-success.svg?style=for-the-badge)](https://github.com/Gtajisan/GoatBot-IG-Port)
-  [![Commands](https://img.shields.io/badge/Commands-83%2B_Loaded-blue.svg?style=for-the-badge)](#features)
+  [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+  [![Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
+  [![Status](https://img.shields.io/badge/Status-100%25_Verified-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
+  [![Commands](https://img.shields.io/badge/Commands-104%2B_Loaded-purple.svg?style=for-the-badge)](#-commands--features)
   [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge)](LICENSE)
 
   ---
@@ -15,86 +15,84 @@
 
 ## 🌟 Overview
 
-**GoatBot-IG-Port** is a modular, high-performance Instagram Direct Messenger bot ported directly from the legendary **GoatBot V2** architecture. Built with a bundled native **Instagram Chat API (ICA)** engine, it supports full 1:1 event lifecycle compatibility, advanced anti-ban safeguards, Rose-bot style group administration, AI conversational memory, and media processing.
+**InstaBOT** is a modular, high-performance Instagram Direct Messenger chatbot built with an integrated native **Instagram Chat API (ICA)** engine. Designed for reliability, safety, and extensibility, it features dual command execution paradigms (supporting both GoatBot V2 and standard formats), a 5-tier role hierarchy, anti-ban protections, AI conversational memory, web dashboard, and multimedia processing.
 
 ---
 
-## 📸 Screenshots & Interface Showcase
+## 📸 Interface & Dashboard
 
 <div align="center">
-  <h3>🖥️ Web Analytics & Real-Time Management Dashboard</h3>
-  <img src="assets/screenshots/dashboard-overview.jpg" alt="GoatBot Dashboard Overview" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
+  <h3>🖥️ Real-Time Management & Analytics Web Dashboard</h3>
+  <img src="assets/screenshots/dashboard-overview.jpg" alt="InstaBOT Dashboard Overview" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
 
   <br/><br/>
 
-  <h3>📱 Instagram Direct Messenger Interactive Commands Showcase</h3>
-  <img src="assets/screenshots/chat-commands.jpg" alt="GoatBot Chat Commands Showcase" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
+  <h3>📱 Instagram Direct Messenger Interactive Commands</h3>
+  <img src="assets/screenshots/chat-commands.jpg" alt="InstaBOT Chat Commands Showcase" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
 </div>
 
 ---
 
 ## 🔥 Key Features
 
-### 🤖 1:1 GoatBot V2 Architecture
-* **Full Event Lifecycle Hooks**: Complete support for `onStart`, `onReply`, `onReaction`, `onChat`, `onEvent`, `onFirstChat`, and `onLoad`.
+### 🤖 Dual Command & Event Engine
+* **Full Event Lifecycle Hooks**: Complete support for `onStart`, `onReply`, `onReaction`, `onChat`, `onEvent`, `onFirstChat`, `onLoad`, and `onReady`.
 * **Universal `message` Helper API**: Provides `message.reply`, `message.send`, `message.reaction`, `message.unsend`, `message.err`, and `message.SyntaxError`.
-* **Dual Parameter Compatibility**: Flexible argument ordering handling both `(threadID, path)` and `(path, threadID)` for seamless command execution.
+* **Standard & GoatBot Compatibility**: Seamlessly loads both legacy GoatBot V2 commands and modular `run()` commands.
 
-### 🛡️ Enterprise Anti-Ban & IP Shield
-* **Adaptive Rate Limiter**: Learns dynamically from HTTP `429` responses (`Retry-After`) and enforces global request spacing.
-* **Circuit Breaker Pattern**: Tripping protection isolates disrupted endpoints with a 30s cooling window.
-* **Official Web Client Signatures**: Outgoing requests send authentic `Sec-CH-UA`, `Sec-Fetch-*`, `X-IG-App-ID: 936619743392459`, and `X-IG-WWW-Claim` headers.
-* **Auto-Sync Cookie Persistence**: Automatically updates refreshed Netscape/JSON session cookies back to `account.txt` whenever updated by Instagram headers.
+### 🛡️ Native Built-In ICA Engine (`ica/`)
+* **Zero External Lock-In**: Native, self-contained Instagram Chat API engine located directly in `ica/`.
+* **Adaptive Rate Limiter & Message Queue**: Human-like message queue delays (200–800ms) with automatic retry on transient drops.
+* **Circuit Breaker & Anti-Ban**: Header spoofing, stealth mode, and dynamic cooling windows protect against Instagram rate limits.
+* **Multi-Format Session Persistence**: Supports Netscape cookie strings, JSON AppState arrays, raw session IDs, and email/password fallback.
 
-### 🧠 AI Auto-Talk & Behavioral Memory
-* **Self-Training Engine**: Automatically learns conversation flows `(Message A → Message B)` from live group and DM chats.
-* **Local Memory Database**: Instant zero-latency local lookup for learned phrase pairs.
-* **Multi-Tier Open Source AI Failover**: 6-stage fallback pipeline using Pollinations AI, Popcat, and SimSimi.
+### 👑 5-Tier Role & Permission Hierarchy
+| Role | Title | Description |
+|:---:|:---|:---|
+| `0` | **Normal User** | Access to all standard public commands |
+| `1` | **Group Admin** | Instagram thread administrators (moderation, settings) |
+| `2` | **Bot Admin** | Configured bot administrators (`adminBot`) |
+| `3` | **Premium User** | VIP & Premium access tier (`premiumUsers`) |
+| `4` | **Developer** | Full access & system commands (`devUsers`) |
 
-### 🎙️ Voice & Audio System
-* **Google TTS Voice Generation**: Convert text into natural voice notes (`!say <text>`).
-* **Voice Note Broadcast**: Native support for sending `.mp3`, `.wav`, `.m4a`, and `.ogg` voice messages.
-
-### 🌹 Rose Bot Group Management Suite
-* **Keyword Auto-Responders (`!filter`)**: Add, list, and remove custom keyword triggers (`!filter <keyword> - <reply>`).
-* **User Warning System (`!warn`)**: Issue user warnings with reason logging. Reaching **3/3 warnings** triggers an automatic group kick.
-
-### 🎨 Media & Downloader Suite
-* **Text-To-Picture Sticker Engine (`!ttp`)**: Generate custom stylized text graphics and stickers.
-* **Native YouTube Downloader (`!sing`, `!video`)**: Built-in `yt-search` and `@distube/ytdl-core` stream engines for direct high-quality MP3/MP4 downloads.
-* **AI Image Generation (`!imggen`)**: Powered by Pollinations AI for keyless image synthesis.
+### 🧠 Conversational AI & Multimedia
+* **Self-Learning Chat Engine**: Automatically learns conversation flows `(Message A → Message B)` directly from chats.
+* **AI Suite**: Gemini, GPT, Claude, Nano-Banana Pro (`!nbpro`), MetaAI, Pollinations AI (`!imggen`, `!art`, `!flux`), and more.
+* **Media Downloader**: YouTube audio/video (`!sing`, `!video`, `!ytb`), TikTok (`!tiktok`), Pinterest (`!pinterest`), ImgBB (`!imgbb`), Catbox, and Imgur uploaders.
+* **Voice Synthesis**: Google TTS voice notes via `!say` with native voice note streaming.
 
 ---
 
-## 📁 Repository Structure
+## 📁 Project Structure
 
-```
-GoatBot-IG-Port/
-├── assets/                  # Graphics and banner assets
-│   └── banner.jpg
-├── bot/                     # Core Bot Engine
-│   ├── InstagramBot.js      # Main Instagram Bot Controller & FCA Wrapper
-│   ├── autoUptime.js        # Server Uptime Keep-Alive Service
+```text
+InstaBOT/
+├── ica/                     # Native Instagram Chat API Engine
+│   ├── src/
+│   │   ├── methods/         # Auth, messaging, media, threads, reactions, users
+│   │   ├── mqtt/            # Realtime MQTT listener & connection manager
+│   │   └── utils/           # Crypto, cookies, HTTP client, rate limiter
+│   └── index.js             # ICA Engine Entry Point
+├── bot/                     # Core Bot Controller
+│   ├── InstagramBot.js      # Main Lifecycle & API Wrapper
+│   ├── autoUptime.js        # Server Keep-Alive Service
 │   └── custom.js            # Custom Startup Scripts
-├── commands/                # 83+ Modular Command Scripts
-│   ├── ai.js, bby.js, say.js
-│   ├── filter.js, warn.js, ttp.js
-│   ├── sing.js, video.js, ytb.js, alldl.js
-│   └── ...
-├── config/                  # Bot Settings & Configuration
-│   ├── default.json         # Safety, Rate Limits, and Bot Parameters
-│   └── index.js
-├── events/                  # Event Handlers
-│   ├── message.js           # Incoming Message Handler & Auto-Talk
-│   └── message_reaction.js  # Reaction Handler
-├── lib/                     # Native ICA Scraper Library
-│   └── ica/                 # NKXICA Scraper & Authentication Engine
-├── utils/                   # Database & Helper Utilities
-│   ├── database.js          # SQLite & JSON Storage Controller
-│   ├── commandLoader.js     # Dynamic Command Loader
-│   └── eventLoader.js       # Dynamic Event Loader
-├── account.txt              # Exported Instagram Session Cookies
-├── index.js                 # Entry Point
+├── commands/                # 104+ Modular Command Modules
+├── events/                  # Event Handlers (message, reaction, join, leave, ready)
+├── config/                  # Configuration & Default Settings
+│   ├── default.json         # Config values (prefix, admins, options)
+│   └── index.js             # Environment & JSON Merger
+├── utils/                   # Shared Utilities
+│   ├── database.js          # SQLite & JSON Storage Abstraction
+│   ├── messageQueue.js      # Rate Limiting & Queue Manager
+│   ├── permissions.js       # 5-Tier Role Resolver
+│   ├── moderation.js        # Whitelist & Spam Protection
+│   ├── commandLoader.js     # Hot-Reload Command Loader
+│   └── eventLoader.js       # Event Dispatcher
+├── storage/                 # Data Storage & Logs
+├── dashboard/               # Web Management Dashboard
+├── account.txt              # Instagram Session Cookies (Keep Private!)
+├── index.js                 # Application Entry Point
 └── package.json
 ```
 
@@ -103,13 +101,13 @@ GoatBot-IG-Port/
 ## 🚀 Quick Start & Installation
 
 ### 1. Prerequisites
-* **Node.js**: v18.0.0 or higher
-* **Git**: Installed and configured
+* **Node.js**: `v20.0.0` or higher
+* **Git**: Installed on your system
 
 ### 2. Clone Repository
 ```bash
-git clone https://github.com/Gtajisan/GoatBot-IG-Port.git
-cd GoatBot-IG-Port
+git clone git@github.com:frnAlt/InstaBOT.git
+cd InstaBOT
 ```
 
 ### 3. Install Dependencies
@@ -117,47 +115,37 @@ cd GoatBot-IG-Port
 npm install
 ```
 
-### 4. Setup Authentication Cookies
-Export your Instagram session cookies (Netscape format) into `account.txt` in the root directory:
+### 4. Setup Instagram Cookies
+Export your Instagram session cookies (in **Netscape format** or **JSON format**) and place them into `account.txt` in the root directory:
+
 ```text
 # Netscape HTTP Cookie File
-.instagram.com	TRUE	/	TRUE	1798765432	sessionid	YOUR_SESSION_ID_HERE
-.instagram.com	TRUE	/	TRUE	1798765432	ds_user_id	YOUR_USER_ID_HERE
-.instagram.com	TRUE	/	TRUE	1798765432	csrftoken	YOUR_CSRF_TOKEN_HERE
+.instagram.com	TRUE	/	TRUE	1798765432	sessionid	YOUR_SESSION_ID
+.instagram.com	TRUE	/	TRUE	1798765432	ds_user_id	YOUR_USER_ID
+.instagram.com	TRUE	/	TRUE	1798765432	csrftoken	YOUR_CSRF_TOKEN
 ```
 
-### 5. Start the Bot
-```bash
-npm start
-```
+### 5. Configure
+Edit `config/default.json` to set your bot prefix, bot admin IDs, and options:
 
----
-
-## ⚙️ Configuration (`config/default.json`)
-
-```json
+```jsonc
 {
   "prefix": "!",
   "noPrefix": true,
-  "humanDelay": {
-    "min": 1500,
-    "max": 3500
-  },
-  "spamProtection": {
-    "commandThreshold": 5,
-    "timeWindow": 10,
-    "banDuration": 24
-  },
-  "optionsFca": {
+  "adminBot": ["YOUR_INSTAGRAM_USER_ID"],
+  "devUsers": ["YOUR_INSTAGRAM_USER_ID"],
+  "nickNameBot": "InstaBOT",
+  "optionsIca": {
     "stealthMode": true,
-    "randomUserAgent": true,
-    "maxRequestsPerMinute": 30
-  },
-  "AI_FALLBACK": {
-    "enable": true,
-    "command": "bby"
+    "selfListen": true,
+    "listenEvents": true
   }
 }
+```
+
+### 6. Start the Bot
+```bash
+npm start
 ```
 
 ---
@@ -165,12 +153,11 @@ npm start
 ## 👨‍💻 Developer & Credits
 
 * **Developer / Maintainer**: [Gtajisan](https://github.com/Gtajisan)
-* **Email**: ffjisan804@gmail.com
-* **Base Architecture**: GoatBot V2 Engine
-* **ICA Engine**: NKXICA Scraper Integration
+* **GitHub Repository**: [frnAlt/InstaBOT](https://github.com/frnAlt/InstaBOT)
+* **Engine**: Built-in native **ICA** Engine
 
 ---
 
 <div align="center">
-  <sub>Made with ❤️ by Gtajisan • Powered by GoatBot V2 Engine</sub>
+  <sub>Made with ❤️ by Gtajisan • Powered by InstaBOT Engine</sub>
 </div>
