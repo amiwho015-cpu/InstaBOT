@@ -10,7 +10,7 @@ module.exports = {
     name: "video",
     aliases: ["vdo"],
     version: "2.0.0",
-    author: "Jisan",
+    author: "Jisan && frnAlt",
     cooldown: 10,
     role: 0,
     description: "Search and download YouTube video",

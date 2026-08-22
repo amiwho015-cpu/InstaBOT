@@ -5,7 +5,7 @@ module.exports = {
     name: 'bot',
     aliases: ['botcontrol', 'botmode', 'togglebot'],
     version: '2.0',
-    author: 'Jisan',
+    author: 'Jisan && frnAlt',
     cooldown: 3,
     role: 0,
     category: 'config',

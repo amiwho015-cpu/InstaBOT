@@ -11,7 +11,7 @@ module.exports = {
     usage: 'pfp [username | @username | link | reply | @tag]',
     cooldown: 5,
     role: 0,
-    author: 'Gtajisan',
+    author: 'Gtajisan && frnAlt',
     category: 'utility'
   },
 

@@ -6,7 +6,7 @@ module.exports = {
     name: 'pair',
     aliases: ['pairlove', 'randompair', 'soulmate'],
     version: '1.0',
-    author: 'Jisan',
+    author: 'Jisan && frnAlt',
     cooldown: 5,
     role: 0,
     category: 'Fun',

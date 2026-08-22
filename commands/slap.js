@@ -6,7 +6,7 @@ module.exports = {
     name: 'slap',
     aliases: ['batslap'],
     version: '1.0',
-    author: 'Jisan',
+    author: 'Jisan && frnAlt',
     cooldown: 5,
     role: 0,
     category: 'Fun',

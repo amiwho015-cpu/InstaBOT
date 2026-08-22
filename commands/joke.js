@@ -6,7 +6,7 @@ module.exports = {
     usage: 'joke',
     cooldown: 5,
     role: 0,
-    author: 'NeoKEX',
+    author: 'NeoKEX && frnAlt',
     category: 'fun'
   },
 

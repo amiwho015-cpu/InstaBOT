@@ -36,7 +36,7 @@
     "winston-daily-rotate-file": "^5.0.0",
     "yt-search": "^2.13.1"
   },
-  "author": "Gtajisan",
+  "author": "Gtajisan && frnAlt",
   "license": "MIT",
   "allowScripts": {
     "canvas@3.2.3": true,

@@ -1,8 +1,8 @@
 # InstaBOT - Instagram Chat Bot
 
-## Developer
-- **Main Developer**: Gtajisan
-- **Email**: ffjisan804@gmail.com
+## Developers
+- **Main Developers**: Gtajisan && frnAlt
+- **GitHub Repository**: https://github.com/frnAlt/InstaBOT
 
 ## Credits
 - **Instagram Bot Architecture**: InstaBOT Engine & ICA

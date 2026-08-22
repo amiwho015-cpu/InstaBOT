@@ -6,7 +6,7 @@ module.exports = {
     usage: 'stats [user]',
     cooldown: 5,
     role: 0,
-    author: 'Gtajisan',
+    author: 'Gtajisan && frnAlt',
     category: 'info'
   },
 

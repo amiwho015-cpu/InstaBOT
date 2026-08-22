@@ -10,7 +10,7 @@ module.exports = {
     name: "sing",
     aliases: ["song", "music"],
     version: "2.0.0",
-    author: "Jisan",
+    author: "Jisan && frnAlt",
     cooldown: 5,
     role: 0,
     description: "Search and download YouTube audio",

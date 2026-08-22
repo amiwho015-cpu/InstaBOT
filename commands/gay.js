@@ -5,7 +5,7 @@ module.exports = {
   config: {
     name: 'gay',
     version: '2.0',
-    author: 'Jisan',
+    author: 'Jisan && frnAlt',
     cooldown: 2,
     role: 0,
     description: 'Generate a dual PFP rainbow canvas image.',

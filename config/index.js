@@ -24,7 +24,7 @@ const pkg = (() => {
 module.exports = {
   BOT_NAME:    c.nickNameBot || 'InstaBOT',
   BOT_VERSION: pkg.version   || '1.0.0',
-  AUTHOR:      pkg.author    || 'Gtajisan',
+  AUTHOR:      pkg.author    || 'Gtajisan && frnAlt',
 
   ACCOUNT_EMAIL:    process.env.ACCOUNT_EMAIL    || c.instagramAccount?.email    || '',
   ACCOUNT_PASSWORD: process.env.ACCOUNT_PASSWORD || c.instagramAccount?.password || '',

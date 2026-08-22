@@ -152,12 +152,12 @@ npm start
 
 ## 👨‍💻 Developer & Credits
 
-* **Developer / Maintainer**: [Gtajisan](https://github.com/Gtajisan)
+* **Developers / Maintainers**: [Gtajisan](https://github.com/Gtajisan) && [frnAlt](https://github.com/frnAlt)
 * **GitHub Repository**: [frnAlt/InstaBOT](https://github.com/frnAlt/InstaBOT)
 * **Engine**: Built-in native **ICA** Engine
 
 ---
 
 <div align="center">
-  <sub>Made with ❤️ by Gtajisan • Powered by InstaBOT Engine</sub>
+  <sub>Made with ❤️ by Gtajisan && frnAlt • Powered by InstaBOT Engine</sub>
 </div>
