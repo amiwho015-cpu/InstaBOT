@@ -24,7 +24,9 @@ module.exports = {
       if (!videos || videos.length === 0) return message.reply('❌ No anime edits found.');
 
       const selected = videos[Math.floor(Math.random() * videos.length)];
-      await api.sendVideoFromUrl(event.threadId, selected.url || selected.videoUrl);
+      const videoUrl = typeof selected === 'string' ? selected : (selected?.url || selected?.videoUrl || selected?.link);
+      if (!videoUrl) return message.reply('❌ No video URL found in results.');
+      await api.sendVideoFromUrl(event.threadId, videoUrl);
       message.reaction('✅');
     } catch (error) {
       console.error('Anisearch Error:', error.message);

@@ -382,9 +382,17 @@ class CookieUtils {
    * @param {string} url - URL scope
    * @returns {Cookie|null}
    */
-  static getCookie(jar, name, url = 'https://instagram.com') {
-    const cookies = jar.getCookiesSync(url);
-    return cookies.find(c => c.key === name) || null;
+  static getCookie(jar, name, url = 'https://www.instagram.com/') {
+    try {
+      if (typeof jar?.toJSON === 'function') {
+        const cookies = jar.toJSON().cookies || [];
+        return cookies.find(c => c.key === name) || null;
+      }
+      const cookies = jar.getCookiesSync(url);
+      return cookies.find(c => c.key === name) || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /**
@@ -408,7 +416,7 @@ class CookieUtils {
         maxAge: options.maxAge
       });
 
-      const url = `https://${options.domain || 'instagram.com'}${options.path || '/'}`;
+      const url = `https://${options.domain || 'www.instagram.com'}${options.path || '/'}`;
       jar.setCookieSync(cookie, url);
       return true;
     } catch (err) {
@@ -423,7 +431,7 @@ class CookieUtils {
    * @param {string} url - URL scope
    * @returns {boolean} Success
    */
-  static removeCookie(jar, name, url = 'https://instagram.com') {
+  static removeCookie(jar, name, url = 'https://www.instagram.com/') {
     try {
       const cookies = jar.getCookiesSync(url);
       const cookie = cookies.find(c => c.key === name);
@@ -443,7 +451,7 @@ class CookieUtils {
    * @param {string} url - URL scope
    * @returns {boolean}
    */
-  static hasCookie(jar, name, url = 'https://instagram.com') {
+  static hasCookie(jar, name, url = 'https://www.instagram.com/') {
     const cookie = this.getCookie(jar, name, url);
     return cookie !== null;
   }
@@ -454,9 +462,17 @@ class CookieUtils {
    * @param {string} url - URL scope
    * @returns {Array} Array of cookie names
    */
-  static getCookieNames(jar, url = 'https://instagram.com') {
-    const cookies = jar.getCookiesSync(url);
-    return cookies.map(c => c.key);
+  static getCookieNames(jar, url = 'https://www.instagram.com/') {
+    try {
+      if (typeof jar?.toJSON === 'function') {
+        const cookies = jar.toJSON().cookies || [];
+        return cookies.map(c => c.key);
+      }
+      const cookies = jar.getCookiesSync(url);
+      return cookies.map(c => c.key);
+    } catch (_) {
+      return [];
+    }
   }
 
   /**

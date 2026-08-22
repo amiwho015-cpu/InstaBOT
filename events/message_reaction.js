@@ -7,8 +7,9 @@ const REPLAY_EMOJIS = ['🔁', '🔄', '💬', '🗣️', '🔊', '▶️'];
 
 module.exports = {
   config: { name: 'message_reaction', description: 'Handle message reactions including tap-to-replay and reaction unsend' },
-  async run(bot, event) {
+  async run(bot, event = {}) {
     try {
+      if (!event || typeof event !== 'object') return;
       const { senderID, threadId, reaction, targetMessageId, reactionStatus, messageID } = event;
       if (!reaction || reactionStatus === 'deleted') return;
 

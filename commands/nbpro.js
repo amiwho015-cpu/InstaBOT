@@ -51,7 +51,7 @@ module.exports = {
           `https://tawsif.is-a.dev/gemini/nano-banana-pro-gen?prompt=${encodeURIComponent(cleanPrompt)}&ratio=${ratio}`,
           { timeout: 60000 }
         );
-        imageUrl = res.data?.imageUrl;
+        imageUrl = res.data?.imageUrl || res.data?.url || res.data?.result || res.data?.image || res.data?.data?.url;
       }
 
       if (!imageUrl) throw new Error('No image URL returned.');

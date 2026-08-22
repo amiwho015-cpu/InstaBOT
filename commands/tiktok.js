@@ -21,8 +21,8 @@ module.exports = {
 
     try {
         api.setMessageReaction("⏳", event.messageID, () => {}, true);
-        const searchResponse = await axios.get(`https://lyric-search-neon.vercel.app/kshitiz?keyword=${encodeURIComponent(query)}`, { timeout: 20000 });
-        const results = searchResponse.data.slice(0, 6);
+        const rawData = searchResponse.data;
+        const results = (Array.isArray(rawData) ? rawData : (rawData?.results || rawData?.data || rawData?.videos || [])).slice(0, 6);
 
         if (!results || results.length === 0) {
             api.setMessageReaction("❌", event.messageID, () => {}, true);
@@ -31,9 +31,12 @@ module.exports = {
 
         let messageBody = "Found " + results.length + " videos.\n\n";
         results.forEach((video, index) => {
-            messageBody += `${index + 1}. ${video.title.substring(0, 70)}...\n`;
-            messageBody += `   • Creator: @${video.author.unique_id}\n`;
-            messageBody += `   • Duration: ${video.duration}s\n\n`;
+            const title = (video.title || video.desc || 'TikTok Video').substring(0, 70);
+            const creator = video.author?.unique_id || video.author?.nickname || video.author || 'creator';
+            const duration = video.duration || 'n/a';
+            messageBody += `${index + 1}. ${title}\n`;
+            messageBody += `   • Creator: @${creator}\n`;
+            messageBody += `   • Duration: ${duration}s\n\n`;
         });
         messageBody += "Reply with the number (1-" + results.length + ") to download.";
 
@@ -53,7 +56,8 @@ module.exports = {
   },
 
   onReply: async function ({ event, api, Reply, message }) {
-    if (event.senderID !== Reply.author) return;
+    if (!Reply || !Array.isArray(Reply.results) || Reply.results.length === 0) return;
+    if (Reply.author && event.senderID !== Reply.author) return;
     const selection = parseInt(event.body);
     const results = Reply.results;
 
@@ -62,13 +66,17 @@ module.exports = {
     }
 
     const video = results[selection - 1];
-    api.unsendMessage(event.messageReply.messageID);
+    if (!video) return message.reply("❌ Video not found.");
+    if (event.messageReply?.messageID && api?.unsendMessage) api.unsendMessage(event.messageReply.messageID).catch(() => {});
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
+        const title = video.title || video.desc || 'TikTok Video';
+        const creator = video.author?.unique_id || video.author?.nickname || video.author || 'creator';
+        const videoUrl = video.videoUrl || video.url || video.play || video.download_url;
         await message.reply({
-            body: `✅ Downloaded: ${video.title}\nCreator: @${video.author.unique_id}`,
-            attachment: video.videoUrl
+            body: `✅ Downloaded: ${title}\nCreator: @${creator}`,
+            attachment: videoUrl
         });
         api.setMessageReaction("✅", event.messageID, () => {}, true);
     } catch (error) {

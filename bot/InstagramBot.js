@@ -25,6 +25,7 @@ class InstagramBot {
     global.GoatBot.instance = this;
     global.client          = global.client || {};
 
+    this.config            = config;
     this.ig                = null;
     this.api               = null;
     this.userID            = null;
@@ -1131,6 +1132,24 @@ class InstagramBot {
         }
       },
 
+      sendVoice: async (arg1, arg2, opts = {}) => {
+        try {
+          let threadID = arg1;
+          let audioPath = arg2;
+          if (typeof arg1 === 'string' && (arg1.includes('/') || arg1.includes('\\') || arg1.startsWith('http')) && !/^\d+$/.test(arg1)) {
+            audioPath = arg1;
+            threadID = arg2;
+          }
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
+          }
+          return await ig.sendVoice(threadID, audioPath, opts);
+        } catch (error) {
+          logger.error('Failed to send voice', { error: error.message });
+          throw error;
+        }
+      },
+
       unsendMessage: async (messageID, threadID, callback) => {
         if (typeof threadID === 'function') {
           callback = threadID;
@@ -1400,10 +1419,16 @@ class InstagramBot {
           return await ig.unsendMessage(messageID);
       },
 
-      addUserToGroup: async (userID, threadID) => {
+      addUserToGroup: async (arg1, arg2) => {
           try {
-              if (typeof ig.addUserToGroup === 'function') return await ig.addUserToGroup(userID, threadID);
-              if (typeof ig.addParticipant === 'function') return await ig.addParticipant(threadID, userID);
+              let userIDs = arg1;
+              let threadID = arg2;
+              if (Array.isArray(arg2) || (typeof arg2 === 'string' && /^\d+$/.test(arg2) && typeof arg1 === 'string' && arg1.length > 15)) {
+                  userIDs = arg2;
+                  threadID = arg1;
+              }
+              if (typeof ig.addUserToGroup === 'function') return await ig.addUserToGroup(userIDs, threadID);
+              if (ig.threadManagement && typeof ig.threadManagement.addUsers === 'function') return await ig.threadManagement.addUsers(threadID, userIDs);
               logger.warn('addUserToGroup not supported by API');
           } catch (e) {
               logger.error('addUserToGroup error', { error: e.message });
@@ -1422,9 +1447,17 @@ class InstagramBot {
           }
       },
 
-      setTitle: async (title, threadID) => {
+      setTitle: async (arg1, arg2) => {
           try {
+              let title = arg1;
+              let threadID = arg2;
+              if (typeof arg1 === 'string' && /^\d+$/.test(arg1) && typeof arg2 === 'string') {
+                  threadID = arg1;
+                  title = arg2;
+              }
+              if (typeof ig.setTitle === 'function') return await ig.setTitle(title, threadID);
               if (typeof ig.setThreadTitle === 'function') return await ig.setThreadTitle(threadID, title);
+              if (typeof ig.changeThreadTitle === 'function') return await ig.changeThreadTitle(threadID, title);
               logger.warn('setTitle not supported by API');
           } catch (e) {
               logger.error('setTitle error', { error: e.message });
