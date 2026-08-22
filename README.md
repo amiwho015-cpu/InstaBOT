@@ -7,7 +7,7 @@
   [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
   [![GitHub Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
   [![Build Status](https://img.shields.io/badge/Build-Passing-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
-  [![Commands Loaded](https://img.shields.io/badge/Commands-117%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
+  [![Commands Loaded](https://img.shields.io/badge/Commands-129%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
   [![ICA Engine](https://img.shields.io/badge/Engine-Native_ICA-red.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
   [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge)](LICENSE)
 
@@ -112,7 +112,7 @@
 
 ---
 
-## 📚 Complete Command Catalog (117+ Commands)
+## 📚 Complete Command Catalog (129+ Commands)
 
 <details>
 <summary><b>🤖 Artificial Intelligence & Generation (16 Commands)</b></summary>
@@ -140,7 +140,7 @@
 </details>
 
 <details>
-<summary><b>🎬 Media, Video & Audio Downloaders (17 Commands)</b></summary>
+<summary><b>🎬 Media, Video & Audio Downloaders (20 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -149,6 +149,9 @@
 | `video` | `ytv`, `ytvideo` | Search and download YouTube videos | `!video <video title>` |
 | `tiktok` | `tt` | Search and download TikTok videos without watermark | `!tiktok <query>` |
 | `pinterest` | `pin` | Search and fetch high-resolution Pinterest images | `!pinterest <search>` |
+| `movies` | `imdb`, `film` | Search movies & TV series via OMDb with posters | `!movies <title>` |
+| `anime` | `ani`, `mal` | Search anime metadata, score, and art via Jikan | `!anime <anime>` |
+| `manga` | `manhwa` | Search manga details, chapters, and cover art | `!manga <manga>` |
 | `alldl` | `dl` | Universal social media video downloader | `!alldl <url>` |
 | `ytb` | `youtube` | Direct YouTube downloader with resolution selector | `!ytb <url>` |
 | `anisearch` | `animeedit` | Search and download anime edits and AMVs | `!anisearch <anime>` |
@@ -166,7 +169,7 @@
 </details>
 
 <details>
-<summary><b>🎲 Economy, Games & Fun (22 Commands)</b></summary>
+<summary><b>🎲 Economy, Games & Fun (28 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -177,9 +180,17 @@
 | `coinflip` | `cf`, `flip` | Gamble coins on heads or tails | `!coinflip <heads\|tails> <amt>` |
 | `slot` | `slots` | Spin slot machine for jackpot winnings | `!slot <bet>` |
 | `mines` | `minesweeper` | 5x5 Casino minefield risk game with cashout | `!mines <bet>` |
+| `richroll` | `rr`, `gamble` | High-stakes fortune roll gamble with 5x jackpot | `!richroll <bet>` |
 | `wordgame` | `scramble` | Unscramble the hidden word for coin rewards | `!wordgame` |
+| `mathquiz` | `math` | Fast mental arithmetic challenge with cash prize | `!mathquiz [diff]` |
+| `guessnumber` | `guessnum` | Secret number guessing game (1-100) with hints | `!guessnumber` |
 | `quiz` | `trivia` | Multi-category interactive trivia challenge | `!quiz` |
 | `48law` | `lawsofpower` | Robert Greene's 48 Laws of Power wisdom | `!48law [1-48]` |
+| `marry` | `wedding` | Propose, marry, and issue marriage certificates | `!marry @user` |
+| `hug` | `cuddle` | Custom canvas composite cuddle/hug image | `!hug @user` |
+| `kiss` | `smooch` | Romantic canvas composite kiss image | `!kiss @user` |
+| `slap` | `hit` | Slap tagged user with custom canvas animation | `!slap <@user>` |
+| `ship` | `pair`, `couple` | Matchmake and calculate compatibility | `!ship <@user>` |
 | `dice` | `roll` | Roll virtual dice | `!dice` |
 | `rps` | `rockpaperscissors` | Play Rock-Paper-Scissors against bot | `!rps <rock\|paper\|scissors>` |
 | `dhbc` | `wordquiz` | Play interactive guess-the-word song puzzle | `!dhbc` |
@@ -188,8 +199,6 @@
 | `quote` | `q` | Inspirational quotes & custom quote card generator | `!quote` |
 | `wanted` | `jail` | Generate Wanted/Bounty posters | `!wanted (tag/reply)` |
 | `rip` | `tomb` | Generate gravestone tribute memes | `!rip (tag/reply)` |
-| `slap` | `hit` | Slap tagged user with custom canvas animation | `!slap <@user>` |
-| `ship` | `pair`, `couple` | Matchmake and calculate compatibility | `!ship <@user>` |
 | `gay` | `howgay` | Fun compatibility meter | `!gay (tag)` |
 | `choose` | `pick` | Randomly pick from multiple options | `!choose <opt1> \| <opt2>` |
 | `dih` | `challenge` | Trivia challenge games | `!dih` |
@@ -222,16 +231,19 @@
 </details>
 
 <details>
-<summary><b>🛠️ System, Diagnostics & Utilities (18 Commands)</b></summary>
+<summary><b>🛠️ System, Diagnostics & Utilities (21 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
 |:---|:---|:---|:---|
 | `help` | `menu`, `commands` | Show interactive categorized command menu | `!help [command]` |
 | `info` | `about` | System information, node runtime & memory | `!info` |
+| `safeguard` | `health` | System health, RAM allocation & security telemetry | `!safeguard` |
 | `stats` | `statistics` | User ranking and bot usage stats | `!stats` |
 | `ping` | `latency` | Measure bot response and network latency | `!ping` |
 | `github` | `gh`, `git` | Query GitHub profile details or repository stats | `!github <user\|repo> <query>` |
+| `screenshot` | `ss`, `webshot` | Capture rendered snapshots of any webpage URL | `!screenshot <url>` |
+| `moon` | `moonphase` | High-res lunar calendar phase for any date | `!moon [DD/MM/YYYY]` |
 | `tinyurl` | `shorturl` | Shorten links using TinyURL / is.gd | `!tinyurl <url>` |
 | `quran` | `surah`, `ayah` | Read Holy Quran verses with Arabic & translations | `!quran <surah:ayah>` |
 | `fancy` | `font`, `fonts` | Style text into 30+ Unicode typographic fonts | `!fancy [font] <text>` |
