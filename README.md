@@ -7,7 +7,7 @@
   [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
   [![GitHub Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
   [![Build Status](https://img.shields.io/badge/Build-Passing-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
-  [![Commands Loaded](https://img.shields.io/badge/Commands-104%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
+  [![Commands Loaded](https://img.shields.io/badge/Commands-117%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
   [![ICA Engine](https://img.shields.io/badge/Engine-Native_ICA-red.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
   [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge)](LICENSE)
 
@@ -112,10 +112,10 @@
 
 ---
 
-## 📚 Complete Command Catalog (104+ Commands)
+## 📚 Complete Command Catalog (117+ Commands)
 
 <details>
-<summary><b>🤖 Artificial Intelligence & Generation (15 Commands)</b></summary>
+<summary><b>🤖 Artificial Intelligence & Generation (16 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -134,12 +134,13 @@
 | `veo` | `txt2video` | AI Text-to-Video generation | `!veo <prompt>` |
 | `imggen` | `img` | Fast multi-engine AI image generator | `!imggen <prompt>` |
 | `aiphoto` | `photoai` | Enhance and generate realistic portraits | `!aiphoto <prompt>` |
+| `removebg` | `nobg`, `rbg` | AI image background removal (transparent PNG) | `!removebg (reply/url)` |
 | `autotalk` | `bot` | Context-aware AI chatbot auto-reply | Auto-triggered |
 
 </details>
 
 <details>
-<summary><b>🎬 Media, Video & Audio Downloaders (14 Commands)</b></summary>
+<summary><b>🎬 Media, Video & Audio Downloaders (17 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -151,6 +152,9 @@
 | `alldl` | `dl` | Universal social media video downloader | `!alldl <url>` |
 | `ytb` | `youtube` | Direct YouTube downloader with resolution selector | `!ytb <url>` |
 | `anisearch` | `animeedit` | Search and download anime edits and AMVs | `!anisearch <anime>` |
+| `shazam` | `findsong` | Identify songs from audio/video clips | `!shazam (reply)` |
+| `emojimix` | `mixemoji` | Google Emoji Kitchen composite graphic generator | `!emojimix 😭 🤣` |
+| `meme` | `dankmeme` | Fetch random trending community memes | `!meme` |
 | `imgbb` | `upload` | Upload images directly to ImgBB cloud storage | `!imgbb (reply to image)` |
 | `imgur` | `imgurl` | Upload attachments to Imgur | `!imgur (reply to media)` |
 | `catbox` | `cb` | Upload files to Catbox storage | `!catbox (reply to file)` |
@@ -162,7 +166,7 @@
 </details>
 
 <details>
-<summary><b>🎲 Economy, Games & Fun (18 Commands)</b></summary>
+<summary><b>🎲 Economy, Games & Fun (22 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -172,9 +176,13 @@
 | `economy` | `eco`, `pay` | Transfer coins and manage wealth | `!economy pay <@user> <amt>` |
 | `coinflip` | `cf`, `flip` | Gamble coins on heads or tails | `!coinflip <heads\|tails> <amt>` |
 | `slot` | `slots` | Spin slot machine for jackpot winnings | `!slot <bet>` |
+| `mines` | `minesweeper` | 5x5 Casino minefield risk game with cashout | `!mines <bet>` |
+| `wordgame` | `scramble` | Unscramble the hidden word for coin rewards | `!wordgame` |
+| `quiz` | `trivia` | Multi-category interactive trivia challenge | `!quiz` |
+| `48law` | `lawsofpower` | Robert Greene's 48 Laws of Power wisdom | `!48law [1-48]` |
 | `dice` | `roll` | Roll virtual dice | `!dice` |
 | `rps` | `rockpaperscissors` | Play Rock-Paper-Scissors against bot | `!rps <rock\|paper\|scissors>` |
-| `dhbc` | `wordgame` | Play interactive guess-the-word song puzzle | `!dhbc` |
+| `dhbc` | `wordquiz` | Play interactive guess-the-word song puzzle | `!dhbc` |
 | `bby` | `simi` | Cute interactive talk bot | `!bby <message>` |
 | `joke` | `humor` | Tell random jokes | `!joke` |
 | `quote` | `q` | Inspirational quotes & custom quote card generator | `!quote` |
@@ -184,7 +192,7 @@
 | `ship` | `pair`, `couple` | Matchmake and calculate compatibility | `!ship <@user>` |
 | `gay` | `howgay` | Fun compatibility meter | `!gay (tag)` |
 | `choose` | `pick` | Randomly pick from multiple options | `!choose <opt1> \| <opt2>` |
-| `dih` | `trivia` | Trivia challenge games | `!dih` |
+| `dih` | `challenge` | Trivia challenge games | `!dih` |
 
 </details>
 
@@ -214,7 +222,7 @@
 </details>
 
 <details>
-<summary><b>🛠️ System, Diagnostics & Utilities (14 Commands)</b></summary>
+<summary><b>🛠️ System, Diagnostics & Utilities (18 Commands)</b></summary>
 <br/>
 
 | Command | Triggers | Description | Usage |
@@ -223,6 +231,10 @@
 | `info` | `about` | System information, node runtime & memory | `!info` |
 | `stats` | `statistics` | User ranking and bot usage stats | `!stats` |
 | `ping` | `latency` | Measure bot response and network latency | `!ping` |
+| `github` | `gh`, `git` | Query GitHub profile details or repository stats | `!github <user\|repo> <query>` |
+| `tinyurl` | `shorturl` | Shorten links using TinyURL / is.gd | `!tinyurl <url>` |
+| `quran` | `surah`, `ayah` | Read Holy Quran verses with Arabic & translations | `!quran <surah:ayah>` |
+| `fancy` | `font`, `fonts` | Style text into 30+ Unicode typographic fonts | `!fancy [font] <text>` |
 | `uid` | `id` | Get Instagram User ID of sender or target | `!uid [@user]` |
 | `userinfo` | `whois` | Detailed Instagram profile inspector | `!userinfo <user>` |
 | `weather` | `forecast` | Live global weather conditions and forecasts | `!weather <city>` |

@@ -15,11 +15,12 @@ const Banner        = require('../utils/banner');
 
 class InstagramBot {
   constructor() {
+    const TTLMap           = require('../func/TTLMap');
     global.utils           = require('../utils.js');
     global.GoatBot         = global.GoatBot || {};
     global.GoatBot.config  = config;
-    global.GoatBot.onReply = global.GoatBot.onReply || new Map();
-    global.GoatBot.onReaction = global.GoatBot.onReaction || new Map();
+    global.GoatBot.onReply = global.GoatBot.onReply || new TTLMap({ ttl: 30 * 60 * 1000, maxSize: 500 });
+    global.GoatBot.onReaction = global.GoatBot.onReaction || new TTLMap({ ttl: 30 * 60 * 1000, maxSize: 500 });
     global.GoatBot.onEvent = global.GoatBot.onEvent || new Map();
     global.GoatBot.onChat  = global.GoatBot.onChat || new Map();
     global.GoatBot.instance = this;

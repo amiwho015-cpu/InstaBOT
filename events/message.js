@@ -254,10 +254,11 @@ module.exports = {
             }
           }
 
-          const allNames = commandLoader.getAllCommandNames();
-          const closest  = this.findClosestCommand(commandName, allNames);
+          const similar = global.utils?.findSimilarCommand 
+            ? global.utils.findSimilarCommand(commandName, commandLoader?.commands || new Map())
+            : this.findClosestCommand(commandName, commandLoader?.getAllCommandNames ? commandLoader.getAllCommandNames() : [])?.command;
           let msg = `❌ Unknown command: "${commandName}"\n\n`;
-          if (closest && closest.distance <= 3) msg += `💡 Did you mean: ${prefix}${closest.command}?\n\n`;
+          if (similar) msg += `💡 Did you mean: ${prefix}${similar}?\n\n`;
           msg += `Type ${prefix}help to see all available commands.`;
           const sent = await api.sendMessage(msg, event.threadId);
           if (config.AUTO_REMOVE_ERROR?.enable && sent?.messageID) {
