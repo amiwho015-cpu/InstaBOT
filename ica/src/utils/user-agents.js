@@ -5,25 +5,25 @@ const { getRandom } = require("./constants");
 const BROWSER_DATA = {
     windows: {
         platform: "Windows NT 10.0; Win64; x64",
-        chromeVersions: ["139.0.0.0", "131.0.6778.86", "130.0.6723.92", "129.0.6668.101", "128.0.6613.120", "127.0.6533.120"],
-        edgeVersions: ["139.0.0.0", "131.0.2903.51", "130.0.2849.68", "129.0.2792.89"],
+        chromeVersions: ["133.0.6943.53", "132.0.6834.160", "131.0.6778.205", "130.0.6723.116"],
+        edgeVersions: ["133.0.3065.59", "132.0.2957.140", "131.0.2903.112"],
         platformVersion: '"15.0.0"'
     },
     mac: {
         platform: "Macintosh; Intel Mac OS X 10_15_7",
-        chromeVersions: ["139.0.0.0", "131.0.6778.86", "130.0.6723.92", "129.0.6668.101", "128.0.6613.120", "127.0.6533.120"],
-        edgeVersions: ["139.0.0.0", "131.0.2903.51", "130.0.2849.68", "129.0.2792.89"],
-        platformVersion: '"14.7.0"'
+        chromeVersions: ["133.0.6943.53", "132.0.6834.160", "131.0.6778.205", "130.0.6723.116"],
+        edgeVersions: ["133.0.3065.59", "132.0.2957.140", "131.0.2903.112"],
+        platformVersion: '"15.2.0"'
     },
     linux: {
         platform: "X11; Linux x86_64",
-        chromeVersions: ["139.0.0.0", "131.0.6778.86", "130.0.6723.92", "129.0.6668.101", "128.0.6613.120"],
-        edgeVersions: ["139.0.0.0", "131.0.2903.51", "130.0.2849.68"],
+        chromeVersions: ["133.0.6943.53", "132.0.6834.160", "131.0.6778.205"],
+        edgeVersions: ["133.0.3065.59", "132.0.2957.140"],
         platformVersion: '""'
     }
 };
 
-const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
+const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
 function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -34,47 +34,45 @@ function randomChoice(arr) {
 }
 
 function randomBuildId() {
-    const prefixes = ["QP1A", "RP1A", "SP1A", "TP1A", "UP1A", "AP4A"];
-    return `${randomChoice(prefixes)}.${randomInt(180000, 250000)}.${randomInt(10, 99)}`;
+    const prefixes = ["UP1A", "AP4A", "UQ1A", "TP1A"];
+    return `${randomChoice(prefixes)}.${randomInt(230000, 250000)}.${randomInt(10, 99)}`;
 }
 
 function randomResolution() {
     const presets = [
-        { width: 720, height: 1280, density: 2.0 },
-        { width: 1080, height: 1920, density: 2.625 },
+        { width: 1080, height: 2340, density: 2.875 },
         { width: 1080, height: 2400, density: 3.0 },
-        { width: 1440, height: 3040, density: 3.5 },
-        { width: 1440, height: 3200, density: 4.0 }
+        { width: 1440, height: 3120, density: 3.5 },
+        { width: 1440, height: 3200, density: 4.0 },
+        { width: 1179, height: 2556, density: 3.0 }
     ];
     return randomChoice(presets);
 }
 
 function randomFbav() {
-    return `${randomInt(390, 499)}.${randomInt(0, 3)}.${randomInt(0, 2)}.${randomInt(10, 60)}.${randomInt(100, 999)}`;
+    return `${randomInt(350, 360)}.0.0.${randomInt(10, 50)}.${randomInt(100, 200)}`;
 }
 
 function randomOrcaUA() {
-    const androidVersions = ["8.1.0", "9", "10", "11", "12", "13", "14"];
+    const androidVersions = ["12", "13", "14", "15"];
     const devices = [
-        { brand: "samsung", model: "SM-G996B" },
-        { brand: "samsung", model: "SM-S908E" },
-        { brand: "Xiaomi", model: "M2101K9AG" },
-        { brand: "OPPO", model: "CPH2219" },
-        { brand: "vivo", model: "V2109" },
-        { brand: "HUAWEI", model: "VOG-L29" },
-        { brand: "asus", model: "ASUS_I001DA" },
-        { brand: "Google", model: "Pixel 6" },
-        { brand: "realme", model: "RMX2170" }
+        { brand: "samsung", model: "SM-S928B" },
+        { brand: "samsung", model: "SM-S918B" },
+        { brand: "Google", model: "Pixel 8 Pro" },
+        { brand: "Google", model: "Pixel 7a" },
+        { brand: "Xiaomi", model: "23127PN0CG" },
+        { brand: "OnePlus", model: "CPH2581" },
+        { brand: "OPPO", model: "CPH2525" },
+        { brand: "vivo", model: "V2309" }
     ];
     const carriers = [
-        "Viettel Telecom", "Mobifone", "Vinaphone",
-        "T-Mobile", "Verizon", "AT&T",
-        "Telkomsel", "Jio", "NTT DOCOMO",
-        "Vodafone", "Orange"
+        "T-Mobile", "Verizon", "AT&T", "Vodafone",
+        "Orange", "Jio", "Airtel", "Viettel Telecom",
+        "Telkomsel", "NTT DOCOMO"
     ];
     const locales = [
-        "vi_VN", "en_US", "en_GB", "id_ID",
-        "th_TH", "fr_FR", "de_DE", "es_ES", "pt_BR"
+        "en_US", "en_GB", "es_ES", "fr_FR",
+        "de_DE", "id_ID", "vi_VN", "pt_BR"
     ];
     const archs = ["arm64-v8a", "armeabi-v7a"];
 
@@ -83,18 +81,14 @@ function randomOrcaUA() {
     const buildId = randomBuildId();
     const resolution = randomResolution();
     const fbav = randomFbav();
-    const fbbv = randomInt(320000000, 520000000);
+    const fbbv = randomInt(640000000, 680000000);
     const arch = `${randomChoice(archs)}:${randomChoice(archs)}`;
     const selectedLocale = randomChoice(locales);
     const selectedCarrier = randomChoice(carriers);
 
-    const userAgent = `Dalvik/2.1.0 (Linux; U; Android ${androidVersion}; ${device.model} Build/${buildId}) ` +
-        `[FBAN/Orca-Android;FBAV/${fbav};FBPN/com.facebook.orca;` +
-        `FBLC/${selectedLocale};FBBV/${fbbv};FBCR/${selectedCarrier};` +
-        `FBMF/${device.brand};FBBD/${device.brand};FBDV/${device.model};` +
-        `FBSV/${androidVersion};FBCA/${arch};` +
-        `FBDM/{density=${resolution.density.toFixed(1)},width=${resolution.width},height=${resolution.height}};` +
-        `FB_FW/1;]`;
+    const userAgent = `Mozilla/5.0 (Linux; Android ${androidVersion}; ${device.model} Build/${buildId}; wv) ` +
+        `AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/133.0.6943.53 Mobile Safari/537.36 ` +
+        `Instagram ${fbav} Android (${androidVersion}; ${resolution.density * 160}dpi; ${resolution.width}x${resolution.height}; ${device.brand}; ${device.model}; ${device.model}; qcom; ${selectedLocale}; ${fbbv})`;
 
     return {
         userAgent,

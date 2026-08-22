@@ -878,7 +878,7 @@ class InstagramBot {
   }
 
   createAPIWrapper() {
-    const ig = this.ig;
+    const ig = new Proxy({}, { get: (_, prop) => this.ig?.[prop] });
     const utils = require('../utils.js');
 
     return {
@@ -893,8 +893,10 @@ class InstagramBot {
           let text = typeof form === 'object' ? (form.body !== undefined ? form.body : '') : String(form);
           let attachment = typeof form === 'object' ? form.attachment : null;
 
-          if (config.TYPING_INDICATOR && threadID) {
+          if (config.TYPING_INDICATOR && threadID && ig?.sendTypingIndicator) {
             ig.sendTypingIndicator(threadID).catch(() => {});
+            const typingJitter = Math.min(Math.max((text?.length || 0) * 3, 40), 200);
+            await new Promise(resolve => setTimeout(resolve, typingJitter));
           }
 
           let result;

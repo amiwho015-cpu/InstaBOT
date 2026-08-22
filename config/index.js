@@ -31,7 +31,7 @@ module.exports = {
   ACCOUNT_2FA_SECRET: c.instagramAccount?.['2FASecret'] || '',
   ACCOUNT_I_USER:   c.instagramAccount?.i_user || '',
   ACCOUNT_PROXY:    c.instagramAccount?.proxy   || null,
-  ACCOUNT_USER_AGENT: c.instagramAccount?.userAgent || '',
+  ACCOUNT_USER_AGENT: process.env.ACCOUNT_USER_AGENT || c.instagramAccount?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
   INTERVAL_GET_NEW_COOKIE: c.instagramAccount?.intervalGetNewCookie ?? 1440,
 
   ANTI_INBOX:   c.antiInbox   ?? false,

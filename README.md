@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.jpg" alt="InstaBOT Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+  <img src="https://raw.githubusercontent.com/frnAlt/InstaBOT/main/assets/banner.jpg" alt="InstaBOT Banner" width="100%" />
 
   # ⚡ InstaBOT
   *Next-Generation High-Performance Instagram Chatbot Engine*
@@ -22,13 +22,18 @@
 ## 📸 Interface & Dashboard
 
 <div align="center">
-  <h3>🖥️ Real-Time Management & Analytics Web Dashboard</h3>
-  <img src="assets/screenshots/dashboard-overview.jpg" alt="InstaBOT Dashboard Overview" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
-
-  <br/><br/>
-
-  <h3>📱 Instagram Direct Messenger Interactive Commands</h3>
-  <img src="assets/screenshots/chat-commands.jpg" alt="InstaBOT Chat Commands Showcase" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
+  <table>
+    <tr>
+      <td width="50%" align="center">
+        <b>🖥️ Real-Time Web Dashboard</b><br/><br/>
+        <img src="https://raw.githubusercontent.com/frnAlt/InstaBOT/main/assets/screenshots/dashboard-overview.jpg" alt="InstaBOT Dashboard Overview" width="100%" />
+      </td>
+      <td width="50%" align="center">
+        <b>📱 Messenger Interactive Commands</b><br/><br/>
+        <img src="https://raw.githubusercontent.com/frnAlt/InstaBOT/main/assets/screenshots/chat-commands.jpg" alt="InstaBOT Chat Commands Showcase" width="100%" />
+      </td>
+    </tr>
+  </table>
 </div>
 
 ---

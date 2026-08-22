@@ -81,7 +81,7 @@ class HttpClient extends EventEmitter {
     return {
       'User-Agent': this.userAgent,
       'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate',
+      'Accept-Encoding': 'gzip, deflate, br, zstd',
       'X-IG-App-Locale': 'en_US',
       'X-IG-Device-Locale': 'en_US',
       'X-IG-Mapped-Locale': 'en_US',
@@ -98,6 +98,10 @@ class HttpClient extends EventEmitter {
       'X-IG-App-ID': '936619743392459',
       'X-IG-App-Startup-Country': 'US',
       'X-FB-HTTP-EQ': 'true',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Dest': 'empty',
       'Priority': 'u=3, i',
       'Accept': '*/*'
     };
