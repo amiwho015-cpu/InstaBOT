@@ -22,7 +22,7 @@ const pkg = (() => {
 })();
 
 module.exports = {
-  BOT_NAME:    c.nickNameBot || 'GoatBot-IG',
+  BOT_NAME:    c.nickNameBot || 'InstaBOT',
   BOT_VERSION: pkg.version   || '1.0.0',
   AUTHOR:      pkg.author    || 'Gtajisan',
 
@@ -36,7 +36,7 @@ module.exports = {
 
   ANTI_INBOX:   c.antiInbox   ?? false,
   LANGUAGE:     c.language    || 'en',
-  NICK_NAME_BOT: c.nickNameBot || 'GoatBot-IG',
+  NICK_NAME_BOT: c.nickNameBot || 'InstaBOT',
   PREFIX:       process.env.PREFIX || c.prefix || '!',
   NO_PREFIX:    c.noPrefix ?? true,
 
@@ -133,8 +133,17 @@ module.exports = {
 
   AUTO_REMOVE_ERROR: c.autoRemoveError || { enable: true, delay: 10 },
 
+  OPTIONS_ICA: (() => {
+    const o = c.optionsIca || c.optionsFca || {};
+    const clean = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (k !== 'notes') clean[k] = v;
+    }
+    return clean;
+  })(),
+
   OPTIONS_FCA: (() => {
-    const o = c.optionsFca || {};
+    const o = c.optionsIca || c.optionsFca || {};
     const clean = {};
     for (const [k, v] of Object.entries(o)) {
       if (k !== 'notes') clean[k] = v;
