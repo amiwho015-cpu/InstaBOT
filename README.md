@@ -2,20 +2,32 @@
   <img src="https://raw.githubusercontent.com/frnAlt/InstaBOT/main/assets/banner.jpg" alt="InstaBOT Banner" width="100%" />
 
   # ⚡ InstaBOT
-  *Next-Generation High-Performance Instagram Chatbot Engine*
+  **Next-Generation High-Performance Instagram Chatbot Engine**
 
   [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-  [![Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
-  [![Status](https://img.shields.io/badge/Status-100%25_Verified-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
-  [![Commands](https://img.shields.io/badge/Commands-104%2B_Loaded-purple.svg?style=for-the-badge)](#-commands--features)
+  [![GitHub Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
+  [![Build Status](https://img.shields.io/badge/Build-Passing-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
+  [![Commands Loaded](https://img.shields.io/badge/Commands-104%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
+  [![ICA Engine](https://img.shields.io/badge/Engine-Native_ICA-red.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
   [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge)](LICENSE)
+
+  <p align="center">
+    <a href="#-overview">Overview</a> •
+    <a href="#-interface--dashboard">Showcase</a> •
+    <a href="#-architecture--core-components">Architecture</a> •
+    <a href="#-complete-command-catalog-104-commands">Commands</a> •
+    <a href="#-quick-start--installation">Installation</a> •
+    <a href="#-configuration-reference">Configuration</a> •
+    <a href="#-deployment-options">Deployment</a> •
+    <a href="#-developers--credits">Credits</a>
+  </p>
 
   ---
 </div>
 
 ## 🌟 Overview
 
-**InstaBOT** is a modular, high-performance Instagram Direct Messenger chatbot built with an integrated native **Instagram Chat API (ICA)** engine. Designed for reliability, safety, and extensibility, it features dual command execution paradigms (supporting both GoatBot V2 and standard formats), a 5-tier role hierarchy, anti-ban protections, AI conversational memory, web dashboard, and multimedia processing.
+**InstaBOT** is a fully modular, enterprise-grade Instagram Direct Messenger chatbot built with an integrated native **Instagram Chat API (ICA)** engine. Engineered for maximum speed, security, and scalability, InstaBOT operates with dual command execution handlers (full backward compatibility for GoatBot V2 and standard formats), a 5-tier role hierarchy, anti-ban protections, AI conversational memory, web dashboard, and multimedia processing.
 
 ---
 
@@ -38,76 +50,200 @@
 
 ---
 
-## 🔥 Key Features
+## 🏗️ Architecture & Core Components
 
-### 🤖 Dual Command & Event Engine
-* **Full Event Lifecycle Hooks**: Complete support for `onStart`, `onReply`, `onReaction`, `onChat`, `onEvent`, `onFirstChat`, `onLoad`, and `onReady`.
-* **Universal `message` Helper API**: Provides `message.reply`, `message.send`, `message.reaction`, `message.unsend`, `message.err`, and `message.SyntaxError`.
-* **Standard & GoatBot Compatibility**: Seamlessly loads both legacy GoatBot V2 commands and modular `run()` commands.
-
-### 🛡️ Native Built-In ICA Engine (`ica/`)
-* **Zero External Lock-In**: Native, self-contained Instagram Chat API engine located directly in `ica/`.
-* **Adaptive Rate Limiter & Message Queue**: Human-like message queue delays (200–800ms) with automatic retry on transient drops.
-* **Circuit Breaker & Anti-Ban**: Header spoofing, stealth mode, and dynamic cooling windows protect against Instagram rate limits.
-* **Multi-Format Session Persistence**: Supports Netscape cookie strings, JSON AppState arrays, raw session IDs, and email/password fallback.
-
-### 👑 5-Tier Role & Permission Hierarchy
-| Role | Title | Description |
-|:---:|:---|:---|
-| `0` | **Normal User** | Access to all standard public commands |
-| `1` | **Group Admin** | Instagram thread administrators (moderation, settings) |
-| `2` | **Bot Admin** | Configured bot administrators (`adminBot`) |
-| `3` | **Premium User** | VIP & Premium access tier (`premiumUsers`) |
-| `4` | **Developer** | Full access & system commands (`devUsers`) |
-
-### 🧠 Conversational AI & Multimedia
-* **Self-Learning Chat Engine**: Automatically learns conversation flows `(Message A → Message B)` directly from chats.
-* **AI Suite**: Gemini, GPT, Claude, Nano-Banana Pro (`!nbpro`), MetaAI, Pollinations AI (`!imggen`, `!art`, `!flux`), and more.
-* **Media Downloader**: YouTube audio/video (`!sing`, `!video`, `!ytb`), TikTok (`!tiktok`), Pinterest (`!pinterest`), ImgBB (`!imgbb`), Catbox, and Imgur uploaders.
-* **Voice Synthesis**: Google TTS voice notes via `!say` with native voice note streaming.
+```text
+                                 ┌─────────────────────────────┐
+                                 │   Instagram Servers / MQTT  │
+                                 └──────────────┬──────────────┘
+                                                │ Realtime Stream
+                                                ▼
+                                 ┌─────────────────────────────┐
+                                 │  Native Built-In ICA Engine │
+                                 │      (ica/ - Zero Lock-In)  │
+                                 └──────────────┬──────────────┘
+                                                │
+                       ┌────────────────────────┴────────────────────────┐
+                       ▼                                                 ▼
+        ┌─────────────────────────────┐                   ┌─────────────────────────────┐
+        │  Anti-Ban & Rate Limiter    │                   │   Event Dispatch Pipeline   │
+        │ • Adaptive Cooling Windows  │                   │ • message, reaction, ready  │
+        │ • Modern Chrome 133 Headers │                   │ • gc_join, gc_leave, error  │
+        └──────────────┬──────────────┘                   └──────────────┬──────────────┘
+                       │                                                 │
+                       ▼                                                 ▼
+        ┌─────────────────────────────┐                   ┌─────────────────────────────┐
+        │  Outbound Message Queue     │                   │ Dual Command Loader Engine  │
+        │ • Human-like Delay Jitter   │                   │ • Standard (run)            │
+        │ • Automatic Retry & Backoff │                   │ • GoatBot V2 (onStart)      │
+        └─────────────────────────────┘                   └──────────────┬──────────────┘
+                                                                         │
+                                                                         ▼
+                                                          ┌─────────────────────────────┐
+                                                          │ 5-Tier Permission & Storage │
+                                                          │ • Normal, Admin, Dev (0-4)  │
+                                                          │ • JSON / SQLite / MongoDB   │
+                                                          └─────────────────────────────┘
+```
 
 ---
 
-## 📁 Project Structure
+## 🔥 Key Highlights
 
-```text
-InstaBOT/
-├── ica/                     # Native Instagram Chat API Engine
-│   ├── src/
-│   │   ├── methods/         # Auth, messaging, media, threads, reactions, users
-│   │   ├── mqtt/            # Realtime MQTT listener & connection manager
-│   │   └── utils/           # Crypto, cookies, HTTP client, rate limiter
-│   └── index.js             # ICA Engine Entry Point
-├── bot/                     # Core Bot Controller
-│   ├── InstagramBot.js      # Main Lifecycle & API Wrapper
-│   ├── autoUptime.js        # Server Keep-Alive Service
-│   └── custom.js            # Custom Startup Scripts
-├── commands/                # 104+ Modular Command Modules
-├── events/                  # Event Handlers (message, reaction, join, leave, ready)
-├── config/                  # Configuration & Default Settings
-│   ├── default.json         # Config values (prefix, admins, options)
-│   └── index.js             # Environment & JSON Merger
-├── utils/                   # Shared Utilities
-│   ├── database.js          # SQLite & JSON Storage Abstraction
-│   ├── messageQueue.js      # Rate Limiting & Queue Manager
-│   ├── permissions.js       # 5-Tier Role Resolver
-│   ├── moderation.js        # Whitelist & Spam Protection
-│   ├── commandLoader.js     # Hot-Reload Command Loader
-│   └── eventLoader.js       # Event Dispatcher
-├── storage/                 # Data Storage & Logs
-├── dashboard/               # Web Management Dashboard
-├── account.txt              # Instagram Session Cookies (Keep Private!)
-├── index.js                 # Application Entry Point
-└── package.json
-```
+* 🚀 **Zero External API Lock-In**: Complete native Instagram Chat API (`ica/`) bundled directly into the codebase.
+* 🛡️ **Anti-Ban & Stealth Protection**: Realistic Chrome 133 & Android 14/15 User-Agents with authentic `Sec-Fetch`, compression, and randomized typing jitter (40–200ms).
+* 🔄 **Dual Command Architecture**: Supports standard `run()` functions as well as GoatBot V2 hooks (`onStart`, `onReply`, `onReaction`, `onChat`, `onFirstChat`, `onLoad`, `onReady`).
+* 👑 **5-Tier Role System**: Granular permission checks (`0` Normal User, `1` Group Admin, `2` Bot Admin, `3` Premium User, `4` Developer).
+* 🧠 **AI Intelligence Suite**: Integrated Gemini, GPT, Claude 3, Meta AI, Nano-Banana Pro (`!nbpro`), and image generation models.
+* 🎬 **Media Downloader Engine**: Stream and fetch YouTube audio/video (`!sing`, `!video`), TikToks (`!tiktok`), Pinterest boards (`!pinterest`), and cloud uploads (`!imgbb`, Catbox, Imgur).
+* 📊 **Live Web Dashboard**: Browser-based administration interface for real-time uptime, logs, statistics, and command monitoring.
+
+---
+
+## 👑 5-Tier Permission Hierarchy
+
+| Role Level | Role Title | Access Description | Example Commands |
+|:---:|:---|:---|:---|
+| `0` | **Normal User** | Access to all public utilities, games, and info commands | `!help`, `!ai`, `!sing`, `!quote` |
+| `1` | **Group Admin** | Group thread management, kicking members, group settings | `!kick`, `!warn`, `!bot on/off` |
+| `2` | **Bot Admin** | Configured bot administrators in `config.adminBot` | `!ban`, `!approve`, `!whitelist` |
+| `3` | **Premium User** | Priority queue and exclusive high-capacity AI features | `!fluxdev`, `!veo`, `!nbpro` |
+| `4` | **Developer** | Unrestricted system commands, shell execution, code evaluation | `!eval`, `!shell`, `!restart`, `!cmd` |
+
+---
+
+## 📚 Complete Command Catalog (104+ Commands)
+
+<details>
+<summary><b>🤖 Artificial Intelligence & Generation (15 Commands)</b></summary>
+<br/>
+
+| Command | Triggers | Description | Usage |
+|:---|:---|:---|:---|
+| `ai` | `gpt`, `ask` | Chat with OpenAI GPT models | `!ai <prompt>` |
+| `claude` | `cld` | Ask Claude 3 (Haiku) with multimodal image support | `!claude <question>` |
+| `gemini` | `bard` | Query Google Gemini conversational AI | `!gemini <prompt>` |
+| `metaai` | `meta`, `llama` | Chat with Meta AI with multi-turn memory | `!metaai <prompt>` |
+| `nbpro` | `nb`, `nanobanana` | Generate or edit images using Nano-Banana Pro | `!nbpro <prompt>` |
+| `flux` | `flux2`, `flux3` | High-definition AI image synthesis | `!flux <prompt>` |
+| `fluxdev` | `fluxv` | FluxDev photo-realistic generator | `!fluxdev <prompt>` |
+| `imagen3` | `imagen4` | Google Imagen generator | `!imagen3 <prompt>` |
+| `dalle3` | `dalle` | OpenAI DALL-E 3 image generation | `!dalle3 <prompt>` |
+| `genx` | `art`, `creart` | Artistic image generation models | `!genx <prompt>` |
+| `nijix` | `niji` | Anime-style image generation with aspect ratios | `!nijix <prompt> --ar 16:9` |
+| `veo` | `txt2video` | AI Text-to-Video generation | `!veo <prompt>` |
+| `imggen` | `img` | Fast multi-engine AI image generator | `!imggen <prompt>` |
+| `aiphoto` | `photoai` | Enhance and generate realistic portraits | `!aiphoto <prompt>` |
+| `autotalk` | `bot` | Context-aware AI chatbot auto-reply | Auto-triggered |
+
+</details>
+
+<details>
+<summary><b>🎬 Media, Video & Audio Downloaders (14 Commands)</b></summary>
+<br/>
+
+| Command | Triggers | Description | Usage |
+|:---|:---|:---|:---|
+| `sing` | `song`, `music` | Search and download YouTube audio tracks | `!sing <song name>` |
+| `video` | `ytv`, `ytvideo` | Search and download YouTube videos | `!video <video title>` |
+| `tiktok` | `tt` | Search and download TikTok videos without watermark | `!tiktok <query>` |
+| `pinterest` | `pin` | Search and fetch high-resolution Pinterest images | `!pinterest <search>` |
+| `alldl` | `dl` | Universal social media video downloader | `!alldl <url>` |
+| `ytb` | `youtube` | Direct YouTube downloader with resolution selector | `!ytb <url>` |
+| `anisearch` | `animeedit` | Search and download anime edits and AMVs | `!anisearch <anime>` |
+| `imgbb` | `upload` | Upload images directly to ImgBB cloud storage | `!imgbb (reply to image)` |
+| `imgur` | `imgurl` | Upload attachments to Imgur | `!imgur (reply to media)` |
+| `catbox` | `cb` | Upload files to Catbox storage | `!catbox (reply to file)` |
+| `say` | `tts`, `speak` | Synthesize text to native Instagram voice notes | `!say <text>` |
+| `pfp` | `avatar` | Fetch full HD profile picture of any user | `!pfp <username>` |
+| `pfpframe` | `frame` | Generate aesthetic framed avatar pictures | `!pfpframe (tag/user)` |
+| `blur` | `filter` | Apply image filters and effects | `!blur (reply to photo)` |
+
+</details>
+
+<details>
+<summary><b>🎲 Economy, Games & Fun (18 Commands)</b></summary>
+<br/>
+
+| Command | Triggers | Description | Usage |
+|:---|:---|:---|:---|
+| `bank` | `balance`, `bal` | Check balance and bank account funds | `!bank` |
+| `daily` | `claim` | Claim daily economy reward | `!daily` |
+| `economy` | `eco`, `pay` | Transfer coins and manage wealth | `!economy pay <@user> <amt>` |
+| `coinflip` | `cf`, `flip` | Gamble coins on heads or tails | `!coinflip <heads\|tails> <amt>` |
+| `slot` | `slots` | Spin slot machine for jackpot winnings | `!slot <bet>` |
+| `dice` | `roll` | Roll virtual dice | `!dice` |
+| `rps` | `rockpaperscissors` | Play Rock-Paper-Scissors against bot | `!rps <rock\|paper\|scissors>` |
+| `dhbc` | `wordgame` | Play interactive guess-the-word song puzzle | `!dhbc` |
+| `bby` | `simi` | Cute interactive talk bot | `!bby <message>` |
+| `joke` | `humor` | Tell random jokes | `!joke` |
+| `quote` | `q` | Inspirational quotes & custom quote card generator | `!quote` |
+| `wanted` | `jail` | Generate Wanted/Bounty posters | `!wanted (tag/reply)` |
+| `rip` | `tomb` | Generate gravestone tribute memes | `!rip (tag/reply)` |
+| `slap` | `hit` | Slap tagged user with custom canvas animation | `!slap <@user>` |
+| `ship` | `pair`, `couple` | Matchmake and calculate compatibility | `!ship <@user>` |
+| `gay` | `howgay` | Fun compatibility meter | `!gay (tag)` |
+| `choose` | `pick` | Randomly pick from multiple options | `!choose <opt1> \| <opt2>` |
+| `dih` | `trivia` | Trivia challenge games | `!dih` |
+
+</details>
+
+<details>
+<summary><b>🛡️ Moderation & Group Management (16 Commands)</b></summary>
+<br/>
+
+| Command | Triggers | Description | Role Req |
+|:---|:---|:---|:---|
+| `kick` | `remove` | Kick user from group thread | `1` (Admin) |
+| `adduser` | `add` | Add user to Instagram group by ID | `1` (Admin) |
+| `warn` | `warning` | Issue warning strikes to misbehaving members | `1` (Admin) |
+| `ban` | `unban` | Ban/unban users from bot access | `2` (Bot Admin) |
+| `whitelist` | `wl` | Manage thread/user whitelist mode | `2` (Bot Admin) |
+| `approve` | `accept` | Approve pending message requests | `2` (Bot Admin) |
+| `bot` | `botmode` | Toggle bot ON/OFF or Admin-Only mode | `1` (Admin) |
+| `thread` | `group` | Manage thread title, photo, and settings | `1` (Admin) |
+| `unsend` | `delete` | Unsend bot messages | `0` (User) |
+| `unsendall` | `purge` | Unsend all bot messages in thread | `2` (Bot Admin) |
+| `rules` | `rule` | Display group rules | `0` (User) |
+| `busy` | `afk` | Set AFK status when away | `0` (User) |
+| `filter` | `antispam` | Configure thread word filter | `1` (Admin) |
+| `admin` | `admins` | List and manage bot administrators | `2` (Bot Admin) |
+| `manage` | `managebot` | Thread permissions and feature locks | `1` (Admin) |
+| `selflisten` | `self` | Toggle bot self-listening capability | `4` (Dev) |
+
+</details>
+
+<details>
+<summary><b>🛠️ System, Diagnostics & Utilities (14 Commands)</b></summary>
+<br/>
+
+| Command | Triggers | Description | Usage |
+|:---|:---|:---|:---|
+| `help` | `menu`, `commands` | Show interactive categorized command menu | `!help [command]` |
+| `info` | `about` | System information, node runtime & memory | `!info` |
+| `stats` | `statistics` | User ranking and bot usage stats | `!stats` |
+| `ping` | `latency` | Measure bot response and network latency | `!ping` |
+| `uid` | `id` | Get Instagram User ID of sender or target | `!uid [@user]` |
+| `userinfo` | `whois` | Detailed Instagram profile inspector | `!userinfo <user>` |
+| `weather` | `forecast` | Live global weather conditions and forecasts | `!weather <city>` |
+| `translate` | `trans` | Translate text into any language | `!translate <lang> <text>` |
+| `time` | `clock` | World clocks and timezones | `!time [timezone]` |
+| `calc` | `calculate` | Mathematical expression evaluator | `!calc <expr>` |
+| `eval` | `ev` | Execute JavaScript in bot context | `!eval <code>` (Dev) |
+| `shell` | `sh`, `exec` | Execute terminal commands on host system | `!shell <cmd>` (Dev) |
+| `restart` | `reboot` | Safely restart bot process | `!restart` (Dev) |
+| `cmd` | `command` | Reload or load command modules on the fly | `!cmd load <name>` (Dev) |
+
+</details>
 
 ---
 
 ## 🚀 Quick Start & Installation
 
 ### 1. Prerequisites
-* **Node.js**: `v20.0.0` or higher
+* **Node.js**: `v20.0.0` or higher ([Download](https://nodejs.org/))
 * **Git**: Installed on your system
+* **Instagram Account**: Active Instagram account for bot usage
 
 ### 2. Clone Repository
 ```bash
@@ -120,8 +256,8 @@ cd InstaBOT
 npm install
 ```
 
-### 4. Setup Instagram Cookies
-Export your Instagram session cookies (in **Netscape format** or **JSON format**) and place them into `account.txt` in the root directory:
+### 4. Setup Instagram Session (`account.txt`)
+Export your Instagram session cookies from your browser (e.g. using *EditThisCookie* or *Cookie-Editor*) in **Netscape format** or **JSON format** and paste them into `account.txt` in the root folder:
 
 ```text
 # Netscape HTTP Cookie File
@@ -130,8 +266,8 @@ Export your Instagram session cookies (in **Netscape format** or **JSON format**
 .instagram.com	TRUE	/	TRUE	1798765432	csrftoken	YOUR_CSRF_TOKEN
 ```
 
-### 5. Configure
-Edit `config/default.json` to set your bot prefix, bot admin IDs, and options:
+### 5. Configure Default Settings
+Edit `config/default.json` to customize your bot prefix, bot admin IDs, and features:
 
 ```jsonc
 {
@@ -140,6 +276,7 @@ Edit `config/default.json` to set your bot prefix, bot admin IDs, and options:
   "adminBot": ["YOUR_INSTAGRAM_USER_ID"],
   "devUsers": ["YOUR_INSTAGRAM_USER_ID"],
   "nickNameBot": "InstaBOT",
+  "language": "en",
   "optionsIca": {
     "stealthMode": true,
     "selfListen": true,
@@ -155,14 +292,66 @@ npm start
 
 ---
 
-## 👨‍💻 Developer & Credits
+## ⚙️ Configuration Reference
 
-* **Developers / Maintainers**: [Gtajisan](https://github.com/Gtajisan) && [frnAlt](https://github.com/frnAlt)
+### Environment Variables (`.env`)
+
+You can optionally configure InstaBOT via environment variables:
+
+| Variable | Type | Default | Description |
+|:---|:---:|:---:|:---|
+| `ACCOUNT_COOKIE` | String | `""` | Raw session cookie string |
+| `ACCOUNT_EMAIL` | String | `""` | Fallback login email |
+| `ACCOUNT_PASSWORD` | String | `""` | Fallback login password |
+| `ACCOUNT_USER_AGENT` | String | `Chrome 133` | Custom browser / device User-Agent |
+| `PREFIX` | String | `!` | Default command trigger prefix |
+| `PORT` | Number | `3000` | Web dashboard HTTP server port |
+
+---
+
+## 🚢 Deployment Options
+
+### 1. Running with PM2 (Recommended for VPS)
+```bash
+npm install -g pm2
+pm2 start index.js --name "instabot"
+pm2 save
+pm2 startup
+```
+
+### 2. Running with Docker
+```bash
+docker build -t instabot .
+docker run -d -p 3000:3000 --name instabot-app instabot
+```
+
+### 3. Replit Deployment
+1. Import repository into Replit.
+2. Add your cookies into `account.txt` or configure `ACCOUNT_COOKIE` in Secrets.
+3. Click **Run** (`replit.md` workflow will auto-start bot & dashboard).
+
+---
+
+## 🔒 Security & Best Practices
+
+1. **Keep `account.txt` Secret**: Never commit your `account.txt` or session tokens to public repositories.
+2. **Use Realistic Delays**: InstaBOT includes adaptive rate limiters and human typing jitter (40–200ms) by default to prevent spam triggers.
+3. **Admin Controls**: Ensure your Instagram ID is properly set in `adminBot` and `devUsers` to restrict sensitive commands like `!eval` and `!shell`.
+
+---
+
+## 👨‍💻 Developers & Credits
+
+* **Core Developers / Maintainers**: 
+  - [Gtajisan](https://github.com/Gtajisan)
+  - [frnAlt](https://github.com/frnAlt)
+* **Architecture & API**: Built-in native **ICA** (Instagram Chat API) Engine
 * **GitHub Repository**: [frnAlt/InstaBOT](https://github.com/frnAlt/InstaBOT)
-* **Engine**: Built-in native **ICA** Engine
+* **License**: [MIT License](LICENSE)
 
 ---
 
 <div align="center">
-  <sub>Made with ❤️ by Gtajisan && frnAlt • Powered by InstaBOT Engine</sub>
+  <sub>Crafted with ❤️ by <b>Gtajisan && frnAlt</b> • Powered by <b>InstaBOT Next-Gen Engine</b></sub><br/>
+  <sub>⭐ If you find this project useful, please consider giving it a star on GitHub! ⭐</sub>
 </div>
