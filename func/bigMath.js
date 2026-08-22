@@ -1,8 +1,13 @@
 /**
- * BigMath - High-precision BigInt arithmetic operations
+ * BigMath - High-precision BigInt arithmetic operations with static and fluent support
  */
 
 class BigMath {
+  constructor(value = 0) {
+    this.value = BigInt(value);
+  }
+
+  // Static API
   static abs(x) {
     const b = BigInt(x);
     return b < 0n ? -b : b;
@@ -76,6 +81,58 @@ class BigMath {
       else high = mid - 1n;
     }
     return high;
+  }
+
+  // Instance Fluent API
+  add(val) {
+    this.value += BigInt(val);
+    return this;
+  }
+
+  sub(val) {
+    this.value -= BigInt(val);
+    return this;
+  }
+
+  mul(val) {
+    this.value *= BigInt(val);
+    return this;
+  }
+
+  div(val) {
+    const b = BigInt(val);
+    if (b === 0n) throw new Error("Division by zero");
+    this.value /= b;
+    return this;
+  }
+
+  mod(val) {
+    const b = BigInt(val);
+    if (b === 0n) throw new Error("Division by zero");
+    this.value %= b;
+    return this;
+  }
+
+  pow(exp) {
+    this.value = this.value ** BigInt(exp);
+    return this;
+  }
+
+  abs() {
+    if (this.value < 0n) this.value = -this.value;
+    return this;
+  }
+
+  toString() {
+    return this.value.toString();
+  }
+
+  toNumber() {
+    return Number(this.value);
+  }
+
+  toBigInt() {
+    return this.value;
   }
 }
 

@@ -1,5 +1,5 @@
-const { login } = require('ica-by-tanvir');
-const setOptions = login.setOptions;
+const { login } = require('../ica');
+const setOptions = login?.setOptions || (() => {});
 
 module.exports = {
   config: {

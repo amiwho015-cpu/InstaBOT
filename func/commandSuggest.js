@@ -31,21 +31,34 @@ function compareTwoStrings(first, second) {
 
 function findSimilarCommand(unknown, commandsMap) {
 	if (!unknown || !commandsMap) return null;
-	const targetCmd = unknown.toLowerCase().trim();
+	const targetCmd = String(unknown).toLowerCase().trim();
 	const seen = new Set();
 	const ratings = [];
 
-	for (const [cmdName, mod] of commandsMap.entries()) {
-		const canonical = (mod?.config?.name || cmdName).toLowerCase();
+	// Normalize commands collection into an iterable of [key, value]
+	let entries = [];
+	if (commandsMap instanceof Map) {
+		entries = Array.from(commandsMap.entries());
+	} else if (Array.isArray(commandsMap)) {
+		entries = commandsMap.map(item => [typeof item === 'string' ? item : item?.config?.name, item]);
+	} else if (typeof commandsMap === 'object') {
+		entries = Object.entries(commandsMap);
+	}
+
+	for (const [cmdName, mod] of entries) {
+		const rawName = (typeof mod === 'string' ? mod : (mod?.config?.name || cmdName));
+		if (!rawName) continue;
+		const canonical = String(rawName).toLowerCase();
 		if (seen.has(canonical)) continue;
 		seen.add(canonical);
 
 		const score = compareTwoStrings(targetCmd, canonical);
 		ratings.push({ target: canonical, rating: score });
 
-		if (mod?.config?.aliases && Array.isArray(mod.config.aliases)) {
+		if (mod && typeof mod === 'object' && mod.config?.aliases && Array.isArray(mod.config.aliases)) {
 			for (const alias of mod.config.aliases) {
-				const aliasScore = compareTwoStrings(targetCmd, alias.toLowerCase());
+				if (!alias) continue;
+				const aliasScore = compareTwoStrings(targetCmd, String(alias).toLowerCase());
 				ratings.push({ target: canonical, rating: aliasScore });
 			}
 		}

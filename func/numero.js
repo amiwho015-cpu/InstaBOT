@@ -56,6 +56,14 @@ const Numero = {
       return sign + (n / item.value).toFixed(digits).replace(/\.0+$|(\.[0-9]*[1-9])0+$/, "$1") + item.symbol;
     }
     return sign + n.toString();
+  },
+
+  formatCompact(num, digits = 2) {
+    return Numero.abbreviateNumber(num, digits);
+  },
+
+  randomVariance(value, percent) {
+    return Numero.applyVariance(value, percent);
   }
 };
 

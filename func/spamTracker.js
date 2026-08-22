@@ -52,6 +52,14 @@ class SpamTracker {
     return { isBanned: false, violations: timestamps.length, shouldBan: false };
   }
 
+  record(threadID, commandName = 'cmd') {
+    return this.trackCommand(threadID, commandName);
+  }
+
+  isSpamming(threadID) {
+    return this.isBanned(threadID);
+  }
+
   isBanned(threadID) {
     const bannedUntil = this.bannedThreads.get(threadID);
     if (!bannedUntil) return false;

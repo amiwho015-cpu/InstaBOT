@@ -7,8 +7,14 @@
  * @since 1.0.0
  */
 
-const { Sequelize, DataTypes } = require('sequelize');
 const { nkxicaLog: log } = require('../utils/logger');
+
+let Sequelize, DataTypes;
+try {
+  const seq = require('sequelize');
+  Sequelize = seq.Sequelize;
+  DataTypes = seq.DataTypes;
+} catch (_) {}
 
 class Database {
   constructor(options = {}) {
@@ -20,6 +26,10 @@ class Database {
 
   // Initialize database
   async init() {
+    if (!Sequelize) {
+      log.warn('Sequelize is not installed. SQLite database features will be disabled.');
+      return false;
+    }
     try {
       this.sequelize = new Sequelize({
         dialect: 'sqlite',
@@ -40,6 +50,7 @@ class Database {
 
   // Define database models
   defineModels() {
+    if (!this.sequelize || !DataTypes) return;
     // Messages model
     this.models.Message = this.sequelize.define('Message', {
       id: {
