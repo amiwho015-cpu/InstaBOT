@@ -1,6 +1,6 @@
 'use strict';
 
-const { login } = require('../lib/ica');
+const { login } = require('../ica');
 
 const fs = require('fs-extra');
 const path = require('path');
@@ -362,7 +362,9 @@ class InstagramBot {
       await this.eventLoader.loadEvents();
       this.eventLoader.registerEvents();
 
-      login.setOptions(config.OPTIONS_FCA);
+      if (login && typeof login.setOptions === 'function') {
+        login.setOptions(config.OPTIONS_ICA || config.OPTIONS_FCA);
+      }
 
       await this.loadAndLogin();
 
@@ -384,18 +386,75 @@ class InstagramBot {
   }
 
   async loadAndLogin() {
-    const hasCookieFile   = fs.existsSync(config.ACCOUNT_FILE);
-    const hasCredentials  = !!(config.ACCOUNT_EMAIL && config.ACCOUNT_PASSWORD);
-    const cookieContent   = hasCookieFile ? fs.readFileSync(config.ACCOUNT_FILE, 'utf-8') : '';
-    const hasValidCookies = hasCookieFile && this._hasValidCookies(cookieContent);
+    let cookieData = null;
+    const cookieFilePath = config.ACCOUNT_FILE || './account.txt';
 
-    if (hasValidCookies) {
-      logger.info('Loading cookies from account.txt...');
-      let loginData = cookieContent; try { const parsed = JSON.parse(cookieContent); if (parsed.cookies && Array.isArray(parsed.cookies.cookies)) loginData = parsed.cookies.cookies; else if (parsed.cookies && Array.isArray(parsed.cookies)) loginData = parsed.cookies; else if (Array.isArray(parsed)) loginData = parsed; } catch (e) {} this.ig = await login(loginData);
+    try {
+      if (fs.existsSync(cookieFilePath)) {
+        cookieData = fs.readFileSync(cookieFilePath, 'utf8').trim();
+      }
+    } catch (e) {
+      logger.warn('Could not read account.txt file');
+    }
+
+    if (!cookieData && config.ACCOUNT_COOKIE) {
+      cookieData = config.ACCOUNT_COOKIE;
+    }
+
+    const hasCredentials = !!(config.ACCOUNT_EMAIL && config.ACCOUNT_PASSWORD);
+
+    if (cookieData) {
+      logger.info('Loading cookies and logging in to Instagram...');
+      try {
+        let appState;
+        if (cookieData.startsWith('[') || cookieData.startsWith('{')) {
+          const parsed = JSON.parse(cookieData);
+          if (parsed.cookies && Array.isArray(parsed.cookies.cookies)) appState = parsed.cookies.cookies;
+          else if (parsed.cookies && Array.isArray(parsed.cookies)) appState = parsed.cookies;
+          else if (Array.isArray(parsed)) appState = parsed;
+          else appState = parsed;
+        } else if (cookieData.includes('=')) {
+          appState = cookieData.split(';').map(cookie => {
+            const parts = cookie.trim().split('=');
+            const name = parts[0];
+            const value = parts.slice(1).join('=');
+            if (!name || !value) return null;
+            return {
+              key: name.trim(),
+              value: value.trim(),
+              domain: '.instagram.com',
+              path: '/'
+            };
+          }).filter(Boolean);
+
+          if (appState.length === 0) {
+            appState = [{ name: 'sessionid', value: cookieData.replace('sessionid=', '').trim(), domain: '.instagram.com', path: '/' }];
+          }
+        } else {
+          appState = [{ name: 'sessionid', value: cookieData.trim(), domain: '.instagram.com', path: '/' }];
+        }
+
+        this.ig = await login({ appState });
+      } catch (firstErr) {
+        try {
+          let cleanCookie = cookieData.replace('sessionid=', '').trim();
+          this.ig = await login(`sessionid=${cleanCookie}`);
+        } catch (secondErr) {
+          if (hasCredentials) {
+            logger.info('Cookie login failed — attempting fallback email/password login...');
+            this.ig = await login({
+              email: config.ACCOUNT_EMAIL,
+              password: config.ACCOUNT_PASSWORD
+            });
+          } else {
+            throw new Error('Cookie login failed. Please check if your cookies are valid or expired: ' + secondErr.message);
+          }
+        }
+      }
     } else if (hasCredentials) {
-      logger.info('No valid cookies found — logging in with email/password...');
+      logger.info('No cookies found — logging in with email/password...');
       this.ig = await login({
-        email:    config.ACCOUNT_EMAIL,
+        email: config.ACCOUNT_EMAIL,
         password: config.ACCOUNT_PASSWORD
       });
     } else {
@@ -403,6 +462,10 @@ class InstagramBot {
         'No valid cookies in account.txt and no email/password configured. ' +
         'Please add Instagram cookies to account.txt or set ACCOUNT_EMAIL/ACCOUNT_PASSWORD.'
       );
+    }
+
+    if (!this.ig) {
+      throw new Error('Login returned empty or invalid instance.');
     }
 
     this._afterLogin();
@@ -454,6 +517,7 @@ class InstagramBot {
 
     this.username          = this.userID !== 'unknown' ? this.userID : 'unknown';
     this.api               = this.createAPIWrapper();
+    global.GoatBot.icaApi  = this.api;
     global.GoatBot.fcaApi  = this.api;
     global.GoatBot.instance = this;
 

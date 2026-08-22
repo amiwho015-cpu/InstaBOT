@@ -12,7 +12,8 @@ module.exports = {
       const { senderID, threadId, reaction, targetMessageId, reactionStatus, messageID } = event;
       if (!reaction || reactionStatus === 'deleted') return;
 
-      const reactionData = database.getReactionData(messageID || targetMessageId) || global.GoatBot.onReaction.get(String(messageID || targetMessageId));
+      const targetId = messageID || targetMessageId;
+      const reactionData = database.getReactionData(targetId) || (global.GoatBot?.onReaction?.get ? global.GoatBot.onReaction.get(String(targetId)) : null);
       if (reactionData && reactionData.commandName) {
           const command = bot.commandLoader.getCommand(reactionData.commandName);
           if (command) {
