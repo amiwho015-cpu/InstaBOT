@@ -1,76 +1,99 @@
+/**
+ * Pinterest Image Search Command
+ * Searches and downloads HD aesthetics & photos from Pinterest
+ */
+
 const axios = require('axios');
-const fs = require('fs-extra');
-const path = require('path');
 
 module.exports = {
   config: {
     name: 'pinterest',
-    aliases: ['pin', 'pins'],
-    description: 'Search Pinterest for images',
-    usage: 'pinterest <query> [-count]  (e.g. pinterest anime -5)',
-    cooldown: 10,
+    aliases: ['pin', 'pins', 'pinterestdl'],
+    version: '2.1.0',
+    author: 'Gtajisan && frnAlt',
+    cooldown: 5,
     role: 0,
-    author: 'Mahi--',
-    category: 'media'
+    shortDescription: {
+      en: 'Search and download Pinterest HD images'
+    },
+    longDescription: {
+      en: 'Fetches high-resolution images, wallpapers, and aesthetics from Pinterest by keyword.'
+    },
+    category: 'media',
+    usage: '{p}pinterest <query> [-count]\nExample: {p}pinterest cyberpunk wallpaper -3'
   },
 
-  async run({ api, event, args, logger }) {
+  onStart: async function ({ api, event, args, message }) {
+    const threadID = event.threadId || event.threadID;
+
     if (args.length === 0) {
-      return api.sendMessage(
-        '❌ Please provide a search query.\n\nUsage: pinterest <query> [-count]\nExample: pinterest anime wallpaper -4',
-        event.threadId
-      );
+      const prompt = '📌 𝗣𝗶𝗻𝘁𝗲𝗿𝗲𝘀𝘁 𝗦𝗲𝗮𝗿𝗰𝗵\n\nUsage: /pinterest <query> [-count]\nExample: /pinterest anime aesthetic -4';
+      return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
     }
 
-    let count = 3;
+    let count = 4;
     const countArg = args.find(a => /^-\d+$/.test(a));
     if (countArg) {
-      count = Math.min(Math.max(parseInt(countArg.slice(1), 10), 1), 9);
+      count = Math.min(Math.max(parseInt(countArg.slice(1), 10), 1), 6);
       args = args.filter(a => a !== countArg);
     }
 
     const query = args.join(' ').trim();
-    await api.sendReaction('⏳', event.messageId);
+    if (message && typeof message.reaction === 'function') message.reaction('⏳', event.messageID);
 
     try {
-      const res = await axios.get(
-        `https://egret-driving-cattle.ngrok-free.app/api/pin?query=${encodeURIComponent(query)}&num=20`,
-        { timeout: 15000 }
-      );
+      let imageUrls = [];
 
-      const urls = (res.data?.results || []).slice(0, count);
+      // Primary Endpoint
+      try {
+        const res = await axios.get(`https://api.siputzx.my.id/api/s/pinterest?query=${encodeURIComponent(query)}`, { timeout: 10000 });
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          imageUrls = res.data.data.slice(0, count);
+        } else if (Array.isArray(res.data?.result)) {
+          imageUrls = res.data.result.slice(0, count);
+        }
+      } catch (_) {}
 
-      if (urls.length === 0) {
-        await api.sendReaction('❌', event.messageId);
-        return api.sendMessage(`❌ No images found for: ${query}`, event.threadId);
-      }
-
-      await api.sendMessage(
-        `🖼️ Found images for "${query}" — sending ${urls.length}...`,
-        event.threadId
-      );
-
-      const tempDir = path.join(process.cwd(), 'temp');
-      await fs.ensureDir(tempDir);
-
-      for (let i = 0; i < urls.length; i++) {
+      // Fallback 1: widpe
+      if (imageUrls.length === 0) {
         try {
-          const imgRes = await axios.get(urls[i], { responseType: 'arraybuffer', timeout: 15000 });
-          const filePath = path.join(tempDir, `pin_${Date.now()}_${i}.jpg`);
-          await fs.writeFile(filePath, Buffer.from(imgRes.data));
-          await api.sendPhoto(filePath, event.threadId);
-          fs.unlink(filePath).catch(() => {});
+          const res = await axios.get(`https://widpe.com/pinterest?query=${encodeURIComponent(query)}`, { timeout: 10000 });
+          if (Array.isArray(res.data?.result)) {
+            imageUrls = res.data.result.slice(0, count);
+          }
         } catch (_) {}
       }
 
-      await api.sendReaction('✅', event.messageId);
+      // Fallback 2: Unsplash
+      if (imageUrls.length === 0) {
+        try {
+          const res = await axios.get(`https://api.unsplash.com/search/photos?client_id=d627d35368a73b9e59ff2ae3081e779a1f26f2a677464ce780d60be1c43db814&query=${encodeURIComponent(query)}&per_page=${count}`, { timeout: 10000 });
+          if (res.data?.results) {
+            imageUrls = res.data.results.map(r => r.urls?.regular || r.urls?.small).filter(Boolean);
+          }
+        } catch (_) {}
+      }
+
+      if (imageUrls.length === 0) {
+        if (message && typeof message.reaction === 'function') message.reaction('❌', event.messageID);
+        const notFound = `❌ No Pinterest images found for: "${query}".`;
+        return message ? message.reply(notFound) : api.sendMessage(notFound, threadID);
+      }
+
+      const caption = `📌 𝗣𝗶𝗻𝘁𝗲𝗿𝗲𝘀𝘁: "${query}" (${imageUrls.length} photos)`;
+      if (message && typeof message.reaction === 'function') message.reaction('✅', event.messageID);
+
+      return message 
+        ? message.reply({ body: caption, attachment: imageUrls })
+        : api.sendMessage({ body: caption, attachment: imageUrls }, threadID);
     } catch (error) {
-      logger.error('pinterest error', { error: error.message });
-      await api.sendReaction('❌', event.messageId);
-      return api.sendMessage(
-        '❌ Failed to fetch Pinterest images.\n\nThis could be due to:\n• API rate limit\n• Network error\n• No results found',
-        event.threadId
-      );
+      if (message && typeof message.reaction === 'function') message.reaction('❌', event.messageID);
+      const errMsg = `❌ Failed to fetch Pinterest images: ${error.message}`;
+      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
     }
+  },
+
+  run: async function (params) {
+    return module.exports.onStart(params);
   }
 };

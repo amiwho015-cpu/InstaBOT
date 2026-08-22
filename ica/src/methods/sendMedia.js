@@ -591,22 +591,28 @@ class SendMedia {
         dlResponse.data.on('error', reject);
       });
 
-      // Instagram voice messages require AAC/m4a — convert if needed
+      // Instagram voice messages prefer AAC/m4a — convert if ffmpeg is available
       let uploadPath = tempPath;
       let convertedPath = null;
       if (path.extname(tempPath).toLowerCase() !== '.m4a') {
         convertedPath = `${tempBase}_converted.m4a`;
-        await new Promise((resolve, reject) => {
-          execFile('ffmpeg', [
-            '-y', '-i', tempPath,
-            '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '1',
-            convertedPath
-          ], (err) => {
-            if (err) return reject(new Error(`ffmpeg conversion failed: ${err.message}`));
-            resolve();
+        try {
+          await new Promise((resolve, reject) => {
+            execFile('ffmpeg', [
+              '-y', '-i', tempPath,
+              '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '1',
+              convertedPath
+            ], (err) => {
+              if (err) return reject(err);
+              resolve();
+            });
           });
-        });
-        uploadPath = convertedPath;
+          uploadPath = convertedPath;
+        } catch (_) {
+          // If ffmpeg is unavailable or fails, fallback to uploading original audio directly
+          uploadPath = tempPath;
+          convertedPath = null;
+        }
       }
 
       const result = await this.voice(threadID, uploadPath, options);

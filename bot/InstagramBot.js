@@ -892,7 +892,7 @@ class InstagramBot {
           if (!threadID) threadID = form.threadID || form.threadId;
 
           let text = typeof form === 'object' ? (form.body !== undefined ? form.body : '') : String(form);
-          let attachment = typeof form === 'object' ? form.attachment : null;
+          let attachment = typeof form === 'object' ? (form.attachment || form.photo || form.image || form.video || form.audio || form.voice || form.media || null) : null;
 
           if (config.TYPING_INDICATOR && threadID && ig?.sendTypingIndicator) {
             ig.sendTypingIndicator(threadID).catch(() => {});
@@ -902,12 +902,17 @@ class InstagramBot {
 
           let result;
           if (attachment) {
-              const attachments = Array.isArray(attachment) ? attachment : [attachment];
+              const rawList = Array.isArray(attachment) ? attachment : [attachment];
               const tempFiles = [];
-              for (const item of attachments) {
-                  let mediaPath = item.path || (typeof item === 'string' ? item : null);
 
-                  // Handle URL strings as attachments
+              for (const rawItem of rawList) {
+                  let item = (rawItem && typeof rawItem === 'object' && !rawItem.readable && !rawItem.pipe && !Buffer.isBuffer(rawItem))
+                      ? (rawItem.url || rawItem.path || rawItem.photo || rawItem.video || rawItem.audio || rawItem.voice || rawItem.image || rawItem)
+                      : rawItem;
+
+                  let mediaPath = null;
+
+                  // 1. Handle URL strings
                   if (typeof item === 'string' && item.startsWith('http')) {
                       try {
                           const stream = await utils.getStreamFromURL(item);
@@ -918,7 +923,7 @@ class InstagramBot {
                               else if (headerType.startsWith('audio/')) ext = 'mp3';
                               else if (item.toLowerCase().includes('.mp4')) ext = 'mp4';
                               else if (item.toLowerCase().includes('.mp3')) ext = 'mp3';
-                              else ext = 'png';
+                              else ext = 'jpg';
                           }
                           const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
                           await fs.ensureDir(path.dirname(tempPath));
@@ -934,7 +939,7 @@ class InstagramBot {
                           logger.error('Failed to download attachment from URL', { url: item, error: e.message });
                       }
                   }
-                  // Handle Streams and Buffers
+                  // 2. Handle Streams and Buffers
                   else if (item && (item.readable || item.pipe || Buffer.isBuffer(item))) {
                       let rawExt = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : (item._path ? path.extname(item._path) : '')));
                       if (!rawExt && item.mimeType) {
@@ -958,18 +963,29 @@ class InstagramBot {
                       mediaPath = tempPath;
                       tempFiles.push(tempPath);
                   }
+                  // 3. Handle local existing file paths
+                  else if (typeof item === 'string' && fs.existsSync(item)) {
+                      mediaPath = item;
+                  }
 
                   if (mediaPath) {
                       const lowerPath = mediaPath.toLowerCase();
                       const opts = { caption: text };
                       if (replyToMessageID) opts.replyToMessageID = replyToMessageID;
 
-                      if (lowerPath.endsWith('.mp4') || lowerPath.endsWith('.mov') || lowerPath.endsWith('.mkv') || lowerPath.endsWith('.webm')) {
-                          result = await ig.sendVideo(threadID, mediaPath, opts);
-                      } else if (lowerPath.endsWith('.mp3') || lowerPath.endsWith('.wav') || lowerPath.endsWith('.m4a') || lowerPath.endsWith('.ogg')) {
-                          result = await ig.sendVoice(threadID, mediaPath);
-                      } else {
-                          result = await ig.sendPhoto(threadID, mediaPath, opts);
+                      try {
+                          if (lowerPath.endsWith('.mp4') || lowerPath.endsWith('.mov') || lowerPath.endsWith('.mkv') || lowerPath.endsWith('.webm') || lowerPath.endsWith('.avi') || lowerPath.endsWith('.m4v')) {
+                              result = await ig.sendVideo(threadID, mediaPath, opts);
+                          } else if (lowerPath.endsWith('.mp3') || lowerPath.endsWith('.wav') || lowerPath.endsWith('.m4a') || lowerPath.endsWith('.ogg') || lowerPath.endsWith('.aac') || lowerPath.endsWith('.opus') || lowerPath.endsWith('.flac')) {
+                              result = await ig.sendVoice(threadID, mediaPath);
+                          } else {
+                              result = await ig.sendPhoto(threadID, mediaPath, opts);
+                          }
+                      } catch (mediaErr) {
+                          logger.error('Error dispatching media to Instagram API', { error: mediaErr.message, mediaPath });
+                          if (text) {
+                              result = await ig.sendMessage(text, threadID).catch(() => {});
+                          }
                       }
                   }
               }

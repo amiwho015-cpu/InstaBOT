@@ -1,3 +1,8 @@
+/**
+ * ImgBB Image Cloud Hosting Command
+ * Upload images directly to ImgBB and return permanent CDN URLs
+ */
+
 const axios = require('axios');
 const FormData = require('form-data');
 
@@ -7,53 +12,76 @@ module.exports = {
   config: {
     name: 'imgbb',
     aliases: ['uploadimg', 'imgupload'],
-    description: 'Upload image(s) to imgbb and get permanent links',
-    usage: 'imgbb (send with image attachment)',
+    version: '1.2.0',
+    author: 'Gtajisan && frnAlt',
     cooldown: 5,
     role: 0,
-    author: 'xnil6x',
-    category: 'utility'
+    shortDescription: {
+      en: 'Upload images to ImgBB cloud'
+    },
+    longDescription: {
+      en: 'Uploads images to ImgBB hosting service and returns permanent public links.'
+    },
+    category: 'utility',
+    usage: '{p}imgbb (reply to photo or send with photo)'
   },
 
-  async run({ api, event, logger }) {
-    const attachments = (event.attachments || []).filter(a =>
+  onStart: async function ({ api, event, message }) {
+    const threadID = event.threadId || event.threadID;
+
+    let attachments = [];
+    if (event.messageReply?.attachments?.length > 0) {
+      attachments = event.messageReply.attachments;
+    } else if (event.attachments?.length > 0) {
+      attachments = event.attachments;
+    }
+
+    const photoAttachments = attachments.filter(a =>
       a.type === 'photo' || a.type === 'image' || (a.url && /\.(jpg|jpeg|png|gif|webp)/i.test(a.url))
     );
 
-    if (attachments.length === 0) {
-      return api.sendMessage(
-        '❌ No image found!\n\nSend your image together with the imgbb command.',
-        event.threadId
-      );
+    if (photoAttachments.length === 0) {
+      const prompt = '❌ Please reply to an image or send a photo with the `/imgbb` command.';
+      return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
     }
 
-    await api.sendReaction('⏳', event.messageId);
+    if (message && typeof message.reaction === 'function') {
+      message.reaction('⏳', event.messageID);
+    }
 
     try {
       const links = await Promise.all(
-        attachments.map(async (att, i) => {
-          const imgRes = await axios.get(att.url, { responseType: 'arraybuffer' });
+        photoAttachments.map(async (att, i) => {
+          const imgRes = await axios.get(att.url, { responseType: 'arraybuffer', timeout: 15000 });
           const form = new FormData();
-          form.append('image', Buffer.from(imgRes.data, 'binary'), { filename: `image${i}.jpg` });
+          form.append('image', Buffer.from(imgRes.data), { filename: `image_${Date.now()}_${i}.jpg` });
 
           const res = await axios.post('https://api.imgbb.com/1/upload', form, {
             headers: form.getHeaders(),
-            params: { key: IMGBB_API_KEY }
+            params: { key: IMGBB_API_KEY },
+            timeout: 15000
           });
 
-          return res.data.data.url;
+          return res.data?.data?.url || res.data?.data?.display_url;
         })
       );
 
-      await api.sendReaction('✅', event.messageId);
-      return api.sendMessage(
-        `🖼️ Uploaded ${links.length} image(s):\n\n${links.join('\n')}`,
-        event.threadId
-      );
+      const validLinks = links.filter(Boolean);
+      if (validLinks.length === 0) {
+        throw new Error('Could not upload image to ImgBB');
+      }
+
+      if (message && typeof message.reaction === 'function') message.reaction('✅', event.messageID);
+      const replyMsg = `🖼️ 𝗨𝗽𝗹𝗼𝗮𝗱𝗲𝗱 ${validLinks.length} 𝗶𝗺𝗮𝗴𝗲(𝘀) 𝘁𝗼 𝗜𝗺𝗴𝗕𝗕:\n\n${validLinks.join('\n')}`;
+      return message ? message.reply(replyMsg) : api.sendMessage(replyMsg, threadID);
     } catch (error) {
-      logger.error('imgbb error', { error: error.message });
-      await api.sendReaction('❌', event.messageId);
-      return api.sendMessage('❌ Failed to upload image(s) to imgbb.', event.threadId);
+      if (message && typeof message.reaction === 'function') message.reaction('❌', event.messageID);
+      const errMsg = `❌ Failed to upload image to ImgBB: ${error.message}`;
+      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
     }
+  },
+
+  run: async function (params) {
+    return module.exports.onStart(params);
   }
 };
