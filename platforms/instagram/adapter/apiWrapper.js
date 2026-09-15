@@ -1,0 +1,428 @@
+"use strict";
+
+/**
+ * platforms/instagram/adapter/apiWrapper.js
+ *
+ * Exposes a standardized, platform-neutral API surface for GoatBot/Floppa commands
+ * while wrapping native Instagram ICA calls under the hood.
+ *
+ * Features:
+ * - Transparent node-style callbacks and Promise support.
+ * - Automatic typing indicator option and media dispatch routing.
+ * - Graceful fallbacks for unsupported Facebook-only methods to avoid bot crashes.
+ */
+
+const { dispatchMediaMessage } = require("../media/handler");
+const logger = require("../../../utils/logger");
+
+function createAPIWrapper(rawClient, config = {}) {
+	const ig = rawClient;
+
+	function wrapCallback(promise, callback) {
+		if (typeof callback === "function") {
+			promise.then(
+				res => callback(null, res),
+				err => callback(err, null)
+			);
+			return undefined;
+		}
+		return promise;
+	}
+
+	const wrapper = {
+		_raw: ig,
+
+		getCurrentUserID: () => {
+			if (!ig) return null;
+			if (typeof ig.getCurrentUserID === "function") {
+				const id = ig.getCurrentUserID();
+				return typeof id === "object" ? (id?.userID || id?.userId || String(id)) : String(id);
+			}
+			return ig._userID || null;
+		},
+
+		sendMessage: async (form, threadID, callback, replyToMessageID) => {
+			if (typeof threadID === "function") {
+				callback = threadID;
+				threadID = null;
+			}
+			if (!threadID && form && typeof form === "object") {
+				threadID = form.threadID || form.threadId;
+			}
+
+			const promise = (async () => {
+				if (config.TYPING_INDICATOR && threadID && ig && typeof ig.sendTypingIndicator === "function") {
+					ig.sendTypingIndicator(threadID).catch(() => {});
+				}
+
+				const hasMedia = form && typeof form === "object" && Boolean(
+					form.attachment || form.attachments || form.photo || form.image || form.video || form.audio || form.voice
+				);
+
+				if (hasMedia) {
+					return await dispatchMediaMessage(wrapper, threadID, form, replyToMessageID);
+				}
+
+				// Plain text message dispatch directly to underlying client
+				const text = typeof form === "object" && form !== null ? (form.body != null ? String(form.body) : "") : String(form || "");
+				if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
+					try {
+						return await ig.replyToMessage(threadID, text, replyToMessageID);
+					} catch (_) {}
+				}
+
+				if (ig) {
+					if (typeof ig.sendMessage === "function") {
+						return await ig.sendMessage(text, threadID);
+					}
+					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
+						return await ig.sendMessage.toThread(threadID, text);
+					}
+					if (typeof ig.sendDirectMessage === "function") {
+						return await ig.sendDirectMessage(threadID, text);
+					}
+				}
+				return { messageID: "mock_" + Date.now() };
+			})();
+
+			return wrapCallback(promise, callback);
+		},
+
+		replyToMessage: async (threadID, message, replyToMessageID, callback) => {
+			const promise = (async () => {
+				const text = typeof message === "object" && message !== null ? (message.body != null ? String(message.body) : "") : String(message || "");
+				if (ig && typeof ig.replyToMessage === "function") {
+					try {
+						return await ig.replyToMessage(threadID, text, replyToMessageID);
+					} catch (_) {}
+				}
+				return await wrapper.sendMessage(message, threadID, undefined, replyToMessageID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendPhoto: async (threadID, pathOrUrl, opts = {}, callback) => {
+			if (typeof opts === "function") {
+				callback = opts;
+				opts = {};
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.sendPhoto === "function") {
+					return await ig.sendPhoto(threadID, pathOrUrl, opts);
+				}
+				if (ig && typeof ig.sendImage === "function") {
+					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
+				}
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl }, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendImage: async (source, threadID, caption = "", callback, replyToMessageID) => {
+			if (typeof caption === "function") {
+				callback = caption;
+				caption = "";
+			}
+			return wrapper.sendPhoto(threadID, source, { caption, replyToMessageID }, callback);
+		},
+
+		sendVideo: async (threadID, pathOrUrl, opts = {}, callback) => {
+			if (typeof opts === "function") {
+				callback = opts;
+				opts = {};
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.sendVideo === "function") {
+					return await ig.sendVideo(threadID, pathOrUrl, opts);
+				}
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl }, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendVoice: async (threadID, pathOrUrl, opts = {}, callback) => {
+			if (typeof opts === "function") {
+				callback = opts;
+				opts = {};
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.sendVoice === "function") {
+					return await ig.sendVoice(threadID, pathOrUrl, opts);
+				}
+				if (ig && typeof ig.sendAudio === "function") {
+					return await ig.sendAudio(pathOrUrl, threadID);
+				}
+				return await wrapper.sendMessage({ attachment: pathOrUrl }, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendAudio: async (source, threadID, callback, replyToMessageID) => {
+			return wrapper.sendVoice(threadID, source, { replyToMessageID }, callback);
+		},
+
+		sendGIF: async (threadID, url, opts = {}, callback) => {
+			if (typeof opts === "function") {
+				callback = opts;
+				opts = {};
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.sendGIF === "function") {
+					return await ig.sendGIF(threadID, url, opts);
+				}
+				return await wrapper.sendMessage({ attachment: url }, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendReaction: async (reaction, messageID, threadID, callback) => {
+			if (typeof threadID === "function") {
+				callback = threadID;
+				threadID = undefined;
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.setMessageReaction === "function") {
+					return await ig.setMessageReaction(reaction || "", messageID, threadID);
+				}
+				if (ig && typeof ig.sendReaction === "function") {
+					return await ig.sendReaction(reaction || "", messageID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		setMessageReaction: (reaction, messageID, callback, force) => {
+			return wrapper.sendReaction(reaction, messageID, undefined, callback);
+		},
+
+		unsendMessage: async (messageID, threadIDOrCallback, maybeCallback) => {
+			let callback;
+			if (typeof threadIDOrCallback === "function") {
+				callback = threadIDOrCallback;
+			} else if (typeof maybeCallback === "function") {
+				callback = maybeCallback;
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.unsendMessage === "function") {
+					return await ig.unsendMessage(messageID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		getUserInfo: async (userID, callback) => {
+			const promise = (async () => {
+				if (!userID) return {};
+				if (ig && typeof ig.getUserInfo === "function") {
+					return await ig.getUserInfo(userID);
+				}
+				return {};
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		getUserInfoByUsername: async (username, callback) => {
+			const promise = (async () => {
+				if (!username) return null;
+				if (ig && typeof ig.getUserInfoByUsername === "function") {
+					return await ig.getUserInfoByUsername(username);
+				}
+				return null;
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		getThreadInfo: async (threadID, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.getThreadInfo === "function") {
+					return await ig.getThreadInfo(threadID);
+				}
+				return null;
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		getThread: (threadID, callback) => wrapper.getThreadInfo(threadID, callback),
+
+		getThreadList: async (opts, callback) => {
+			if (typeof opts === "function") {
+				callback = opts;
+				opts = {};
+			}
+			const promise = (async () => {
+				if (ig && typeof ig.getThreadList === "function") {
+					return await ig.getThreadList(opts);
+				}
+				if (ig && typeof ig.getInbox === "function") {
+					return await ig.getInbox(opts);
+				}
+				return [];
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		getInbox: (opts, callback) => wrapper.getThreadList(opts, callback),
+
+		getThreadHistory: async (threadID, amount = 20, timestamp = null, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.getThreadHistory === "function") {
+					return await ig.getThreadHistory(threadID, amount, timestamp);
+				}
+				return [];
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		markAsRead: async (threadID, read = true, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.markAsRead === "function") {
+					return await ig.markAsRead(threadID, read);
+				}
+				return { success: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		markAsSeen: (threadID, callback) => wrapper.markAsRead(threadID, true, callback),
+
+		sendTypingIndicator: (threadID, callback) => {
+			if (ig && typeof ig.sendTypingIndicator === "function") {
+				return ig.sendTypingIndicator(threadID, callback);
+			}
+			if (typeof callback === "function") callback(null, () => {});
+			return () => {};
+		},
+
+		stopTypingIndicator: (threadID, callback) => {
+			if (ig && typeof ig.stopTypingIndicator === "function") {
+				return ig.stopTypingIndicator(threadID, callback);
+			}
+			if (typeof callback === "function") callback(null);
+			return Promise.resolve();
+		},
+
+		sendTextEffect: async (text, threadID, effect, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.sendTextEffect === "function") {
+					return await ig.sendTextEffect(text, threadID, effect);
+				}
+				return await wrapper.sendMessage(text, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendAvatarTextEffect: async (text, threadID, effect, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.sendAvatarTextEffect === "function") {
+					return await ig.sendAvatarTextEffect(text, threadID, effect);
+				}
+				return await wrapper.sendMessage(text, threadID);
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		sendMusic: async (threadID, track, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.sendMusic === "function") {
+					return await ig.sendMusic(threadID, track);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		musicSearch: async (query, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.musicSearch === "function") {
+					return await ig.musicSearch(query);
+				}
+				return [];
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		addUserToGroup: async (userIDs, threadID, callback) => {
+			const list = Array.isArray(userIDs) ? userIDs : [userIDs];
+			const promise = (async () => {
+				if (ig && typeof ig.addUserToGroup === "function") {
+					return await ig.addUserToGroup(list, threadID);
+				}
+				if (ig && typeof ig.addUserToThread === "function") {
+					return await ig.addUserToThread(list, threadID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		leaveGroup: async (threadID, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.leaveGroup === "function") {
+					return await ig.leaveGroup(threadID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		changeThreadTitle: async (threadID, title, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.changeThreadTitle === "function") {
+					return await ig.changeThreadTitle(threadID, title);
+				}
+				if (ig && typeof ig.setTitle === "function") {
+					return await ig.setTitle(title, threadID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		setTitle: (title, threadID, callback) => wrapper.changeThreadTitle(threadID, title, callback),
+
+		// ── Graceful Fallbacks for Facebook-Specific Methods ──
+		changeThreadColor: async (color, threadID, callback) => {
+			const result = { success: false, unsupported: true, message: "Thread themes/colors are not supported on Instagram Direct." };
+			return wrapCallback(Promise.resolve(result), callback);
+		},
+
+		changeNickname: async (nickname, threadID, userID, callback) => {
+			const result = { success: false, unsupported: true, message: "Thread nicknames are not supported on Instagram Direct." };
+			return wrapCallback(Promise.resolve(result), callback);
+		},
+
+		addFriend: async (userID, callback) => {
+			const result = { success: false, unsupported: true, message: "Friend requests are a Facebook-only feature." };
+			return wrapCallback(Promise.resolve(result), callback);
+		},
+
+		removeFriend: async (userID, callback) => {
+			const result = { success: false, unsupported: true, message: "Friends list is a Facebook-only feature." };
+			return wrapCallback(Promise.resolve(result), callback);
+		},
+
+		changeAdminStatus: async (threadID, userID, isAdmin, callback) => {
+			const result = { success: false, unsupported: true, message: "Changing admin status is unsupported on Instagram Direct." };
+			return wrapCallback(Promise.resolve(result), callback);
+		},
+
+		listen: (callback) => {
+			if (ig && typeof ig.listen === "function") {
+				return ig.listen(callback);
+			}
+			throw new Error("Underlying ICA listener not available");
+		},
+
+		stopListening: () => {
+			if (ig && typeof ig.stopListening === "function") {
+				return ig.stopListening();
+			}
+		}
+	};
+
+	return wrapper;
+}
+
+module.exports = { createAPIWrapper };
