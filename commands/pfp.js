@@ -5,8 +5,8 @@ const { resolveUserTarget, resolveProfile, isRateLimitError } = require("../src/
 module.exports = {
 	config: {
 		name: "pfp",
-		aliases: ["pp", "profilepic", "avatarof"],
-		author: "Neoaz 🐊",
+		aliases: ["profilepic", "getpfp", "userpic", "dp", "pp", "avatarof"],
+		author: "frnAlt & Neoaz 🐊",
 		category: "info",
 		cooldown: 3,
 		role: 0,
@@ -30,6 +30,6 @@ module.exports = {
 		}
 
 		const name = (profile && (profile.name || profile.username)) || target.id;
-		await message.reply({ attachment: picture, body: `🖼️ ${name} (${target.id})`, textFirst: true });
+		await message.reply({ attachment: picture, body: name, textFirst: true });
 	}
 };

@@ -26,10 +26,14 @@ const { setOptions } = require('./src/utils/setOptions');
 function buildApi(client) {
   return {
     // Identity
-    getCurrentUserID: () => client.getCurrentUserID(),
+    getCurrentUserID: () => {
+      const id = client.getCurrentUserID();
+      return typeof id === "object" ? (id?.userID || id?.userId || String(id)) : String(id);
+    },
 
     // Listening
     listen:        (cb)     => client.listen(cb),
+    listenMqtt:    (cb)     => client.listen(cb),
     stopListening: ()       => client.stopListening(),
     on:            (...a)   => client.on(...a),
     off:           (...a)   => client.off(...a),
@@ -42,17 +46,83 @@ function buildApi(client) {
     unsendMessage:     (messageID, cb)                            => client.unsendMessage(messageID, cb),
 
     // Media
-    sendPhoto:        (threadID, path, opts, cb)  => client.sendPhoto(threadID, path, opts, cb),
-    sendVideo:        (threadID, path, opts, cb)  => client.sendVideo(threadID, path, opts, cb),
-    sendVoice:        (threadID, path, opts, cb)  => client.sendVoice(threadID, path, opts, cb),
+    sendPhoto:        (a, b, c, d) => {
+      let threadID, source, opts = {}, cb;
+      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
+        threadID = a; source = b;
+        opts = typeof c === "object" ? c : {};
+        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
+      } else {
+        source = a; threadID = b;
+        cb = typeof c === "function" ? c : undefined;
+        opts = { caption: typeof c === "string" ? c : "", replyToMessageID: d };
+      }
+      const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
+      if (isUrl) return client.sendPhotoFromUrl(threadID, source, opts, cb);
+      return client.sendPhoto(threadID, source, opts, cb);
+    },
+    sendVideo:        (a, b, c, d) => {
+      let threadID, source, opts = {}, cb;
+      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
+        threadID = a; source = b;
+        opts = typeof c === "object" ? c : {};
+        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
+      } else {
+        source = a; threadID = b;
+        cb = typeof c === "function" ? c : undefined;
+        opts = { replyToMessageID: d };
+      }
+      const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
+      if (isUrl) return client.sendVideoFromUrl(threadID, source, opts, cb);
+      return client.sendVideo(threadID, source, opts, cb);
+    },
+    sendVoice:        (a, b, c, d) => {
+      let threadID, source, opts = {}, cb;
+      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
+        threadID = a; source = b;
+        opts = typeof c === "object" ? c : {};
+        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
+      } else {
+        source = a; threadID = b;
+        cb = typeof c === "function" ? c : undefined;
+        opts = { replyToMessageID: d };
+      }
+      const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
+      if (isUrl) return client.sendVoiceFromUrl(threadID, source, opts, cb);
+      return client.sendVoice(threadID, source, opts, cb);
+    },
     sendGIF:          (threadID, url, opts, cb)   => client.sendGIF(threadID, url, opts, cb),
     sendPhotoFromUrl: (threadID, url, opts, cb)   => client.sendPhotoFromUrl(threadID, url, opts, cb),
     sendVideoFromUrl: (threadID, url, opts, cb)   => client.sendVideoFromUrl(threadID, url, opts, cb),
     sendVoiceFromUrl: (threadID, url, opts, cb)   => client.sendVoiceFromUrl(threadID, url, opts, cb),
 
+    // Standardized Media Aliases for Bot Engines & Message Helpers
+    sendImage:        (source, threadID, caption = "", cb, reply) => {
+      if (typeof caption === "function") {
+        cb = caption;
+        caption = "";
+      }
+      const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
+      if (isUrl) return client.sendPhotoFromUrl(threadID, source, { caption, replyToMessageID: reply }, cb);
+      return client.sendPhoto(threadID, source, { caption, replyToMessageID: reply }, cb);
+    },
+    sendAudio:        (source, threadID, cb, reply) => {
+      const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
+      if (isUrl) return client.sendVoiceFromUrl(threadID, source, { replyToMessageID: reply }, cb);
+      return client.sendVoice(threadID, source, { replyToMessageID: reply }, cb);
+    },
+
     // Reactions
-    sendReaction:   (reaction, messageID, cb) => client.sendReaction(reaction, messageID, cb),
-    removeReaction: (messageID, cb)           => client.removeReaction(messageID, cb),
+    sendReaction:       (reaction, messageID, cb) => client.sendReaction(reaction, messageID, cb),
+    removeReaction:     (messageID, cb)           => client.removeReaction(messageID, cb),
+    setMessageReaction: (reaction, messageID, threadID, cb) => {
+      if (typeof threadID === "function") {
+        cb = threadID;
+        threadID = undefined;
+      }
+      if (!reaction) return client.removeReaction(messageID, cb);
+      return client.sendReaction(reaction, messageID, cb);
+    },
 
     // Threads
     getThreadInfo:      (threadID, cb)                    => client.getThreadInfo(threadID, cb),

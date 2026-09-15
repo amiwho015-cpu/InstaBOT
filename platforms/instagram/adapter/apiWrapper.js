@@ -412,8 +412,13 @@ function createAPIWrapper(rawClient, config = {}) {
 			if (ig && typeof ig.listen === "function") {
 				return ig.listen(callback);
 			}
+			if (ig && typeof ig.listenMqtt === "function") {
+				return ig.listenMqtt(callback);
+			}
 			throw new Error("Underlying ICA listener not available");
 		},
+
+		listenMqtt: (callback) => wrapper.listen(callback),
 
 		stopListening: () => {
 			if (ig && typeof ig.stopListening === "function") {
@@ -422,7 +427,16 @@ function createAPIWrapper(rawClient, config = {}) {
 		}
 	};
 
-	return wrapper;
+	return new Proxy(wrapper, {
+		get(target, prop, receiver) {
+			if (prop in target) return target[prop];
+			if (ig && prop in ig) {
+				const val = ig[prop];
+				return typeof val === "function" ? val.bind(ig) : val;
+			}
+			return undefined;
+		}
+	});
 }
 
 module.exports = { createAPIWrapper };

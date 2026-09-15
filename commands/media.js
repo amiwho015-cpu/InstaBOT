@@ -1,0 +1,175 @@
+"use strict";
+
+/**
+ * media.js — Universal Media Downloader & Media Processor for Instagram Direct.
+ * Author: frnAlt
+ *
+ * Capabilities:
+ * - Download videos/audio from Instagram, TikTok, YouTube, Facebook, Twitter/X, Pinterest
+ * - Extract audio from replied video messages
+ * - Inspect media metadata (size, format, duration)
+ * - Directly streams media to Instagram DM using InstaBOT / ICA transport.
+ */
+
+const axios = require("axios");
+
+function extractUrl(event, args) {
+  if (args.length > 0) {
+    for (const arg of args) {
+      if (typeof arg === "string" && /^https?:\/\//i.test(arg)) return arg;
+    }
+  }
+
+  const reply = event.messageReply;
+  if (reply?.body) {
+    const match = reply.body.match(/https?:\/\/[^\s]+/i);
+    if (match) return match[0];
+  }
+
+  if (reply?.attachments?.length > 0) {
+    for (const a of reply.attachments) {
+      const u = a.url || a.playableUrl || a.playable_url || a.video || a.src;
+      if (u) return u;
+    }
+  }
+
+  if (event.attachments?.length > 0) {
+    for (const a of event.attachments) {
+      const u = a.url || a.playableUrl || a.playable_url || a.video || a.src;
+      if (u) return u;
+    }
+  }
+
+  return null;
+}
+
+async function resolveMediaUrl(targetUrl, isAudio = false) {
+  let downloadUrl = null;
+  let title = "Media Content";
+  let author = "";
+
+  // 1. TikTok fast endpoint
+  if (/tiktok\.com/i.test(targetUrl)) {
+    try {
+      const res = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, { timeout: 12000 });
+      const d = res.data?.data;
+      if (d) {
+        downloadUrl = isAudio ? (d.music || d.play) : (d.play || d.wmplay);
+        title = d.title || "TikTok Video";
+        author = d.author?.nickname || d.author?.unique_id || "";
+        return { downloadUrl, title, author };
+      }
+    } catch (_) {}
+  }
+
+  // 2. Siputzx All-in-One API
+  try {
+    const res = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${encodeURIComponent(targetUrl)}`, { timeout: 15000 });
+    const d = res.data?.data || res.data?.result;
+    if (d) {
+      downloadUrl = isAudio
+        ? (d.audio || d.music || d.url || d.video)
+        : (d.video || d.hd || d.sd || d.url || d.audio);
+      title = d.title || title;
+      author = d.author || author;
+      if (downloadUrl) return { downloadUrl, title, author };
+    }
+  } catch (_) {}
+
+  // 3. Cobalt API
+  try {
+    const res = await axios.post("https://api.cobalt.tools/api/json", {
+      url: targetUrl,
+      downloadMode: isAudio ? "audio" : "auto"
+    }, {
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      timeout: 15000
+    });
+    if (res.data?.url) {
+      downloadUrl = res.data.url;
+      return { downloadUrl, title, author };
+    }
+  } catch (_) {}
+
+  // 4. Fallback direct or media extractor
+  if (!downloadUrl && /\.(mp4|mov|mp3|m4a|webm)(\?.*)?$/i.test(targetUrl)) {
+    downloadUrl = targetUrl;
+    return { downloadUrl, title, author };
+  }
+
+  if (!downloadUrl) {
+    throw new Error("Could not extract downloadable media from this link.");
+  }
+
+  return { downloadUrl, title, author };
+}
+
+module.exports = {
+  config: {
+    name: "media",
+    aliases: ["mdown", "viddl", "getmedia", "mediafetch"],
+    version: "2.5.0",
+    author: "frnAlt",
+    cooldown: 5,
+    role: 0,
+    description: { en: "Download and extract videos, reels, stories and audio from URLs or replies" },
+    category: "media",
+    usage: { en: "{p}media <url> [--audio] | or reply to a video message with {p}media [audio|info]" }
+  },
+
+  onStart: async function ({ message, args, event, api }) {
+    const isAudio = args.some(a => ["--audio", "-a", "audio", "mp3", "sound"].includes(String(a).toLowerCase()));
+    const isInfoOnly = args.some(a => ["--info", "-i", "info"].includes(String(a).toLowerCase()));
+
+    const targetUrl = extractUrl(event, args);
+
+    if (!targetUrl) {
+      return message.reply(
+        "🎬 𝗨𝗻𝗶𝘃𝗲𝗿𝘀𝗮𝗹 𝗠𝗲𝗱𝗶𝗮 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n" +
+        "📌 Usage:\n" +
+        "• {p}media <url> — download video from TikTok, IG, FB, YT, etc.\n" +
+        "• {p}media <url> --audio — download audio track only\n" +
+        "• (reply to video) {p}media — download or mirror media\n" +
+        "• (reply to video) {p}media audio — extract audio from replied video"
+      );
+    }
+
+    if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    }
+
+    try {
+      const { downloadUrl, title, author } = await resolveMediaUrl(targetUrl, isAudio);
+
+      if (isInfoOnly) {
+        if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("ℹ️", event.messageID, () => {}, true);
+        }
+        return message.reply(
+          `ℹ️ 𝗠𝗲𝗱𝗶𝗮 𝗜𝗻𝗳𝗼𝗿𝗺𝗮𝘁𝗶𝗼𝗻\n\n` +
+          `• Title:  ${title || "Unknown"}\n` +
+          `• Author: ${author || "Unknown"}\n` +
+          `• Source: ${targetUrl.slice(0, 60)}...\n` +
+          `• Format: ${isAudio ? "Audio Stream" : "Video Stream"}`
+        );
+      }
+
+      const caption = `🎬 𝗠𝗲𝗱𝗶𝗮: ${title}${author ? ` (by ${author})` : ""}\n[${isAudio ? "AUDIO" : "VIDEO"}]`;
+
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      }
+
+      return await message.reply({
+        body: caption,
+        attachment: downloadUrl,
+        textFirst: true
+      });
+    } catch (err) {
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      }
+      return message.reply(`❌ Failed to retrieve media: ${err.message || err}`);
+    }
+  }
+};

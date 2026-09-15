@@ -37,6 +37,28 @@ function write(level, color, tag, message, args) {
 	}
 }
 
+function box(title, lines, borderColor = "cyan") {
+	if (quiet) return;
+	const cols = process.stdout.columns || 70;
+	const width = Math.min(76, Math.max(48, cols));
+	const border = paint(borderColor, "─".repeat(width - 2));
+	process.stdout.write(paint(borderColor, `┌${border}┐\n`));
+	if (title) {
+		const plainTitle = title.replace(/\x1b\[[0-9;]*m/g, "");
+		const left = Math.max(0, Math.floor((width - 2 - plainTitle.length - 2) / 2));
+		const right = Math.max(0, width - 2 - plainTitle.length - 2 - left);
+		process.stdout.write(paint(borderColor, "│") + " ".repeat(left) + " " + title + " " + " ".repeat(right) + paint(borderColor, "│\n"));
+		process.stdout.write(paint(borderColor, `├${border}┤\n`));
+	}
+	for (const line of lines) {
+		const plainLine = String(line).replace(/\x1b\[[0-9;]*m/g, "");
+		const left = 2;
+		const right = Math.max(0, width - 2 - plainLine.length - left);
+		process.stdout.write(paint(borderColor, "│") + " ".repeat(left) + line + " ".repeat(right) + paint(borderColor, "│\n"));
+	}
+	process.stdout.write(paint(borderColor, `└${border}┘\n`));
+}
+
 module.exports = {
 	info: (tag, message, ...args) => write("info", "cyan", tag, message, args),
 	success: (tag, message, ...args) => write("success", "green", tag, message, args),
@@ -45,6 +67,7 @@ module.exports = {
 	master: (tag, message, ...args) => write("master", "blue", tag, message, args),
 	plain: (message) => { if (!quiet) console.log(message); },
 	setQuiet: (value) => { quiet = Boolean(value); },
+	box,
 	colors: COLORS,
 	paint
 };

@@ -78,5 +78,6 @@ module.exports = {
         // Log dev messages if NODE_ENV is development or if specifically enabled in config
         if (process.env.NODE_ENV === 'development') formatAndLog('debug', ['DEV', ...args]);
     },
-    load: (...args) => formatAndLog('info', ['LOAD', ...args])
+    load: (...args) => formatAndLog('info', ['LOAD', ...args]),
+    box: (...args) => require('../src/logger').box(...args)
 };

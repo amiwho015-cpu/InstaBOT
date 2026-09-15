@@ -3,7 +3,7 @@ const axios = require('axios');
 module.exports = {
   config: {
     name: 'gpt',
-    aliases: ['ai', 'ask'],
+    aliases: ['gpt4', 'askgpt'],
     description: 'Chat with AI powered by GPT-4',
     usage: 'gpt <message>',
     role: 0,

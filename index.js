@@ -13,25 +13,32 @@
  *   3. npm start
  */
 
+const utils = require("./utils");
+global.utils = utils;
 const log = require("./src/logger");
-const { loadConfig } = require("./src/config");
+const { loadConfig, checkCredentialsStatus } = require("./src/config");
 const { createBot } = require("./src/bot");
 const { createStatusServer } = require("./src/statusServer");
 
 const BANNER = [
-	" ___           _        ____   ___ _____",
-	"|_ _|_ __  ___| |_ __ _| __ ) / _ \\_   _|",
-	" | || '_ \\/ __| __/ _` |  _ \\| | | || |",
-	" | || | | \\__ \\ || (_| | |_) | |_| || |",
-	"|___|_| |_|___/\\__\\__,_|____/ \\___/ |_|"
+	"  ██╗███╗   ██╗███████╗████████╗ █████╗ ██████╗  ██████╗ ████████╗",
+	"  ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝",
+	"  ██║██╔██╗ ██║███████╗   ██║   ███████║██████╔╝██║   ██║   ██║   ",
+	"  ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██╔══██╗██║   ██║   ██║   ",
+	"  ██║██║ ╚████║███████║   ██║   ██║  ██║██████╔╝╚██████╔╝   ██║   ",
+	"  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝    ╚═╝   "
 ];
 
 function printBanner() {
 	const version = require("./package.json").version;
-	const author = "by Saifullah Al Neoaz — https://github.com/lazyneoaz";
 	log.plain("");
 	for (const line of BANNER) log.plain(log.paint("magenta", line));
-	log.plain(log.paint("dim", ` ${author}  ·  v${version}`));
+	log.plain("");
+	log.plain(log.paint("cyan", ` InstaBOT v${version} — Advanced High-Performance Instagram Automation Framework`));
+	log.plain(log.paint("dim", ` • Developer: frnAlt (https://github.com/frnAlt)`));
+	log.plain(log.paint("dim", ` • Original Base & ICA Engine: Saifullah Al Neoaz (@lazyneoaz)`));
+	log.plain(log.paint("dim", ` • Ecosystem: Floppa-Chatbot / GoatBot V2 Architecture`));
+	log.plain(log.paint("dim", ` • Official Repository: https://github.com/frnAlt/InstaBOT`));
 	log.plain("");
 }
 
@@ -45,6 +52,58 @@ async function main() {
 	catch (error) {
 		log.error("CONFIG", error.message);
 		process.exit(1);
+	}
+
+	const mem = process.memoryUsage();
+	const memRss = (mem.rss / 1024 / 1024).toFixed(1);
+	const heapUsed = (mem.heapUsed / 1024 / 1024).toFixed(1);
+	const heapTotal = (mem.heapTotal / 1024 / 1024).toFixed(1);
+
+	log.box("SYSTEM TELEMETRY", [
+		`Node.js:      ${process.version} (${process.arch})`,
+		`Platform:     ${process.platform}`,
+		`Process PID:  ${process.pid}`,
+		`Memory RSS:   ${memRss} MB (Heap: ${heapUsed} / ${heapTotal} MB)`,
+		`Prefix:       ${config.prefix || "!"}`,
+		`Environment:  ${process.env.NODE_ENV || "development"}`
+	], "cyan");
+
+	const credStatus = checkCredentialsStatus();
+	if (credStatus.ok) {
+		log.box("INSTAGRAM AUTHENTICATION: READY", [
+			`Mode:         ${credStatus.mode}`,
+			`Source:       ${credStatus.source}`,
+			`Cookies:      ${credStatus.cookiesCount ? credStatus.cookiesCount + " verified" : "Configured"}`,
+			`Account ID:   ${credStatus.userID || "Configured"}`
+		], "green");
+	} else {
+		log.box("INSTAGRAM AUTHENTICATION: CREDENTIALS REQUIRED", [
+			`Status:       LOGIN FAILED / CREDENTIALS REQUIRED`,
+			`Reason:       ${credStatus.reason || "Missing cookies"}`,
+			`Source:       ${credStatus.source || "none"}`,
+			`────────────────────────────────────────────────────────────────────`,
+			`DIAGNOSTIC & QUICK SETUP GUIDE:`,
+			``,
+			`1. LOCAL HOSTING:`,
+			`   • Copy account.example.txt to account.txt`,
+			`   • Paste your Instagram cookies (JSON array or cookie string)`,
+			`   • Required cookies: 'sessionid' and 'ds_user_id'`,
+			``,
+			`2. GITHUB ACTIONS / CI RUNNER:`,
+			`   • Repository Settings -> Secrets and variables -> Actions`,
+			`   • Add Secret named: ACCOUNT_TXT (or IG_COOKIES)`,
+			`   • Paste your account.txt contents into the secret`,
+			`   • Run workflow manually from the Actions tab`,
+			``,
+			`3. SERVER BRIDGE MODE (Mode A):`,
+			`   • Set server.url & server.token in config.json or environment`,
+			`     variables (IG_API_SERVER and IG_API_TOKEN)`
+		], "red");
+
+		if (process.env.GITHUB_ACTIONS === "true") {
+			log.error("BOOT", "Workflow runner halted: No Instagram credentials configured in repository secrets (ACCOUNT_TXT / IG_COOKIES / IG_API_SERVER). Please configure secrets and re-run.");
+			process.exit(1);
+		}
 	}
 
 	const bot = createBot(config);

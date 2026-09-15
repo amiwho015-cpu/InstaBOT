@@ -10,7 +10,7 @@ class Banner {
   ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██╔══██╗██║   ██║   ██║
   ██║██║ ╚████║███████║   ██║   ██║  ██║██████╔╝╚██████╔╝   ██║
   ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝    ╚═╝
-                              InstaBOT v${config.BOT_VERSION} by Gtajisan && frnAlt
+                              InstaBOT v${config.BOT_VERSION} by frnAlt & lazyneoaz
 `);
   }
 

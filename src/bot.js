@@ -196,9 +196,11 @@ function createBot(config) {
 		return new Promise((resolve, reject) => {
 			const finish = async (error, api) => {
 				if (error) return reject(error);
-				state.api = api;
-				state.botID = api.getCurrentUserID();
-				dispatcher = createDispatcher({ api, config, registry, database });
+				const { createAPIWrapper } = require("../platforms/instagram/adapter/apiWrapper");
+				const wrappedApi = createAPIWrapper(api, config);
+				state.api = wrappedApi;
+				state.botID = String(wrappedApi.getCurrentUserID());
+				dispatcher = createDispatcher({ api: wrappedApi, config, registry, database });
 
 				try {
 					const info = await api.getUserInfo(state.botID);
@@ -346,6 +348,8 @@ function createBot(config) {
 		// Load commands/events once, before connecting. Re-running this on every
 		// retry would duplicate entries and drop the count to zero.
 		loadCommands();
+		log.info("LOADER", `Registered ${state.commandCount} commands and ${state.eventCount} events successfully.`);
+
 		// Retry the initial connection instead of exiting: the server may not have
 		// cookies yet (or may be cold-starting on a free tier). A fatal exit here
 		// would fail the deploy and also stop the bot from recovering on its own.
@@ -361,7 +365,8 @@ function createBot(config) {
 				const message = String(error && (error.error || error.message) || error);
 				const delay = Math.min(60000, 5000 * attempt);
 				onlineStatus.writeLine({ event: "boot_retry", attempt, error: message });
-				log.warn("BOOT", `Could not connect (attempt ${attempt}): ${message}. Retrying in ${Math.round(delay / 1000)}s…`);
+				log.warn("BOOT", `Connection attempt ${attempt} failed: ${message}`);
+				log.info("BOOT", `Retrying in ${Math.round(delay / 1000)}s…`);
 				// Keep the process alive so the host does not mark the deploy failed
 				// and so a later cookie/server fix is picked up without a redeploy.
 				await new Promise(resolve => setTimeout(resolve, delay));
@@ -369,7 +374,14 @@ function createBot(config) {
 		}
 		if (state.stopping) return;
 		state.running = true;
-		log.success("BOOT", `${config.botName} is online. Type ${config.prefix}help in a chat.`);
+		log.box("INSTABOT ONLINE", [
+			`${config.botName} is online and operational!`,
+			`Logged in as:  ${state.botID || "Instagram User"}`,
+			`Commands:      ${state.commandCount} active`,
+			`Events:        ${state.eventCount} active`,
+			`Prefix:        ${config.prefix || "!"}`,
+			`Try typing:    ${config.prefix || "!"}help in any chat`
+		], "green");
 	}
 
 	async function stop() {

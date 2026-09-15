@@ -9,6 +9,12 @@ const fs = require("fs");
 const path = require("path");
 const log = require("./logger");
 
+if (!global.utils) {
+	try {
+		global.utils = require("../utils.js");
+	} catch (_) {}
+}
+
 const ROOT = path.resolve(__dirname, "..");
 
 const REQUIRED = ["name", "category"];

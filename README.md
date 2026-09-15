@@ -422,19 +422,19 @@ npm test
 
 ## 👨‍💻 Credits & Attribution
 
-- **Original Architecture & `ig-chat-api` Author:**
+- **Developer & Lead Architect:**
+  - [**frnAlt**](https://github.com/frnAlt) — Lead developer, architecture redesign, and Floppa ecosystem integration.
+- **Original Base Architecture & `ig-chat-api` Author:**
   - [**Saifullah Al Neoaz (lazyneoaz)**](https://github.com/lazyneoaz) — Creator of [Insta-Bot](https://github.com/lazyneoaz/Insta-Bot), [`ig-chat-api`](https://github.com/lazyneoaz/ig-chat-api), and [`ig-chat-api-server`](https://github.com/lazyneoaz/ig-chat-api-server).
-- **Core Maintainers & Architects:**
-  - [**Gtajisan**](https://github.com/Gtajisan)
-  - [**frnAlt**](https://github.com/frnAlt)
-- **Architecture Inspiration:**
+- **Architecture Inspiration & Ecosystem:**
   - [**Floppa-Chatbot / GoatBot V2**](https://github.com/frnAlt/Floppa-Chatbot)
+  - [**Gtajisan**](https://github.com/Gtajisan)
 - **Contributors:**
   - **NZ R.** — AI engine (`ai`), `adduser`, `removeuser`, and GoatBot-style runtime evaluations.
 
 ---
 
 <div align="center">
-  <sub>Crafted with ❤️ by <b>Saifullah Al Neoaz</b>, <b>Gtajisan</b> & <b>frnAlt</b></sub><br/>
+  <sub>Developed by <b>frnAlt</b> • Based on original architecture by <b>Saifullah Al Neoaz (lazyneoaz)</b></sub><br/>
   <sub>⭐ If you find this project useful, please consider giving it a star on GitHub! ⭐</sub>
 </div>

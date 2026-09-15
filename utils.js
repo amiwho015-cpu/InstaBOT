@@ -916,6 +916,42 @@ const utils = {
 		return await utils.withBackoff(() => utils.getStreamFromURL(url, pathName, options));
 	},
 
+	// Local storage drive abstraction
+	drive: {
+		uploadFile: async (fileName, mimeOrStream, maybeStream) => {
+			const driveDir = path.join(__dirname, "data", "drive");
+			fs.ensureDirSync(driveDir);
+			const stream = (maybeStream && typeof maybeStream.pipe === "function") ? maybeStream : mimeOrStream;
+			const id = typeof fileName === "string" ? fileName : `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+			const filePath = path.join(driveDir, id);
+			if (stream && typeof stream.pipe === "function") {
+				await new Promise((resolve, reject) => {
+					const writer = fs.createWriteStream(filePath);
+					stream.pipe(writer);
+					writer.on("finish", resolve);
+					writer.on("error", reject);
+				});
+			} else if (Buffer.isBuffer(stream) || typeof stream === "string") {
+				await fs.writeFile(filePath, stream);
+			}
+			return { id, name: id, path: filePath };
+		},
+		getFile: async (fileId, type = "stream") => {
+			const filePath = path.join(__dirname, "data", "drive", fileId);
+			if (fs.existsSync(filePath)) {
+				return type === "stream" ? fs.createReadStream(filePath) : fs.readFile(filePath);
+			}
+			return null;
+		},
+		deleteFile: async (fileId) => {
+			const filePath = path.join(__dirname, "data", "drive", fileId);
+			if (fs.existsSync(filePath)) {
+				await fs.unlink(filePath).catch(() => {});
+			}
+			return true;
+		}
+	},
+
 	// Typography & Styling
 	fonts,
 	applyFont: fonts.applyFont,
@@ -937,7 +973,9 @@ const utils = {
 	numero,
 	cacheManager,
 	clearTempCache: cacheManager.clearTempCache,
-	SpamTracker
+	SpamTracker,
+	box: (...args) => require("./src/logger").box(...args)
 };
 
+global.utils = utils;
 module.exports = utils;

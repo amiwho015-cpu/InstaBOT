@@ -6,7 +6,7 @@ module.exports = {
     usage: 'credits',
     cooldown: 5,
     role: 0,
-    author: 'Gtajisan && frnAlt',
+    author: 'frnAlt (Developer) & lazyneoaz (Original Base)',
     category: 'system'
   },
 
@@ -15,8 +15,10 @@ module.exports = {
       const creditsText =
 `InstaBOT v${config.BOT_VERSION}
 
-Developers: Gtajisan && frnAlt
-GitHub: github.com/frnAlt/InstaBOT
+Developer: frnAlt (https://github.com/frnAlt)
+Original Base & Native ICA: lazyneoaz (https://github.com/lazyneoaz/Insta-Bot.git)
+Ecosystem: Floppa-Chatbot / GoatBot V2 Architecture
+GitHub: https://github.com/frnAlt/InstaBOT
 
 InstaBOT is a powerful, modular Instagram bot built for automation and fun with native ICA integration.
 

@@ -178,29 +178,10 @@ function normalizeCookies(list) {
 		.filter(item => item && item.key && item.value !== undefined);
 }
 
-/**
- * Parse account.txt into an Instagram cookie list.
- * Accepts: JSON array, JSON object, cookie header string, Netscape file.
- */
-function loadAccount() {
-	if (!fs.existsSync(accountPathFor()))
-		throw new Error(
-			"account.txt not found. Copy account.example.txt to account.txt and paste your Instagram cookies. " +
-			"It is git-ignored, so your cookies are never committed."
-		);
-	const text = fs.readFileSync(accountPathFor(), "utf8").trim();
-	if (!text) throw new Error("account.txt is empty");
-
+function parseCookiesFromText(text) {
 	let cookies = [];
-
 	if (text.startsWith("[") || text.startsWith("{")) {
-		let parsed;
-		try {
-			parsed = JSON.parse(text);
-		}
-		catch (error) {
-			throw new Error(`account.txt is invalid JSON: ${error.message}`);
-		}
+		let parsed = JSON.parse(text);
 		if (!Array.isArray(parsed)) {
 			const obj = parsed.cookies || parsed.appState || parsed;
 			parsed = Array.isArray(obj) ? obj : Object.keys(obj).map(key => ({ key, value: obj[key] }));
@@ -213,6 +194,83 @@ function loadAccount() {
 	else {
 		cookies = cookieHeaderToCookies(text);
 	}
+	return cookies;
+}
+
+function checkCredentialsStatus() {
+	const cfg = loadConfig();
+	if (cfg.server && cfg.server.url && cfg.server.token) {
+		return { mode: "server", ok: true, source: process.env.IG_API_SERVER ? "environment (IG_API_SERVER)" : "config.json (server.url)", url: cfg.server.url };
+	}
+
+	let text = "";
+	let source = "";
+	if (process.env.IG_COOKIES && process.env.IG_COOKIES.trim()) {
+		text = process.env.IG_COOKIES.trim();
+		source = "environment (IG_COOKIES)";
+	} else if (process.env.ACCOUNT_TXT && process.env.ACCOUNT_TXT.trim()) {
+		text = process.env.ACCOUNT_TXT.trim();
+		source = "environment (ACCOUNT_TXT)";
+	} else if (process.env.FB_STATE && process.env.FB_STATE.trim()) {
+		text = process.env.FB_STATE.trim();
+		source = "environment (FB_STATE)";
+	} else if (fs.existsSync(accountPathFor())) {
+		text = fs.readFileSync(accountPathFor(), "utf8").trim();
+		source = "file (account.txt)";
+	}
+
+	if (!text) {
+		return { mode: "direct", ok: false, source: source || "none", reason: "No Instagram cookies found in account.txt or environment variables" };
+	}
+
+	if (text.includes("YOUR_SESSION_ID") || text.includes("YOUR_USER_ID")) {
+		return { mode: "direct", ok: false, source, reason: "account.txt contains unconfigured placeholder values (YOUR_SESSION_ID)" };
+	}
+
+	try {
+		const cookies = parseCookiesFromText(text);
+		const has = key => cookies.some(cookie => cookie.key === key);
+		if (!has("sessionid") || !(has("ds_user_id") || has("userid"))) {
+			const found = cookies.map(c => c.key).join(", ") || "none";
+			return { mode: "direct", ok: false, source, reason: `Missing required cookies (sessionid, ds_user_id). Found: [${found}]` };
+		}
+		const uidCookie = cookies.find(c => c.key === "ds_user_id" || c.key === "userid");
+		return { mode: "direct", ok: true, source, cookiesCount: cookies.length, userID: uidCookie ? uidCookie.value : "unknown" };
+	}
+	catch (error) {
+		return { mode: "direct", ok: false, source, reason: error.message };
+	}
+}
+
+/**
+ * Parse account.txt or environment variables into an Instagram cookie list.
+ * Accepts: JSON array, JSON object, cookie header string, Netscape file.
+ */
+function loadAccount() {
+	let text = "";
+	if (process.env.IG_COOKIES && process.env.IG_COOKIES.trim()) {
+		text = process.env.IG_COOKIES.trim();
+	} else if (process.env.ACCOUNT_TXT && process.env.ACCOUNT_TXT.trim()) {
+		text = process.env.ACCOUNT_TXT.trim();
+	} else if (process.env.FB_STATE && process.env.FB_STATE.trim()) {
+		text = process.env.FB_STATE.trim();
+	} else if (fs.existsSync(accountPathFor())) {
+		text = fs.readFileSync(accountPathFor(), "utf8").trim();
+	}
+
+	if (!text) {
+		throw new Error(
+			"account.txt not found or empty. Copy account.example.txt to account.txt and paste your Instagram cookies (or set IG_COOKIES / ACCOUNT_TXT environment secrets). It is git-ignored, so your cookies are never committed."
+		);
+	}
+
+	if (text.includes("YOUR_SESSION_ID") || text.includes("YOUR_USER_ID")) {
+		throw new Error(
+			"account.txt contains unconfigured placeholder values. Replace YOUR_SESSION_ID and YOUR_USER_ID with your real Instagram cookies."
+		);
+	}
+
+	let cookies = parseCookiesFromText(text);
 
 	const has = key => cookies.some(cookie => cookie.key === key);
 	if (!has("sessionid") || !(has("ds_user_id") || has("userid")))
@@ -228,6 +286,8 @@ module.exports = {
 	loadConfig,
 	saveConfig,
 	loadAccount,
+	checkCredentialsStatus,
+	parseCookiesFromText,
 	normalizeCookies,
 	netScapeToCookies,
 	cookieHeaderToCookies,
