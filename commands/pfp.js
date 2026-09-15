@@ -6,6 +6,7 @@ module.exports = {
 	config: {
 		name: "pfp",
 		aliases: ["profilepic", "getpfp", "userpic", "dp", "pp", "avatarof"],
+		version: "2.5.0",
 		author: "frnAlt & Neoaz 🐊",
 		category: "info",
 		cooldown: 3,
@@ -15,14 +16,17 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, args, event, api }) {
-		const target = await resolveUserTarget(args, event, api);
+		let target = await resolveUserTarget(args, event, api);
+		if (!target.id && (!args || args.length === 0) && event.senderID) {
+			target = { id: String(event.senderID), source: "self" };
+		}
 		if (!target.id) {
 			if (target.rateLimited) return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
 			if (target.username) return message.reply(`Could not find @${target.username}.`);
 			return message.reply("Provide a numeric user id or @mention, or reply to a user's message.");
 		}
 
-		const profile = await resolveProfile(args, event, api);
+		const profile = await resolveProfile(args && args.length > 0 ? args : [target.id], event, api);
 		const picture = profile && profile.profilePicture;
 		if (!picture) {
 			if (profile && profile.rateLimited) return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
