@@ -30,6 +30,10 @@ process.on('uncaughtException', (err) => {
 
 const bot = new InstagramBot();
 
+bot.on('error', (err) => {
+  logger.warn('Bot client notification', { message: err?.message || String(err) });
+});
+
 bot.start().catch(error => {
   logger.error('Fatal error starting bot', { error: error.message });
   process.exit(1);

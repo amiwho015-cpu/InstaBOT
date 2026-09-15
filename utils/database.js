@@ -183,7 +183,8 @@ class Database {
       this.allGlobalData = Object.values(this.data.global || {});
 
       if (config.DATABASE_AUTO_SAVE) {
-        setInterval(() => this.save(), config.DATABASE_SAVE_INTERVAL || 60000);
+        const saveTimer = setInterval(() => this.save(), config.DATABASE_SAVE_INTERVAL || 60000);
+        if (saveTimer.unref) saveTimer.unref();
         logger.info('Auto-save enabled');
       }
     } catch (e) {
