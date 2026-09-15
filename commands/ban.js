@@ -1,43 +1,43 @@
+"use strict";
+
+const t = require("../src/languages").text;
+
+function resolveTarget(args, event) {
+	if (args[0] && /^\d+$/.test(args[0])) return { id: String(args[0]), reason: args.slice(1).join(" ") };
+	if (event.messageReply && event.messageReply.senderID)
+		return { id: String(event.messageReply.senderID), reason: args.join(" ") };
+	return { id: null, reason: null };
+}
+
 module.exports = {
-  config: {
-    name: 'ban',
-    aliases: ['unban', 'blacklist'],
-    description: 'Ban or unban a user from using the bot (Bot Admin only)',
-    usage: 'ban <userID> | unban <userID>',
-    role: 2,
-    cooldown: 3,
-    author: 'Gtajisan && frnAlt',
-    category: 'admin'
-  },
+	config: {
+		name: "ban",
+		aliases: ["unban"],
+		author: "Neoaz 🐊",
+		category: "admin",
+		cooldown: 2,
+		role: 2,
+		noPrefix: true,
+		description: { en: "Ban or unban a user from using the bot" },
+		usage: { en: "{p}ban [userID] [reason] | {p}unban [userID]" }
+	},
 
-  async run({ api, event, args, commandName, database, logger, message }) {
-    const targetId = args[0];
+	onStart: async function ({ message, args, event, config, commandName, invokedAs, usersData }) {
+		const lang = config.language;
+		const { id, reason } = resolveTarget(args, event);
+		if (!id)
+			return message.reply("Provide a numeric user id, or reply to a user's message.");
 
-    if (!targetId || !/^\d+$/.test(targetId)) {
-      return message.reply('⚠️ Please provide a valid user ID.\n\nUsage:\n• ban <userID>\n• unban <userID>');
-    }
+		usersData.ensure(id, { userID: id });
 
-    if (commandName === 'unban' || (args[0] === 'unban' && args[1])) {
-      const id = commandName === 'unban' ? targetId : args[1];
-      if (!database.isBanned(id)) {
-        return message.reply(`ℹ️ User ${id} is not currently banned.`);
-      }
-      database.unbanUser(id);
-      database.save();
-      logger.info(`User ${id} unbanned by ${event.senderID}`);
-      return message.reply(`✅ User ${id} has been unbanned.`);
-    }
+		// Branch on the alias the user typed: commandName is always "ban", so an
+		// `unban` invocation must be recognised via invokedAs or it would re-ban.
+		if ((invokedAs || commandName) === "unban") {
+			usersData.update(id, { banned: { status: false, reason: null, date: null } });
+			return message.reply(t(lang, "unbanSuccess", id));
+		}
 
-    if (database.isBanned(targetId)) {
-      return message.reply(`ℹ️ User ${targetId} is already banned.`);
-    }
-
-    // Don't ban self or admins
-    if (targetId === api.getCurrentUserID()) return message.reply('❌ Cannot ban the bot.');
-
-    database.banUser(targetId);
-    database.save();
-    logger.info(`User ${targetId} banned by ${event.senderID}`);
-    return message.reply(`🚫 User ${targetId} has been banned from using the bot.`);
-  }
+		usersData.update(id, { banned: { status: true, reason: reason || "—", date: Date.now() } });
+		return message.reply(t(lang, "banSuccess", id, reason || "—"));
+	}
 };

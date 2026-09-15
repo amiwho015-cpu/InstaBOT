@@ -8,8 +8,8 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js",
-    "test": "node test/suite.js"
+    "test": "node test/run.js",
+    "test:live": "node test/live-send.js"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",

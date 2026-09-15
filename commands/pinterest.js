@@ -8,7 +8,7 @@ const axios = require('axios');
 module.exports = {
   config: {
     name: 'pinterest',
-    aliases: ['pin', 'pins', 'pinterestdl'],
+    aliases: ['pins', 'pinterestdl', 'pinimg'],
     version: '2.1.0',
     author: 'Gtajisan && frnAlt',
     cooldown: 5,

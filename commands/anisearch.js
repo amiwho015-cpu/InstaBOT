@@ -1,94 +1,171 @@
-/**
- * Anime Edit Video Search Command
- * Fetches trending anime edits, AMVs, and short clips
- */
+"use strict";
 
-const axios = require('axios');
+const API_BASE = "https://alldl.neokex.xyz/api";
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 5 * 1024 * 1024);
+const MAX_ATTEMPTS = 4;
+
+const REACT_LOADING = "⏳";
+const REACT_SUCCESS = "✅";
+const REACT_FAIL = "❌";
+
+function headersFor(url) {
+	const headers = {
+		"User-Agent": USER_AGENT,
+		"Accept": "*/*",
+		"Accept-Language": "en-US,en;q=0.9"
+	};
+	try {
+		if (new URL(url).hostname.includes("tiktok")) headers.Referer = "https://www.tiktok.com/";
+	}
+	catch (_) { }
+	return headers;
+}
+
+async function react(message, emoji) {
+	try {
+		await message.react(emoji);
+	}
+	catch (_) { }
+}
+
+async function requestJSON(url, timeout = 45000) {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), timeout);
+	try {
+		const response = await fetch(url, { headers: headersFor(url), signal: controller.signal });
+		if (!response.ok) throw new Error(`Media service returned HTTP ${response.status}`);
+		return await response.json();
+	}
+	finally {
+		clearTimeout(timer);
+	}
+}
+
+async function searchVideos(query) {
+	const payload = await requestJSON(`${API_BASE}/tik-sr?q=${encodeURIComponent(query)}`);
+	const results = (payload && (payload.results || (payload.data && payload.data.results))) || [];
+	const videos = results.map(item => item && item.url).filter(Boolean);
+	if (!videos.length) throw new Error("No matching anime videos were found.");
+	for (let i = videos.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[videos[i], videos[j]] = [videos[j], videos[i]];
+	}
+	return videos;
+}
+
+async function resolveVideo(url) {
+	const payload = await requestJSON(`${API_BASE}/alldl?url=${encodeURIComponent(url)}`);
+	const data = (payload && (payload.metadata && payload.metadata.data)) || (payload && payload.data) || payload;
+	const downloads = (data && data.downloads) || [];
+	const notAudio = item => !String(item && item.label).toLowerCase().includes("audio");
+	const download =
+		downloads.find(item => item && item.url && item.ext === "mp4" && notAudio(item)) ||
+		downloads.find(item => item && item.url && notAudio(item));
+	if (!data || !data.title || !download)
+		throw new Error("The media service did not return a usable video.");
+	return { title: data.title, url: download.url, ext: String(download.ext || "mp4").toLowerCase() };
+}
+
+async function fetchVideoBuffer(url, timeout = 60000) {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), timeout);
+	try {
+		const response = await fetch(url, { headers: headersFor(url), signal: controller.signal, redirect: "follow" });
+		if (!response.ok) throw new Error(`Video download failed (HTTP ${response.status})`);
+		const declared = Number(response.headers.get("content-length")) || 0;
+		if (declared && declared > MAX_BYTES)
+			throw new Error(`The video is ${Math.round(declared / 1048576)} MB, above the send limit.`);
+		const buffer = Buffer.from(await response.arrayBuffer());
+		if (!buffer.length) throw new Error("The video download was empty.");
+		if (buffer.length > MAX_BYTES)
+			throw new Error(`The video is ${Math.round(buffer.length / 1048576)} MB, above the send limit.`);
+		return buffer;
+	}
+	finally {
+		clearTimeout(timer);
+	}
+}
+
+function describeError(error) {
+	if (!error) return "Unknown error";
+	const parts = [error.message, error.error, error.type]
+		.map(value => (value == null ? "" : String(value).trim()))
+		.filter(Boolean);
+	const unique = [...new Set(parts)];
+	return unique.length ? unique.join(" — ") : "Unknown error";
+}
 
 module.exports = {
-  config: {
-    name: 'anisearch',
-    aliases: ['animeedit', 'anivid', 'amv', 'animesearch'],
-    version: '1.2.0',
-    author: 'Gtajisan && frnAlt',
-    cooldown: 5,
-    role: 0,
-    shortDescription: {
-      en: 'Search and download anime video edits'
-    },
-    longDescription: {
-      en: 'Fetches high-energy anime edits and AMVs for any queried anime title.'
-    },
-    category: 'media',
-    usage: '{p}anisearch <anime title>\nExample: {p}anisearch jujutsu kaisen'
-  },
+	config: {
+		name: "anisearch",
+		aliases: ["anivid", "animevid"],
+		author: "Neoaz 🐊",
+		category: "media",
+		cooldown: 5,
+		role: 0,
+		description: { en: "Find and send a random TikTok anime video for a query" },
+		usage: { en: "{p}anisearch <anime or character>" }
+	},
 
-  onStart: async function ({ api, event, args, message }) {
-    const threadID = event.threadId || event.threadID;
-    const query = args.join(' ').trim();
+	onStart: async function ({ args, message }) {
+		const query = args.join(" ").trim();
+		if (!query)
+			return message.reply("Usage: anisearch <anime or character>\nExample: anisearch naruto");
 
-    if (!query) {
-      const prompt = '🎬 Please provide an anime title (e.g. /anisearch Naruto).';
-      return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
-    }
+		await react(message, REACT_LOADING);
 
-    if (message && typeof message.reaction === 'function') {
-      message.reaction('⏳', event.messageID);
-    }
+		let candidates;
+		try {
+			candidates = await searchVideos(query);
+		}
+		catch (error) {
+			await react(message, REACT_FAIL);
+			return message.reply(`Could not find a video: ${describeError(error)}`);
+		}
 
-    try {
-      let videoUrl = null;
+		let lastError = null;
+		let lastUrl = null;
+		let oversize = 0;
+		let terminal = false;
+		for (const url of candidates.slice(0, MAX_ATTEMPTS)) {
+			try {
+				const video = await resolveVideo(url);
+				lastUrl = video.url;
+				const buffer = await fetchVideoBuffer(video.url);
+				await message.reply(String(video.title || "Here is your video.").slice(0, 200));
+				await message.reply({ attachment: { buffer, fileName: "anisearch.mp4" } });
+				await react(message, REACT_SUCCESS);
+				return;
+			}
+			catch (error) {
+				lastError = error;
+				const text = describeError(error);
+				if (/above the send limit|too large/i.test(text)) oversize++;
+				if (/not authorized|notauthorizederror|challenged|timed out|rate.?limit|429/i.test(text)) {
+					terminal = true;
+					break;
+				}
+			}
+		}
 
-      // 1. Primary Anime Edit API
-      try {
-        const response = await axios.get(`https://api.jisan-official.com/anisearch?query=${encodeURIComponent(query)}`, { timeout: 10000 });
-        const videos = response.data?.results || response.data;
-        if (Array.isArray(videos) && videos.length > 0) {
-          const selected = videos[Math.floor(Math.random() * videos.length)];
-          videoUrl = typeof selected === 'string' ? selected : (selected?.url || selected?.videoUrl || selected?.link);
-        }
-      } catch (_) {}
-
-      // 2. Fallback: TikWM Anime Edit Search
-      if (!videoUrl) {
-        try {
-          const ttRes = await axios.post(`https://www.tikwm.com/api/feed/search`, {
-            keywords: `${query} anime edit 4k`,
-            count: 5,
-            cursor: 0,
-            web: 1
-          }, {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            timeout: 10000
-          });
-          const videos = ttRes.data?.data?.videos || [];
-          if (videos.length > 0) {
-            const v = videos[Math.floor(Math.random() * videos.length)];
-            videoUrl = v.play || v.wmplay;
-          }
-        } catch (_) {}
-      }
-
-      if (!videoUrl) {
-        if (message && typeof message.reaction === 'function') message.reaction('❌', event.messageID);
-        const notFound = `❌ No anime edits found for: "${query}".`;
-        return message ? message.reply(notFound) : api.sendMessage(notFound, threadID);
-      }
-
-      const caption = `✨ 𝗔𝗻𝗶𝗺𝗲 𝗘𝗱𝗶𝘁: ${query.toUpperCase()}`;
-      if (message && typeof message.reaction === 'function') message.reaction('✅', event.messageID);
-
-      return message 
-        ? message.reply({ body: caption, attachment: videoUrl })
-        : api.sendMessage({ body: caption, attachment: videoUrl }, threadID);
-    } catch (err) {
-      if (message && typeof message.reaction === 'function') message.reaction('❌', event.messageID);
-      const errMsg = `❌ Error fetching anime edit: ${err.message}`;
-      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
-    }
-  },
-
-  run: async function (params) {
-    return module.exports.onStart(params);
-  }
+		await react(message, REACT_FAIL);
+		const detail = describeError(lastError);
+		if (oversize && oversize >= Math.min(MAX_ATTEMPTS, candidates.length)) {
+			return message.reply(
+				"Every matching video was too large to send. " +
+				"Raise the limit with IG_MAX_MEDIA_BYTES (and IG_MAX_BODY_BYTES on the server) to allow bigger files."
+			);
+		}
+		if (lastUrl) {
+			const hint = terminal
+				? "This is an account/session problem, not a bad video — open Instagram as this account and clear any prompt, then try again."
+				: "(If this keeps happening, the account is likely challenged — open Instagram and clear any prompt.)";
+			return message.reply(
+				`Found a video but Instagram refused the upload: ${detail}\n${lastUrl}\n${hint}`
+			);
+		}
+		return message.reply(`Could not find a video: ${detail}`);
+	}
 };

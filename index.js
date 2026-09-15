@@ -1,41 +1,97 @@
-'use strict';
+"use strict";
 
-// Global GoatBot V2 Ecosystem Setup
-global.utils = require('./utils.js');
-global.GoatBot = global.GoatBot || {};
-global.GoatBot.config = require('./config');
-global.GoatBot.commands = new Map();
-global.GoatBot.aliases = new Map();
-global.GoatBot.onReply = new Map();
-global.GoatBot.onReaction = new Map();
-global.GoatBot.onEvent = new Map();
-global.GoatBot.onChat = new Map();
-global.client = global.client || {};
+/**
+ * InstaBOT — a modular Instagram Direct chat bot.
+ *
+ * Author: Saifullah Al Neoaz (https://github.com/lazyneoaz)
+ * GitHub: https://github.com/lazyneoaz
+ * License: MIT
+ *
+ * Usage:
+ *   1. npm install
+ *   2. put your Instagram cookies in account.txt
+ *   3. npm start
+ */
 
-const logger = require('./utils/logger');
-const InstagramBot = require('./bot/InstagramBot');
+const log = require("./src/logger");
+const { loadConfig } = require("./src/config");
+const { createBot } = require("./src/bot");
+const { createStatusServer } = require("./src/statusServer");
 
-process.on('unhandledRejection', (reason) => {
-  const msg = reason?.message || String(reason || '');
-  if (/Not authorized|login_required|checkpoint|Connection refused/i.test(msg)) {
-    // Known MQTT session expiration / disconnect error — handled by InstagramBot reconnect/auth flow
-    return;
-  }
-  logger.error('Unhandled Rejection', { reason: msg });
-});
+const BANNER = [
+	" ___           _        ____   ___ _____",
+	"|_ _|_ __  ___| |_ __ _| __ ) / _ \\_   _|",
+	" | || '_ \\/ __| __/ _` |  _ \\| | | || |",
+	" | || | | \\__ \\ || (_| | |_) | |_| || |",
+	"|___|_| |_|___/\\__\\__,_|____/ \\___/ |_|"
+];
 
-process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
-});
+function printBanner() {
+	const version = require("./package.json").version;
+	const author = "by Saifullah Al Neoaz — https://github.com/lazyneoaz";
+	log.plain("");
+	for (const line of BANNER) log.plain(log.paint("magenta", line));
+	log.plain(log.paint("dim", ` ${author}  ·  v${version}`));
+	log.plain("");
+}
 
-const bot = new InstagramBot();
+async function main() {
+	printBanner();
 
-bot.on('error', (err) => {
-  logger.warn('Bot client notification', { message: err?.message || String(err) });
-});
+	let config;
+	try {
+		config = loadConfig();
+	}
+	catch (error) {
+		log.error("CONFIG", error.message);
+		process.exit(1);
+	}
 
-bot.start().catch(error => {
-  logger.error('Fatal error starting bot', { error: error.message });
-  process.exit(1);
-});
+	const bot = createBot(config);
 
+	// A host like Render scans for an open port and marks a service that binds
+	// none as unhealthy. This tiny server satisfies that check and serves
+	// /health. Set PORT=0 to disable it (pure worker mode).
+	const statusServer = createStatusServer({
+		info: () => ({
+			bot: config.botName,
+			botId: config.server && config.server.botId ? config.server.botId : "default",
+			online: bot.state.running === true,
+			userID: bot.state.botID || null,
+			commands: bot.state.commandCount,
+			events: bot.state.eventCount
+		})
+	});
+
+	const shutdown = async (signal) => {
+		log.warn("SYSTEM", `Received ${signal}; shutting down…`);
+		await statusServer.stop();
+		await bot.stop();
+		process.exit(0);
+	};
+	process.once("SIGINT", () => shutdown("SIGINT"));
+	process.once("SIGTERM", () => shutdown("SIGTERM"));
+
+	process.on("unhandledRejection", (reason) => log.error("PROCESS", "Unhandled promise rejection", reason));
+	process.on("uncaughtException", (error) => log.error("PROCESS", "Uncaught exception", error));
+
+	try {
+		await statusServer.start();
+	}
+	catch (error) {
+		log.error("HTTP", "Could not start the status server", error);
+	}
+
+	try {
+		await bot.start();
+	}
+	catch (error) {
+		// start() already retries; this is only a last-resort guard. Keep the
+		// process alive so the host does not fail the deploy and a later fix is
+		// picked up without a redeploy.
+		log.error("BOOT", "Failed to start (will keep the process alive)", error);
+		await new Promise(() => { });
+	}
+}
+
+main();

@@ -1,15 +1,51 @@
+"use strict";
+
+const { resolveUserTarget, resolveProfile } = require("../src/utils");
+function number(value) {
+	return value == null ? "—" : Number(value).toLocaleString("en-US");
+}
+
 module.exports = {
-  config: { name: 'info', aliases: ['about'], description: 'Show bot information', usage: 'info', cooldown: 5, role: 0, category: 'core' },
-  async run({ api, event, bot, logger, config }) {
-    try {
-      const uptime = process.uptime();
-      const h = Math.floor(uptime / 3600), m = Math.floor((uptime % 3600) / 60), s = Math.floor(uptime % 60);
-      const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-      let t = `${config.BOT_NAME || 'InstaBOT'}\n\n`;
-      t += `📦 Version: ${config.BOT_VERSION}\n👤 Author: ${config.AUTHOR || 'Gtajisan && frnAlt'}\n⚙️ Prefix: ${config.PREFIX}\n`;
-      t += `📚 Commands: ${bot.commandLoader.getAllCommandNames().length}\n`;
-      t += `⏱️ Uptime: ${h}h ${m}m ${s}s\n💾 Memory: ${mem}MB\n🟢 Node: ${process.version}\n✅ Status: Online`;
-      return api.sendMessage(t, event.threadId);
-    } catch (e) { logger.error('Error in info', { error: e.message }); return api.sendMessage('❌ Error.', event.threadId); }
-  }
+	config: {
+		name: "info",
+		aliases: ["whois", "userinfo", "profile"],
+		author: "Neoaz 🐊",
+		category: "info",
+		cooldown: 3,
+		role: 0,
+		description: { en: "Show an Instagram user's profile details" },
+		usage: { en: "{p}info [userID | @handle | username | profile URL] — or reply to a message" }
+	},
+
+	onStart: async function ({ message, args, event, api }) {
+		const target = await resolveUserTarget(args, event, api);
+		if (!target.id) {
+			if (target.rateLimited) return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
+			if (target.username) return message.reply(`Could not find @${target.username}.`);
+			return message.reply("Provide a numeric user id or @mention, or reply to a user's message.");
+		}
+
+		const profile = await resolveProfile(args, event, api);
+		if (!profile) return message.reply(`Could not find user ${target.id}.`);
+		if (profile.rateLimited && !profile.username && !profile.name)
+			return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
+
+		const badges = [profile.isVerified ? "✅ Verified" : null, profile.isPrivate ? "🔒 Private" : "🌐 Public"]
+			.filter(Boolean).join(" · ");
+
+		const lines = [
+			`👤 ${profile.name || profile.username || target.id}`,
+			`@${profile.username || "—"}`,
+			`🆔 ${profile.userID || target.id}`,
+			badges,
+			`👥 Followers: ${number(profile.followers)}`,
+			`➡️ Following: ${number(profile.following)}`,
+			profile.posts != null ? `🖼️ Posts: ${number(profile.posts)}` : null,
+			profile.biography ? `\n📝 ${profile.biography}` : null
+		].filter(Boolean);
+
+		const picture = profile.profilePicture;
+		if (picture) return message.reply({ attachment: picture, body: lines.join("\n"), textFirst: true });
+		return message.reply(lines.join("\n"));
+	}
 };

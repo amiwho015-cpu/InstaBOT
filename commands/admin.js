@@ -1,35 +1,53 @@
+"use strict";
+
+const t = require("../src/languages").text;
+const { saveConfig } = require("../src/config");
+
 module.exports = {
-  config: { name: 'admin', aliases: ['botadmin'], description: 'Admin panel', usage: 'admin [add|remove|list] [uid]', cooldown: 5, role: 2, category: 'admin' },
-  async run({ api, event, args, bot, logger, config, PermissionManager, ConfigManager }) {
-    try {
-      if (args.length === 0) {
-        const role = PermissionManager.getUserRole(event.senderID);
-        const admins = ConfigManager.getAdmins();
-        let t = `👑 Admin Panel\n\n👤 Your Role: ${PermissionManager.getRoleName(role)}\n`;
-        t += `👥 Admins: ${admins.length}\n📦 Commands: ${bot.commandLoader.getAllCommandNames().length}\n\n`;
-        t += `📝 Commands:\n• admin list\n• admin add <uid>\n• admin remove <uid>`;
-        return api.sendMessage(t, event.threadId);
-      }
-      const action = args[0].toLowerCase();
-      if (action === 'list') {
-        const admins = ConfigManager.getAdmins(), devs = ConfigManager.getDevUsers();
-        let msg = `👥 Admins\n\n👨‍💻 Devs:\n${devs.map(d => `  • ${d}`).join('\n') || '  • None'}\n\n🔒 Admins:\n${admins.length ? admins.map((a,i)=>`  ${i+1}. ${a}`).join('\n') : '  • None'}`;
-        return api.sendMessage(msg, event.threadId);
-      }
-      if (action === 'add') {
-        if (!args[1]) return api.sendMessage('❌ Usage: admin add <user_id>', event.threadId);
-        if (ConfigManager.isAdmin(args[1])) return api.sendMessage(`ℹ️ User ${args[1]} is already an admin.`, event.threadId);
-        ConfigManager.addAdmin(args[1]);
-        return api.sendMessage(`✅ Admin added: ${args[1]}`, event.threadId);
-      }
-      if (action === 'remove' || action === 'delete') {
-        if (PermissionManager.getUserRole(event.senderID) < 4) return api.sendMessage('🔒 Only developers can remove admins.', event.threadId);
-        if (!args[1]) return api.sendMessage('❌ Usage: admin remove <user_id>', event.threadId);
-        if (!ConfigManager.isAdmin(args[1])) return api.sendMessage(`ℹ️ User ${args[1]} is not an admin.`, event.threadId);
-        ConfigManager.removeAdmin(args[1]);
-        return api.sendMessage(`✅ Admin removed: ${args[1]}`, event.threadId);
-      }
-      return api.sendMessage('❌ Invalid action. Use: admin list | add <uid> | remove <uid>', event.threadId);
-    } catch (e) { logger.error('Error in admin', { error: e.message }); return api.sendMessage('❌ Error.', event.threadId); }
-  }
+	config: {
+		name: "admin",
+		aliases: ["adminbot"],
+		author: "Neoaz 🐊",
+		category: "admin",
+		cooldown: 2,
+		role: 2,
+		noPrefix: true,
+		description: { en: "Add, remove or list bot admins" },
+		usage: { en: "{p}admin add|remove|list [userID]" }
+	},
+
+	onStart: async function ({ message, args, event, config }) {
+		const lang = config.language;
+		const action = (args.shift() || "list").toLowerCase();
+		let target = args[0];
+		if (!target && event.messageReply && event.messageReply.senderID)
+			target = event.messageReply.senderID;
+		if (target) target = String(target);
+
+		if (action === "list") {
+			const list = config.adminBot.length ? config.adminBot.join("\n") : "—";
+			return message.reply(t(lang, "adminList", list));
+		}
+
+		if (!target || !/^\d+$/.test(target))
+			return message.reply("Provide a numeric Instagram user id (or reply to a user's message).");
+
+		if (action === "add") {
+			if (config.adminBot.includes(target))
+				return message.reply(`${target} is already a bot admin.`);
+			config.adminBot.push(target);
+			saveConfig(config);
+			return message.reply(t(lang, "adminAddedUser", target));
+		}
+
+		if (action === "remove") {
+			if (!config.adminBot.includes(target))
+				return message.reply(`${target} is not a bot admin.`);
+			config.adminBot = config.adminBot.filter(id => id !== target);
+			saveConfig(config);
+			return message.reply(t(lang, "adminRemovedUser", target));
+		}
+
+		return message.reply(`Unknown action "${action}". Use add, remove or list.`);
+	}
 };

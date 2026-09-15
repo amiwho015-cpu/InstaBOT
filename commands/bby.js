@@ -1,239 +1,204 @@
-const axios = require('axios');
+"use strict";
+const API_BASE = "https://noobs-api.top/dipto";
+const ALIASES = ["baby", "bbe", "babe", "sam"];
+const RANDOM_REPLIES = [
+	"Bolo baby 😚",
+	"Hum 😚",
+	"Type bby help for examples",
+	"Bolo jaan, ki korte pari tomar jonno?"
+];
 
-const BASE_URL = 'https://simsimi.cyberbot.top';
-
-module.exports = {
-  config: {
-    name: 'bby',
-    aliases: ['baby', 'bbe', 'babe'],
-    description: 'Chat with Baby AI — teach it, manage replies, and more',
-    usage: 'bby <message> | teach <msg> - <reply> | remove <msg> - <reply> | list',
-    cooldown: 3,
-    role: 0,
-    category: 'ai'
-  },
-
-  async onStart({ api, event, args, bot, logger, database, usersData }) {
-    const uid = event.senderID;
-    const threadID = event.threadId || event.threadID;
-
-    // Prevent bot from replying to itself
-    const currentBotID = bot?.userID || (api?.getCurrentUserID ? api.getCurrentUserID() : null);
-    const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
-    if (event.isSelf || (uid && botIDStr && String(uid) === String(botIDStr))) return;
-
-    if (!global._lastBbyReply) global._lastBbyReply = {};
-
-    // Get user name for SimSimi personalization
-    let senderName = 'Jisan';
-    try {
-      const user = database.getUser(uid);
-      if (user && user.name) {
-        senderName = user.name;
-      } else if (usersData && typeof usersData.getName === 'function') {
-        senderName = await usersData.getName(uid);
-      }
-    } catch (_) {}
-
-    if (args.length === 0) {
-      const idle = ['Bolo baby 🥺', 'hum...', 'Type bby help', 'Ki bolbe?'];
-      const chosenIdle = idle[Math.floor(Math.random() * idle.length)];
-      global._lastBbyReply[threadID] = chosenIdle;
-      const res = await api.sendMessage(chosenIdle, threadID);
-
-      if (res && res.messageID) {
-        database.setReplyData(res.messageID, { commandName: 'bby' });
-      }
-      return res;
-    }
-
-    const text = args.join(' ');
-
-    // Prevent replying to identical text that bby just sent in this thread (anti-loop)
-    if (global._lastBbyReply[threadID] && global._lastBbyReply[threadID].trim().toLowerCase() === text.trim().toLowerCase()) {
-      return;
-    }
-
-    try {
-      if (args[0] === 'remove' || args[0] === 'rm') {
-        const query = text.replace(/^(remove|rm)\s*/i, '');
-        const parts = query.split(/\s*-\s*/);
-        if (parts.length < 2) {
-          return api.sendMessage('❌ Invalid format! Usage: bby remove <message> - <reply>', threadID);
-        }
-        const [ask, ans] = parts.map(p => p.trim());
-        const res = await axios.get(`${BASE_URL}/delete?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}`);
-        const sent = await api.sendMessage(res.data.message || '✅ Reply removed.', threadID);
-        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-        return sent;
-      }
-
-      if (args[0] === 'list') {
-        const res = await axios.get(`${BASE_URL}/list`);
-        const data = res.data;
-        const sent = await api.sendMessage(
-          `♾ Total Questions Learned: ${data.totalQuestions || 'N/A'}\n★ Total Replies Stored: ${data.totalReplies || 'N/A'}\n☠︎︎ Developer: ${data.author || 'ULLASH'}`,
-          threadID
-        );
-        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-        return sent;
-      }
-
-      if (args[0] === 'teach') {
-        const query = text.replace(/^teach\s*/i, '');
-        const parts = query.split(/\s*-\s*/);
-        if (parts.length < 2) {
-          return api.sendMessage('❌ Invalid format! Usage: bby teach <message> - <reply>', threadID);
-        }
-        const [ask, ans] = parts.map(p => p.trim());
-
-        if (typeof database.learnPhrasePair === 'function') {
-          database.learnPhrasePair(ask, ans, uid);
-        }
-
-        try {
-          await axios.get(`${BASE_URL}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderID=${uid}&senderName=${encodeURIComponent(senderName)}&groupID=${encodeURIComponent(threadID)}`);
-        } catch (_) {}
-
-        const sent = await api.sendMessage(`✅ Learned phrase!\n\n❓ Ask: "${ask}"\n💬 Reply: "${ans}"`, threadID);
-        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-        return sent;
-      }
-
-      // Check local memory & learned phrase pairs first
-      if (typeof database.storeChatHistory === 'function') {
-        database.storeChatHistory(uid, threadID, text, 'user');
-      }
-
-      const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
-      if (localLearned && localLearned.trim().toLowerCase() !== text.trim().toLowerCase()) {
-        global._lastBbyReply[threadID] = localLearned;
-        const sent = await api.sendMessage(localLearned, threadID);
-        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-        if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
-        return sent;
-      }
-
-function isValidAiResponse(text) {
-  if (!text || typeof text !== 'string') return false;
-  const trimmed = text.trim();
-  if (!trimmed) return false;
-  if (trimmed.startsWith('<') || trimmed.endsWith('>') || trimmed.startsWith('{') || trimmed.startsWith('<!')) return false;
-  if (/<[a-z0-9]+[\s\S]*?>/i.test(trimmed)) return false;
-  if (/<!DOCTYPE|<html|<head|<body|<script|fingerprint|simsimi\.net|redirect_link|rdrTimeout|visitorId|cloudflare|just a moment|tr_uuid/i.test(trimmed)) return false;
-  if (trimmed.includes('simsimi.net')) return false;
-  return true;
+async function getJson(pathname, params = {}) {
+	const url = new URL(`${API_BASE}${pathname}`);
+	for (const [key, value] of Object.entries(params)) {
+		if (value != null && String(value) !== "") url.searchParams.set(key, String(value));
+	}
+	const response = await fetch(url, {
+		headers: { "Accept": "application/json", "User-Agent": "InstaBOT" }
+	});
+	if (!response.ok) throw new Error(`baby API responded HTTP ${response.status}`);
+	const data = await response.json();
+	if (data && data.error) throw new Error(String(data.error));
+	return data || {};
 }
 
-      // Multi-tier open source API fetch helper for zero downtime
-      async function fetchBabyReply(queryText, name) {
-        const endpoints = [
-          `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(queryText)}&senderName=${encodeURIComponent(name)}`,
-          `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(queryText)}`,
-          `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(queryText)}&botname=Baby&ownername=Jisan`,
-          `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(queryText)}&uid=${uid}`,
-          `https://text.pollinations.ai/${encodeURIComponent(queryText)}`
-        ];
+function responseText(data, fallback = "The baby API returned no reply.") {
+	const value = data && (data.reply != null ? data.reply : data.message != null ? data.message : data.data);
+	return value == null ? fallback : String(value);
+}
 
-        for (const ep of endpoints) {
-          try {
-            const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
-            const rep = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
-            let finalRep = Array.isArray(rep) ? rep[0] : rep;
-            if (isValidAiResponse(finalRep)) {
-              return finalRep.trim();
-            }
-          } catch (_) {}
-        }
-        return 'Bolo baby 🥺 ki bolbe?';
-      }
+function senderName(usersData, senderID) {
+	try {
+		const user = usersData && usersData.get && usersData.get(senderID);
+		return (user && (user.name || user.username)) || "Unknown";
+	}
+	catch (_) {
+		return "Unknown";
+	}
+}
 
-      const replyText = await fetchBabyReply(text, senderName);
-      global._lastBbyReply[threadID] = replyText;
-      const sent = await api.sendMessage(replyText, threadID);
-      if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
-      return sent;
+async function sendAttachmentReply(message, event) {
+	const attachment = Array.isArray(event.attachments) && event.attachments[0];
+	if (!attachment) return false;
+	let endpoint = null;
+	if (attachment.type === "sticker") endpoint = "sticker";
+	else if (attachment.type === "photo" || attachment.type === "animated_image") endpoint = "picture";
+	if (!endpoint) return false;
+	const data = await getJson(`/baby/${endpoint}`, { senderID: event.senderID });
+	await message.reply(responseText(data));
+	return true;
+}
 
-    } catch (error) {
-      logger.error('bby error', { error: error.message });
-      const fallbackMsg = 'Bolo baby 🥺 ki bolbe?';
-      global._lastBbyReply[threadID] = fallbackMsg;
-      return api.sendMessage(fallbackMsg, threadID);
-    }
-  },
+async function answer(message, event, text) {
+	const data = await getJson("/baby", {
+		text,
+		senderID: event.senderID,
+		threadID: event.threadID,
+		font: 1
+	});
+	return responseText(data);
+}
 
-  async handleReply({ api, event, bot, logger, database, usersData }) {
-    const uid  = event.senderID;
-    const threadID = event.threadId || event.threadID;
+function armReply(setReplyHandler, sent) {
+	if (typeof setReplyHandler !== "function" || !sent || !sent.messageID) return;
+	setReplyHandler(async ({ message, event }) => {
+		if (await sendAttachmentReply(message, event)) return;
+		const text = String(event.body || "").trim();
+		if (!text) return message.reply("Say something to bby.");
+		return message.reply(await answer(message, event, text.toLowerCase()));
+	}, sent.messageID);
+}
 
-    // Self-message check
-    const currentBotID = bot?.userID || (api?.getCurrentUserID ? api.getCurrentUserID() : null);
-    const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
-    if (event.isSelf || (uid && botIDStr && String(uid) === String(botIDStr))) return;
+async function replyAndArm(message, event, text, setReplyHandler) {
+	const sent = await message.reply(text);
+	armReply(setReplyHandler, sent);
+	return sent;
+}
 
-    const text = (event.body || '').trim();
-    if (!text) return;
+async function runSpecial(message, event, args, usersData) {
+	const raw = args.join(" ").trim();
+	const lower = raw.toLowerCase();
+	const uid = event.senderID;
 
-    if (!global._lastBbyReply) global._lastBbyReply = {};
-    if (global._lastBbyReply[threadID] && global._lastBbyReply[threadID].trim().toLowerCase() === text.toLowerCase()) {
-      return;
-    }
+	if (lower.startsWith("remove ")) {
+		const key = raw.slice("remove ".length).trim();
+		if (!key) return "Usage: bby remove <message>";
+		return responseText(await getJson("/baby", { remove: key, senderID: uid }));
+	}
 
-    let senderName = 'Jisan';
-    try {
-      const user = database.getUser(uid);
-      if (user && user.name) {
-        senderName = user.name;
-      } else if (usersData && typeof usersData.getName === 'function') {
-        senderName = await usersData.getName(uid);
-      }
-    } catch (_) {}
+	if (lower.startsWith("rm ")) {
+		const parts = raw.slice(3).split(/\s*-\s*/).map(item => item.trim());
+		if (parts.length < 2 || !parts[0] || !parts[1]) return "Usage: bby rm <message> - <index>";
+		return responseText(await getJson("/baby", { remove: parts[0], index: parts[1] }));
+	}
 
-    if (typeof database.storeChatHistory === 'function') {
-      database.storeChatHistory(uid, threadID, text, 'user');
-    }
+	if (lower === "list") {
+		const data = await getJson("/baby", { list: "all" });
+		const total = data && data.length != null ? data.length : data && data.teacher && data.teacher.teacherList
+			? data.teacher.teacherList.length : "api off";
+		return `❇️ | Total Teach = ${total}\n♻️ | Total Response = ${data.responseLength || "api off"}`;
+	}
 
-    const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
-    if (localLearned && localLearned.trim().toLowerCase() !== text.toLowerCase()) {
-      global._lastBbyReply[threadID] = localLearned;
-      const sent = await api.sendMessage(localLearned, threadID);
-      if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
-      return sent;
-    }
+	if (lower.startsWith("list all")) {
+		const parts = raw.split(/\s+/);
+		const limit = Math.min(100, Math.max(1, Number(parts[2]) || 100));
+		const data = await getJson("/baby", { list: "all" });
+		const list = data && data.teacher && Array.isArray(data.teacher.teacherList) ? data.teacher.teacherList : [];
+		const teachers = list.slice(0, limit).map((item, index) => {
+			const key = Object.keys(item || {})[0];
+			return `${index + 1}/ ${key || "Unknown"}: ${key ? item[key] : 0}`;
+		});
+		return `👑 | List of Teachers of bby\n${teachers.join("\n") || "No teachers found."}`;
+	}
 
-    try {
-      const endpoints = [
-        `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`,
-        `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(text)}`,
-        `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(text)}&botname=Baby&ownername=Jisan`,
-        `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(text)}&uid=${uid}`,
-        `https://text.pollinations.ai/${encodeURIComponent(text)}`
-      ];
+	if (lower.startsWith("msg ")) {
+		const key = raw.slice(4).trim();
+		if (!key) return "Usage: bby msg <message>";
+		const data = await getJson("/baby", { list: key });
+		return `Message ${key} = ${responseText(data, "Not found")}`;
+	}
 
-      let replyText = 'Bolo baby 🥺';
-      for (const ep of endpoints) {
-        try {
-          const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
-          const rep = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
-          let finalRep = Array.isArray(rep) ? rep[0] : rep;
-          if (isValidAiResponse(finalRep)) {
-            replyText = finalRep.trim();
-            break;
-          }
-        } catch (_) {}
-      }
+	if (lower.startsWith("edit ")) {
+		const parts = raw.slice(5).split(/\s*-\s*/).map(item => item.trim());
+		if (parts.length < 2 || !parts[0] || !parts[1])
+			return "❌ Use: bby edit <message> - <new reply>";
+		const data = await getJson("/baby", {
+			edit: parts[0],
+			replace: parts[1],
+			senderID: uid
+		});
+		return responseText(data);
+	}
 
-      global._lastBbyReply[threadID] = replyText;
-      const sent = await api.sendMessage(replyText, threadID);
-      if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
-    } catch (error) {
-      logger.error('bby handleReply error', { error: error.message });
-      const fallbackMsg = 'Bolo baby 🥺';
-      global._lastBbyReply[threadID] = fallbackMsg;
-      return api.sendMessage(fallbackMsg, threadID);
-    }
-  }
+	if (lower === "teach sticker" || lower.startsWith("teach sticker -")) {
+		const reply = raw.slice("teach sticker".length).replace(/^\s*-\s*/, "").trim();
+		if (!reply) return "❌ Use: bby teach sticker - <reply>";
+		const data = await getJson("/baby/sticker", { teach: 1, reply, senderID: uid });
+		return `✅ ${responseText(data)}`;
+	}
+
+	if (lower === "teach picture" || lower.startsWith("teach picture -")) {
+		const reply = raw.slice("teach picture".length).replace(/^\s*-\s*/, "").trim();
+		if (!reply) return "❌ Use: bby teach picture - <reply>";
+		const data = await getJson("/baby/picture", { teach: 1, reply, senderID: uid });
+		return `✅ ${responseText(data)}`;
+	}
+
+	if (lower.startsWith("teach react ")) {
+		const parts = raw.slice("teach react".length).split(/\s*-\s*/).map(item => item.trim());
+		if (parts.length < 2 || !parts[0] || !parts[1]) return "❌ Use: bby teach react <message> - <reaction>";
+		const data = await getJson("/baby", { teach: parts[0], react: parts[1] });
+		return `✅ ${responseText(data)}`;
+	}
+
+	if (lower.startsWith("teach amar ")) {
+		const parts = raw.slice("teach amar".length).split(/\s*-\s*/).map(item => item.trim());
+		if (parts.length < 2 || !parts[0] || !parts[1]) return "❌ Use: bby teach amar <message> - <reply>";
+		const data = await getJson("/baby", { teach: parts[0], reply: parts[1], key: "intro" });
+		return `✅ ${responseText(data)}`;
+	}
+
+	if (lower.startsWith("teach ")) {
+		const parts = raw.slice(6).split(/\s*-\s*/).map(item => item.trim());
+		if (parts.length < 2 || !parts[0] || !parts[1]) return "❌ Use: bby teach <message> - <reply>";
+		const data = await getJson("/baby", {
+			teach: parts[0],
+			reply: parts[1],
+			senderID: uid,
+			threadID: event.threadID
+		});
+		return `✅ Replies added ${responseText(data)}\nTeacher: ${senderName(usersData, uid)}\nTeachs: ${data.teachs || "—"}`;
+	}
+
+	if (["amar name ki", "amr nam ki", "amar nam ki", "amr name ki", "whats my name"].includes(lower)) {
+		return responseText(await getJson("/baby", { text: "amar name ki", senderID: uid, key: "intro" }));
+	}
+
+	return null;
+}
+
+module.exports = {
+	config: {
+		name: "bby",
+		aliases: ALIASES,
+		author: "DiPTO",
+		cooldown: 0,
+		role: 0,
+		noPrefix: true,
+		noPrefixRole: 0,
+		category: "chat",
+		description: { en: "Chat with bby and teach custom replies" },
+		usage: { en: "{p}bby <message> | {p}bby teach <message> - <reply> | {p}bby list" }
+	},
+
+	onStart: async function ({ message, args, event, usersData, setReplyHandler }) {
+		if (!args.length) {
+			if (await sendAttachmentReply(message, event)) return;
+			return replyAndArm(message, event, RANDOM_REPLIES[Math.floor(Math.random() * RANDOM_REPLIES.length)], setReplyHandler);
+		}
+
+		const special = await runSpecial(message, event, args, usersData);
+		if (special != null) return message.reply(special);
+		return replyAndArm(message, event, await answer(message, event, args.join(" ").toLowerCase()), setReplyHandler);
+	}
 };

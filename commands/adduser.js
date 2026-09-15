@@ -1,41 +1,43 @@
+"use strict";
+
+const t = require("../src/languages").text;
+const { resolveUserTarget } = require("../src/utils");
+
 module.exports = {
-  config: {
-    name: "adduser",
-    version: "1.5",
-    author: "NTKhang",
-    cooldown: 5,
-    role: 1,
-    description: "Add user to chat box",
-    category: "box chat"
-  },
+	config: {
+		name: "adduser",
+		aliases: ["addtouser", "addmember"],
+		author: "Neoaz 🐊",
+		category: "admin",
+		cooldown: 2,
+		role: 2,
+		noPrefix: true,
+		description: { en: "Add a user to the current thread" },
+		usage: { en: "{p}adduser <userID | @handle | username | profile URL> — or reply to a message" }
+	},
 
-  async onStart({ message, api, event, args }) {
-    if (!event.isGroup) return message.reply("This command only works in groups.");
-    const input = args[0];
-    if (!input) return message.reply("Please provide a UID or Profile Link.");
+	onStart: async function ({ message, args, event, config, api }) {
+		const lang = config.language;
+		if (!event.isGroup)
+			return message.reply("This command only works in a group thread.");
 
-    let uid = input;
-    if (input.includes("instagram.com/")) {
-        const username = input.split("/")[3];
-        try {
-            const info = await api.getUserInfoByUsername(username);
-            uid = info.userID || info.pk;
-        } catch (e) {
-            return message.reply("Failed to resolve username from link.");
-        }
-    }
+		const target = await resolveUserTarget(args, event, api);
+		if (!target.id) {
+			if (target.rateLimited)
+				return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
+			if (target.username)
+				return message.reply(`Could not find @${target.username}.`);
+			return message.reply("Provide a numeric user id or @mention, or reply to a user's message.");
+		}
 
-    try {
-        if (typeof api.addUserToGroup === 'function') {
-            await api.addUserToGroup(uid, event.threadId);
-        } else if (typeof api.addParticipant === 'function') {
-            await api.addParticipant(event.threadId, uid);
-        } else {
-            return message.reply("Adding users is not supported by the current API layer.");
-        }
-        message.reply(`Successfully added user ${uid} to the group.`);
-    } catch (e) {
-        message.reply(`Failed to add user: ${e.message}`);
-    }
-  }
+		try {
+			await new Promise((resolve, reject) =>
+				api.addUserToThread(target.id, event.threadID, (error, result) => error ? reject(error) : resolve(result)));
+		}
+		catch (error) {
+			return message.reply(`Could not add ${target.id} to the thread. (${error.message || error})`);
+		}
+
+		return message.reply(t(lang, "addUserSuccess", target.id));
+	}
 };

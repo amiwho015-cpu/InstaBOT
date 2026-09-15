@@ -1,35 +1,68 @@
-const axios = require("axios");
+const { GoatBotApis } = global.utils;
 
 module.exports = {
-  config: {
-    name: "texttoimage",
-    aliases: ["midjourney", "openjourney", "text2image"],
-    version: "1.3",
-    author: "NTKhang",
-    cooldown: 5,
-    role: 0,
-    description: "Create image from text using Midjourney style",
-    category: "ai-image",
-    usage: "texttoimage <prompt>"
-  },
+	config: {
+		name: "texttoimage",
+		aliases: ["openjourney", "text2image"],
+		version: "1.3",
+		author: "frnAlt",
+		countDown: 5,
+		role: 0,
+		description: {
+			uid: "Tạo ảnh từ văn bản của bạn",
+			en: "Create image from your text"
+		},
+		category: "info",
+		guide: {
+			vi: "   {pn} <prompt>: tạo ảnh từ văn bản của bạn"
+				+ "\n    Ví dụ: {pn} mdjrny-v4 create a gta style house, gta, 4k, hyper detailed, cinematic, realistic, unreal engine, cinematic lighting, bright lights"
+				+ "\n    Example: {pn} mdjrny-v4 create a gta style house, gta, 4k, hyper detailed, cinematic, realistic, unreal engine, cinematic lighting, bright lights"
+		}
+	},
 
-  onStart: async function ({ message, args, event, api }) {
-    const prompt = args.join(" ");
-    if (!prompt) return message.reply("⚠ Please enter a prompt");
+	langs: {
+		vi: {
+			syntaxError: "⚠ Vui lòng nhập prompt",
+			error: "! Đã có lỗi xảy ra, vui lòng thử lại sau:\n%1",
+			serverError: "! Server đang quá tải, vui lòng thử lại sau",
+			missingGoatApiKey: "! Chưa cài đặt apikey cho GoatBot, vui lòng truy cập goatbot.tk để lấy apikey và cài đặt vào file configCommands.json > envGlobal.goatbotApikey và lưu lại"
+		},
+		en: {
+			syntaxError: "⚠ Please enter prompt",
+			error: "! An error has occurred, please try again later:\n%1",
+			serverError: "! Server is overloaded, please try again later",
+			missingGoatApiKey: "! Not set apikey for GoatBot, please visit goatbot.tk to get apikey and set it to configCommands.json > envGlobal.goatbotApikey and save"
+		}
+	},
 
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
+	onStart: async function ({ message, args, getLang, envGlobal }) {
+		const goatBotApi = new GoatBotApis(envGlobal.goatbotApikey);
+		if (!goatBotApi.isSetApiKey())
+			return message.reply(getLang("missingGoatApiKey"));
+		const prompt = args.join(" ");
+		if (!prompt)
+			return message.reply(getLang("syntaxError"));
 
-    try {
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent('midjourney style ' + prompt)}?nologo=true&seed=${Date.now()}`;
-      await message.reply({
-        body: `✅ | Midjourney Style: "${prompt}"`,
-        attachment: url
-      });
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-    } catch (err) {
-      console.error('texttoimage error:', err.message);
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
-      return message.reply("! An error has occurred, please try again later.");
-    }
-  }
+		try {
+			const { data: imageStream } = await goatBotApi.api({
+				url: "/image/mdjrny",
+				method: "GET",
+				params: {
+					prompt,
+					style_id: 28,
+					aspect_ratio: "1:1"
+				},
+				responseType: "stream"
+			});
+
+			imageStream.path = "image.jpg";
+
+			return message.reply({
+				attachment: imageStream
+			});
+		}
+		catch (err) {
+			return message.reply(getLang("error", err.data?.message || err.message));
+		}
+	}
 };

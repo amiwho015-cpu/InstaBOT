@@ -1,55 +1,87 @@
 "use strict";
 
-/**
- * commands/uptime.js
- *
- * System uptime and operational status.
- */
-
 const os = require("os");
+const utils = require("../src/utils");
 
-function formatUptime(seconds) {
-	const d = Math.floor(seconds / (3600 * 24));
-	const h = Math.floor((seconds % (3600 * 24)) / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = Math.floor(seconds % 60);
-	const parts = [];
-	if (d > 0) parts.push(`${d}d`);
-	if (h > 0) parts.push(`${h}h`);
-	if (m > 0) parts.push(`${m}m`);
-	parts.push(`${s}s`);
-	return parts.join(" ");
+const AVATAR_EFFECTS = ["love", "angry", "laugh", "cry"];
+
+function formatBytes(bytes) {
+	if (!Number.isFinite(bytes) || bytes < 0) return "unknown";
+	if (bytes === 0) return "0 B";
+	const units = ["B", "KB", "MB", "GB", "TB"];
+	const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+	return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatDuration(seconds) {
+	seconds = Math.max(0, Math.floor(seconds));
+	const days = Math.floor(seconds / 86400);
+	const hours = Math.floor((seconds % 86400) / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const remainingSeconds = seconds % 60;
+	return [
+		days && `${days}d`,
+		hours && `${hours}h`,
+		minutes && `${minutes}m`,
+		`${remainingSeconds}s`
+	].filter(Boolean).join(" ");
+}
+
+function randomAvatarEffect() {
+	return AVATAR_EFFECTS[Math.floor(Math.random() * AVATAR_EFFECTS.length)];
 }
 
 module.exports = {
 	config: {
 		name: "uptime",
-		aliases: ["upt", "up"],
-		author: "frnAlt",
-		category: "system",
-		cooldown: 5,
+		aliases: ["up", "upt", "runtime"],
+		author: "Neoaz 🐊",
+		category: "info",
+		cooldown: 2,
 		role: 0,
-		shortDescription: { en: "Show bot uptime and system resource usage" },
-		longDescription: { en: "Displays total uptime, OS uptime, CPU architecture, and memory footprint." },
-		guide: { en: "{pn}" }
+		description: { en: "View bot runtime, host, and memory information" },
+		usage: { en: "{p}uptime" }
 	},
 
-	onStart: async function ({ message, bot }) {
-		const botUptime = formatUptime(process.uptime());
-		const systemUptime = formatUptime(os.uptime());
-		const mem = process.memoryUsage();
-		const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
-		const heapMb = (mem.heapUsed / 1024 / 1024).toFixed(1);
+	onStart: async function ({ message, config }) {
+		let version = "1.0.0";
+		try { version = require("../package.json").version; } catch (_) { }
 
-		let msg = `🤖 InstaBOT System Status\n\n`;
-		msg += `⏱️ Bot Uptime   : ${botUptime}\n`;
-		msg += `🖥️ System Uptime: ${systemUptime}\n`;
-		msg += `💾 Heap Memory  : ${heapMb} MB\n`;
-		msg += `📦 Resident Mem : ${rssMb} MB\n`;
-		msg += `⚙️ Node Version : ${process.version}\n`;
-		msg += `🛰️ Platform     : ${os.type()} (${os.arch()})\n`;
-		msg += `⚡ Commands Loaded: ${bot.commandLoader ? bot.commandLoader.commands.size : 0}`;
+		const memory = process.memoryUsage();
+		const totalMemory = os.totalmem();
+		const freeMemory = os.freemem();
+		const usedMemory = totalMemory - freeMemory;
+		const since = global.instabotStartedAt || Date.now();
+		const startedAt = new Date(since).toISOString().replace("T", " ").replace(/\..+$/, " UTC");
 
-		return message.reply(msg);
+		const body = [
+			"╭────────────────────⭓",
+			`│ ☠️ ${String((config && config.botName) || "InstaBOT").toUpperCase()} ☠️`,
+			"├────────────────────⭔",
+			"├── ❏ RUNTIME ❏ ──⭔",
+			`│   ▪ Uptime: ${utils.formatTime(Date.now() - since)}`,
+			`│   ▪ Process: ${formatDuration(process.uptime())}`,
+			`│   ▪ Started: ${startedAt}`,
+			"├── ❏ HOST ❏ ──⭔",
+			`│   ▪ Name: ${os.hostname()}`,
+			`│   ▪ Platform: ${process.platform}/${process.arch}`,
+			`│   ▪ CPU: ${os.cpus().length} cores`,
+			"├── ❏ MEMORY ❏ ──⭔",
+			`│   ▪ Host used: ${formatBytes(usedMemory)}`,
+			`│   ▪ Host free: ${formatBytes(freeMemory)}`,
+			`│   ▪ Host total: ${formatBytes(totalMemory)}`,
+			`│   ▪ Bot RSS: ${formatBytes(memory.rss)}`,
+			`│   ▪ Bot heap: ${formatBytes(memory.heapUsed)} / ${formatBytes(memory.heapTotal)}`,
+			"├────────────────────⭔",
+			`│ Node ${process.version} · v${version}`,
+			"╰────────────────────⭔"
+		].join("\n");
+
+		try {
+			return await message.send({ body, avatarEffect: randomAvatarEffect() });
+		}
+		catch (_) {
+			return message.send(body);
+		}
 	}
 };

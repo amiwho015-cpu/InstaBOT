@@ -1,13 +1,5 @@
 "use strict";
 
-/**
- * commands/music.js
- *
- * Search and attach Instagram Music Stickers.
- * Author: Saifullah Al Neoaz (lazyneoaz)
- * Adapted for: InstaBOT
- */
-
 function formatDuration(ms) {
 	if (!ms || ms < 0) return "0:00";
 	const total = Math.round(ms / 1000);
@@ -16,83 +8,120 @@ function formatDuration(ms) {
 	return `${minutes}:${seconds}`;
 }
 
+async function searchTracks(query, message, config) {
+	const music = (config && config.music) || { };
+
+	async function fromInstagram() {
+		const result = await message.musicSearch(query);
+		return (result && result.tracks) || [];
+	}
+
+	if (music.enable !== false && music.apiUrl) {
+		const url = music.apiUrl.includes("{query}")
+			? music.apiUrl.replace("{query}", encodeURIComponent(query))
+			: `${music.apiUrl}${music.apiUrl.includes("?") ? "&" : "?"}query=${encodeURIComponent(query)}`;
+		const headers = { "Accept": "application/json" };
+		if (music.apiToken) headers["Authorization"] = `Bearer ${music.apiToken}`;
+		try {
+			const res = await fetch(url, { headers });
+			if (!res.ok) throw new Error(`music server responded ${res.status}`);
+			const tracks = normalizeTracks(await res.json());
+			if (tracks.length) return tracks;
+		}
+		catch (_) { }
+	}
+
+	return fromInstagram();
+}
+
+function normalizeTracks(data) {
+	const list = Array.isArray(data) ? data
+		: Array.isArray(data && data.tracks) ? data.tracks
+			: Array.isArray(data && data.results) ? data.results
+				: Array.isArray(data && data.data) ? data.data : [];
+	return list.map(entry => ({
+		audioAssetID: entry.audioAssetID || entry.audio_asset_id || null,
+		audioClusterID: entry.audioClusterID || entry.audio_cluster_id || entry.id || null,
+		id: entry.id || entry.audioClusterID || entry.audio_cluster_id || null,
+		title: entry.title || entry.name || "Unknown",
+		artist: entry.artist || entry.display_artist || "Unknown",
+		durationMs: entry.durationMs || entry.duration_ms || entry.duration || 0,
+		coverArt: entry.coverArt || entry.cover || entry.thumbnail || null
+	})).filter(track => track.audioClusterID || track.audioAssetID);
+}
+
 module.exports = {
 	config: {
 		name: "music",
-		aliases: ["stickermusic", "sm", "igmusic"],
-		author: "Neoaz & frnAlt",
+		aliases: ["stickermusic", "sm", "m"],
+		author: "Neoaz 🐊",
 		category: "media",
 		cooldown: 5,
 		role: 0,
-		shortDescription: { en: "Search a song and send it as an Instagram music sticker" },
-		longDescription: { en: "Searches the official Instagram music catalogue and sends interactive music audio clips." },
-		guide: { en: "{pn} <song name or artist>" }
+		description: { en: "Search a song and send it as an Instagram music sticker" },
+		usage: { en: "{p}music <song name or artist> | {p}music <number> to pick from the last search" }
 	},
 
-	onStart: async function ({ message, args, event }) {
+	onStart: async function ({ message, args, event, config, usersData, setReplyHandler }) {
 		const query = args.join(" ").trim();
-		if (!query) {
-			return message.reply("💡 Usage: music <song name or artist>\nExample: music blinding lights");
+		if (!query)
+			return message.reply(`Usage: music <song name>\nExample: music blinding lights`);
+
+		const last = usersData.get(event.senderID) || { };
+		const cached = last.data && last.data.lastMusic;
+
+		if (/^\d+$/.test(query) && cached && Array.isArray(cached.tracks) && cached.tracks.length) {
+			const index = Number(query) - 1;
+			const track = cached.tracks[index];
+			if (!track)
+				return message.reply(`Pick a number between 1 and ${cached.tracks.length}.`);
+			return sendTrack(message, track);
 		}
 
-		let searchRes;
+		let tracks;
 		try {
-			searchRes = await message.musicSearch(query);
-		} catch (error) {
-			return message.reply(`❌ Music search failed: ${error.message || error}`);
+			tracks = await searchTracks(query, message, config);
+		}
+		catch (error) {
+			return message.reply(`Music search failed: ${String(error.message || error)}`);
 		}
 
-		const tracks = (searchRes && searchRes.tracks) || (Array.isArray(searchRes) ? searchRes : []);
-		if (!tracks.length) {
-			return message.reply(`❌ No songs found on Instagram for "${query}".`);
+		if (!tracks.length)
+			return message.reply(`No songs found for "${query}".`);
+
+		const top = tracks.slice(0, 10);
+		usersData.update(event.senderID, { data: Object.assign({ }, last.data, { lastMusic: { query, tracks: top } }) });
+
+		if (top.length === 1 || args.includes("--top"))
+			return sendTrack(message, top[0]);
+
+		const lines = top.map((track, index) =>
+			`${index + 1}. ${track.title || "Unknown"} — ${track.artist || "Unknown"} (${formatDuration(track.durationMs)})`
+		);
+		const sent = await message.reply(
+			`Results for "${query}"\n${lines.join("\n")}\n\nReply with music <number> to send one.`
+		);
+
+		if (typeof setReplyHandler === "function") {
+
+			setReplyHandler(async ({ message: replyMessage, event: replyEvent }) => {
+				const pick = String(replyEvent.body || "").trim().split(/\s+/).pop();
+				if (!/^\d+$/.test(pick)) return;
+				const chosen = top[Number(pick) - 1];
+				if (!chosen) return replyMessage.reply(`Pick a number between 1 and ${top.length}.`);
+				await sendTrack(replyMessage, chosen);
+			}, sent && sent.messageID);
 		}
-
-		const top = tracks.slice(0, 5);
-
-		// If only 1 result, send it directly
-		if (top.length === 1) {
-			try {
-				return await message.music(top[0]);
-			} catch (err) {
-				return message.reply(`❌ Could not send music sticker: ${err.message}`);
-			}
-		}
-
-		let text = `🎵 Instagram Music Results for "${query}":\n\n`;
-		top.forEach((t, i) => {
-			const title = t.title || t.name || "Unknown";
-			const artist = t.artist || t.display_artist || "Unknown";
-			const dur = formatDuration(t.durationMs || t.duration_ms || 30000);
-			text += `${i + 1}. ${title} — ${artist} (${dur})\n`;
-		});
-		text += `\n💬 Reply to this message with the number (1-${top.length}) to send the music sticker.`;
-
-		const sent = await message.reply(text);
-
-		if (global.GoatBot?.onReply && sent && sent.messageID) {
-			global.GoatBot.onReply.set(String(sent.messageID), {
-				commandName: "music",
-				author: event.senderID,
-				messageID: sent.messageID,
-				tracks: top
-			});
-		}
-	},
-
-	onReply: async function ({ message, event, Reply }) {
-		const input = (event.body || "").trim();
-		const index = parseInt(input, 10);
-		const tracks = Reply.tracks || [];
-
-		if (isNaN(index) || index < 1 || index > tracks.length) {
-			return message.reply(`⚠️ Please reply with a valid number between 1 and ${tracks.length}.`);
-		}
-
-		const chosen = tracks[index - 1];
-		try {
-			await message.music(chosen);
-		} catch (err) {
-			return message.reply(`❌ Could not send music sticker: ${err.message}`);
-		}
+		return sent;
 	}
 };
+
+async function sendTrack(message, track) {
+	if (!track) return message.reply("That track is no longer available. Search again.");
+	try {
+		await message.music(track);
+	}
+	catch (error) {
+		return message.reply(`Could not send "${track.title || "the track"}": ${String(error.message || error)}`);
+	}
+}

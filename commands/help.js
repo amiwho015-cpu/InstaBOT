@@ -1,240 +1,91 @@
 "use strict";
 
-/**
- * commands/help.js
- *
- * Advanced Floppa / GoatBot Interactive Command Navigation Engine:
- * - Paginated command directory with page navigation.
- * - Category summary and category filtering.
- * - Interactive onReply support (reply with page number or command name).
- * - Full command documentation extraction ({pn}, {p}, {n} placeholders).
- */
+const TEXT_EFFECTS = ["love", "gift", "celebration", "fire"];
 
-function extractCommandDetails(cmd, name, prefix) {
-	const cfg = cmd.config || cmd.meta || {};
-	const cmdName = cfg.name || name;
-	const category = (cfg.category || "utility").toLowerCase();
-
-	let description = "No description available";
-	if (typeof cfg.shortDescription === "string" && cfg.shortDescription.trim()) {
-		description = cfg.shortDescription.trim();
-	} else if (typeof cfg.shortDescription?.en === "string") {
-		description = cfg.shortDescription.en.trim();
-	} else if (typeof cfg.description === "string" && cfg.description.trim()) {
-		description = cfg.description.trim();
-	} else if (typeof cfg.description?.en === "string") {
-		description = cfg.description.en.trim();
-	}
-
-	let guide = "";
-	if (typeof cfg.guide === "string" && cfg.guide.trim()) {
-		guide = cfg.guide.trim();
-	} else if (typeof cfg.guide?.en === "string") {
-		guide = cfg.guide.en.trim();
-	} else if (typeof cfg.usage === "string") {
-		guide = cfg.usage.trim();
-	} else if (typeof cfg.usage?.en === "string") {
-		guide = cfg.usage.en.trim();
-	}
-
-	const replacePlaceholders = (text) => {
-		if (!text) return text;
-		return text
-			.replace(/{pn}/g, `${prefix}${cmdName}`)
-			.replace(/{p}{n}/g, `${prefix}${cmdName}`)
-			.replace(/{prefix}{name}/g, `${prefix}${cmdName}`)
-			.replace(/{p}/g, prefix)
-			.replace(/{prefix}/g, prefix)
-			.replace(/{n}/g, cmdName)
-			.replace(/{name}/g, cmdName);
-	};
-
-	description = replacePlaceholders(description);
-	guide = replacePlaceholders(guide || `${prefix}${cmdName}`);
-
-	return {
-		name: cmdName,
-		aliases: Array.isArray(cfg.aliases) ? cfg.aliases : [],
-		version: cfg.version || "1.0.0",
-		author: cfg.author || "Unknown",
-		role: cfg.role || 0,
-		cooldown: cfg.countDown != null ? cfg.countDown : (cfg.cooldown || 0),
-		category,
-		description,
-		guide
-	};
+function cleanCategoryName(text) {
+	if (!text) return "others";
+	return String(text)
+		.normalize("NFKD")
+		.replace(/[^\w\s-]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.toLowerCase() || "others";
 }
 
-function buildCommandDirectory(commands, prefix) {
-	const list = [];
-	const categories = {};
-
-	for (const [key, cmd] of commands) {
-		const cfg = cmd.config || cmd.meta || {};
-		if (cfg.name && cfg.name.toLowerCase() !== key.toLowerCase()) continue;
-		const details = extractCommandDetails(cmd, key, prefix);
-		list.push(details);
-
-		if (!categories[details.category]) categories[details.category] = [];
-		categories[details.category].push(details);
-	}
-
-	list.sort((a, b) => a.name.localeCompare(b.name));
-	return { list, categories };
-}
-
-function formatCommandDetail(c, prefix) {
-	const roleNames = { 0: "User (Everyone)", 1: "Thread Admin", 2: "Bot Admin", 3: "Bot Owner" };
-	let text = `╭─── [ 📌 COMMAND DETAILS ] ───╮\n`;
-	text += `│ 🏷️ Name     : ${c.name}\n`;
-	text += `│ 📁 Category : ${c.category.toUpperCase()}\n`;
-	text += `│ 🎭 Role Req : ${roleNames[c.role] || c.role}\n`;
-	text += `│ ⏱️ Cooldown : ${c.cooldown}s\n`;
-	text += `│ 🔄 Aliases  : ${c.aliases.length ? c.aliases.join(", ") : "None"}\n`;
-	text += `│ 👤 Author   : ${c.author}\n`;
-	text += `╰──────────────────────────────╯\n\n`;
-	text += `📖 Description:\n${c.description}\n\n`;
-	text += `💡 Usage Guide:\n${c.guide}`;
-	return text;
+function randomTextEffect() {
+	return TEXT_EFFECTS[Math.floor(Math.random() * TEXT_EFFECTS.length)];
 }
 
 module.exports = {
 	config: {
 		name: "help",
-		aliases: ["menu", "commands", "cmds", "h"],
-		version: "7.2.0",
-		author: "frnAlt",
-		countDown: 2,
+		aliases: ["h", "menu", "commands"],
+		author: "Neoaz 🐊",
+		category: "info",
+		cooldown: 3,
 		role: 0,
-		shortDescription: { en: "Interactive paginated command menu and guide" },
-		longDescription: { en: "Displays categorized, paginated command lists and detailed manuals with reply-to-inspect support." },
-		category: "system",
-		guide: {
-			en: "   {pn} [page]: View page of commands (e.g. {pn} 2)\n" +
-				"   {pn} [command]: View manual for specific command\n" +
-				"   {pn} cat [category]: Filter by category\n" +
-				"   {pn} all: View category summary"
-		}
+		description: { en: "Show all available commands or details for one" },
+		usage: { en: "{p}help [command]" }
 	},
 
-	onStart: async function ({ message, args, prefix, bot, event }) {
-		const commandsMap = bot.commandLoader.commands;
-		const { list, categories } = buildCommandDirectory(commandsMap, prefix);
+	onStart: async function ({ message, args, config, registry }) {
+		const prefix = config.prefix;
+		const query = (args[0] || "").toLowerCase();
 
-		// 1. Specific command lookup
-		if (args[0] && isNaN(args[0]) && !["all", "cat", "category"].includes(args[0].toLowerCase())) {
-			const query = args[0].toLowerCase();
+		if (query) {
+			const command = registry.resolve(query);
+			if (!command) return message.send(`❌ Command "${query}" not found.`);
 
-			// Check category match
-			if (categories[query]) {
-				const cmds = categories[query];
-				let text = `╭─── [ 📁 CATEGORY: ${query.toUpperCase()} ] ───╮\n`;
-				text += `│ Total: ${cmds.length} commands\n╰──────────────────────────────╯\n\n`;
-				cmds.forEach(c => {
-					text += `• ${prefix}${c.name} — ${c.description.slice(0, 45)}\n`;
-				});
-				text += `\n💡 Type ${prefix}help <command> for full instructions.`;
-				return message.reply(text);
+			const c = command.config;
+			const description = (c.description && (c.description[config.language] || c.description.en)) || "—";
+			const usage = ((c.usage && (c.usage[config.language] || c.usage.en)) || `${prefix}${c.name}`).replace(/\{p\}/g, prefix);
+
+			let version = "1.0.0";
+			try { version = require("../package.json").version; } catch (_) { }
+
+			const body = [
+				"☠️ 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗜𝗡𝗙𝗢 ☠️",
+				"",
+				`➥ Name: ${c.name}`,
+				`➥ Category: ${c.category || "Uncategorized"}`,
+				`➥ Description: ${description}`,
+				`➥ Aliases: ${c.aliases && c.aliases.length ? c.aliases.join(", ") : "None"}`,
+				`➥ Usage: ${usage}`,
+				`➥ Permission: ${c.role || 0}`,
+				`➥ Author: ${c.author || "—"}`,
+				`➥ Version: ${version}`
+			].join("\n");
+
+			try {
+				return await message.send({ body, effect: randomTextEffect() });
 			}
-
-			const found = list.find(c => c.name === query || c.aliases.map(a => a.toLowerCase()).includes(query));
-			if (!found) {
-				return message.reply(`❌ Command or category "${query}" not found. Type ${prefix}help to see all commands.`);
+			catch (_) {
+				return message.send(body);
 			}
-			return message.reply(formatCommandDetail(found, prefix));
 		}
 
-		// 2. Category overview: !help all
-		if (args[0]?.toLowerCase() === "all" || args[0]?.toLowerCase() === "category") {
-			const sorted = Object.keys(categories).sort();
-			let text = `╭─── [ 📚 COMMAND CATEGORIES ] ───╮\n`;
-			text += `│ Total: ${list.length} commands across ${sorted.length} categories\n`;
-			text += `╰─────────────────────────────────╯\n\n`;
-			for (const cat of sorted) {
-				text += `• ${cat.toUpperCase()} (${categories[cat].length} cmds)\n`;
-			}
-			text += `\n💡 Type ${prefix}help cat <name> to list commands in a category.\n`;
-			text += `💡 Type ${prefix}help <name> to view command manual.`;
-			return message.reply(text);
+		const byCategory = { };
+		for (const command of registry.commands.values()) {
+			if (command.config.hidden) continue;
+			const category = cleanCategoryName(command.config.category);
+			(byCategory[category] = byCategory[category] || []).push(command.config.name);
 		}
 
-		// 3. Filter category: !help cat <category>
-		if (args[0]?.toLowerCase() === "cat" && args[1]) {
-			const cat = args[1].toLowerCase();
-			if (!categories[cat]) {
-				return message.reply(`❌ Category "${cat}" not found. Type ${prefix}help all to see available categories.`);
-			}
-			const cmds = categories[cat];
-			let text = `╭─── [ 📁 CATEGORY: ${cat.toUpperCase()} ] ───╮\n`;
-			text += `│ Total: ${cmds.length} commands\n╰──────────────────────────────╯\n\n`;
-			cmds.forEach(c => {
-				text += `• ${prefix}${c.name} — ${c.description.slice(0, 45)}\n`;
-			});
-			text += `\n💡 Type ${prefix}help <command> for full instructions.`;
-			return message.reply(text);
+		const lines = [`━━━☠️ ${String(config.botName || "InstaBOT").toUpperCase()} ☠️━━━`];
+		for (const category of Object.keys(byCategory).sort()) {
+			lines.push(`\n╭──『 ${category.toUpperCase()} 』`);
+			const names = byCategory[category].sort();
+			lines.push(names.map((name, index) => `${index === 0 ? "➥" : " "}× ${prefix}${name}`).join("  "));
+			lines.push("╰────────────◊");
 		}
+		lines.push(`\n➥ Use: ${prefix}help [command] for details`);
 
-		// 4. Paginated directory
-		const perPage = 15;
-		const totalPages = Math.ceil(list.length / perPage) || 1;
-		let page = parseInt(args[0], 10) || 1;
-		if (page < 1) page = 1;
-		if (page > totalPages) page = totalPages;
-
-		const start = (page - 1) * perPage;
-		const pageItems = list.slice(start, start + perPage);
-
-		let text = `╭─── [ 🤖 INSTABOT MENU (${page}/${totalPages}) ] ───╮\n`;
-		text += `│ 🌐 Prefix: ${prefix} | Total: ${list.length} cmds\n`;
-		text += `╰──────────────────────────────────────╯\n\n`;
-
-		pageItems.forEach((c, idx) => {
-			text += `${start + idx + 1}. ${prefix}${c.name} — ${c.description.slice(0, 40)}\n`;
-		});
-
-		text += `\n💬 Reply with page number (1-${totalPages}) or command name to inspect.`;
-
-		const sent = await message.reply(text);
-
-		if (global.GoatBot?.onReply && sent && sent.messageID) {
-			global.GoatBot.onReply.set(String(sent.messageID), {
-				commandName: "help",
-				author: event.senderID,
-				messageID: sent.messageID,
-				currentPage: page,
-				totalPages
-			});
+		const body = lines.join("\n");
+		try {
+			return await message.send({ body, effect: randomTextEffect() });
 		}
-	},
-
-	onReply: async function ({ message, event, prefix, bot }) {
-		const input = (event.body || "").trim();
-		if (!input) return;
-
-		// If input is a page number
-		if (!isNaN(input)) {
-			const pageNum = parseInt(input, 10);
-			return module.exports.onStart({
-				message,
-				args: [String(pageNum)],
-				prefix,
-				bot,
-				event
-			});
+		catch (_) {
+			return message.send(body);
 		}
-
-		// Otherwise treat as command query
-		return module.exports.onStart({
-			message,
-			args: [input],
-			prefix,
-			bot,
-			event
-		});
-	},
-
-	// Backwards compatibility for run({ ... })
-	run: async function (params) {
-		return module.exports.onStart(params);
 	}
 };
