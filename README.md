@@ -7,18 +7,19 @@
   [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
   [![GitHub Repository](https://img.shields.io/badge/GitHub-frnAlt%2FInstaBOT-blue.svg?style=for-the-badge&logo=github)](https://github.com/frnAlt/InstaBOT)
   [![Build Status](https://img.shields.io/badge/Build-Passing-success.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
-  [![Commands Loaded](https://img.shields.io/badge/Commands-129%2B_Loaded-purple.svg?style=for-the-badge)](#-complete-command-catalog)
-  [![ICA Engine](https://img.shields.io/badge/Engine-Native_ICA-red.svg?style=for-the-badge)](https://github.com/frnAlt/InstaBOT)
+  [![Commands Loaded](https://img.shields.io/badge/Commands-142_Loaded_(275_Aliases)-purple.svg?style=for-the-badge)](#-complete-command-catalog)
+  [![ICA Engine](https://img.shields.io/badge/Engine-Native_ICA-red.svg?style=for-the-badge)](docs/ica.md)
+  [![Documentation](https://img.shields.io/badge/Docs-Complete_Guides-blue.svg?style=for-the-badge)](docs/architecture.md)
   [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge)](LICENSE)
 
   <p align="center">
     <a href="#-overview">Overview</a> •
-    <a href="#-interface--dashboard">Showcase</a> •
-    <a href="#-architecture--core-components">Architecture</a> •
-    <a href="#-complete-command-catalog-104-commands">Commands</a> •
+    <a href="docs/architecture.md">Architecture</a> •
+    <a href="docs/ica.md">Native ICA</a> •
+    <a href="docs/commands.md">Commands Guide</a> •
+    <a href="docs/media.md">Media Pipeline</a> •
+    <a href="docs/deployment.md">Deployment</a> •
     <a href="#-quick-start--installation">Installation</a> •
-    <a href="#-configuration-reference">Configuration</a> •
-    <a href="#-deployment-options">Deployment</a> •
     <a href="#-developers--credits">Credits</a>
   </p>
 
