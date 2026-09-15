@@ -13,7 +13,7 @@ const os = require("os");
 module.exports = {
   config: {
     name: "sing",
-    aliases: ["song", "music", "play"],
+    aliases: ["song", "play", "singaudio"],
     version: "2.1.0",
     author: "Gtajisan && frnAlt",
     cooldown: 5,
