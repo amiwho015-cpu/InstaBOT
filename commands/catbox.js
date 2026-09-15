@@ -9,7 +9,7 @@ const FormData = require('form-data');
 module.exports = {
   config: {
     name: 'catbox',
-    aliases: ['cb', 'catboxdl'],
+    aliases: ['cb', 'catboxdl', 'upload', 'up', 'upfile'],
     version: '1.2.0',
     author: 'Gtajisan && frnAlt',
     role: 0,

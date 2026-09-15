@@ -41,7 +41,7 @@ function loadConfig() {
 	const config = readJSON(configPathFor());
 
 	config.botName = config.botName || "InstaBOT";
-	config.prefix = typeof config.prefix === "string" ? config.prefix : "-";
+	config.prefix = typeof config.prefix === "string" ? config.prefix : "*";
 	config.language = config.language || "en";
 	// Bot admins are the accounts allowed to run admin-only commands. They are
 	// per-deployment, never baked into the repo: set them in config.json, or in

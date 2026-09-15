@@ -14,9 +14,11 @@ class Reactions {
   }
 
   _resolveThreadId(messageID, explicitThreadID) {
-    if (explicitThreadID) return explicitThreadID.toString();
-    if (!messageID) return null;
-    return this.http.getRememberedThread(messageID) || null;
+    if (explicitThreadID && typeof explicitThreadID !== 'function' && typeof explicitThreadID !== 'boolean') {
+      return explicitThreadID.toString();
+    }
+    if (!messageID) return this.http?.lastThreadID || null;
+    return this.http.getRememberedThread(messageID) || this.http?.lastThreadID || null;
   }
 
   _mqtt() {
@@ -27,7 +29,9 @@ class Reactions {
 
   async send(reaction, messageID, threadIDOrCallback, callback) {
     if (typeof threadIDOrCallback === 'function') {
-      callback   = threadIDOrCallback;
+      callback = threadIDOrCallback;
+      threadIDOrCallback = null;
+    } else if (typeof threadIDOrCallback === 'boolean') {
       threadIDOrCallback = null;
     }
     try {
@@ -51,7 +55,9 @@ class Reactions {
 
   async remove(messageID, threadIDOrCallback, callback) {
     if (typeof threadIDOrCallback === 'function') {
-      callback   = threadIDOrCallback;
+      callback = threadIDOrCallback;
+      threadIDOrCallback = null;
+    } else if (typeof threadIDOrCallback === 'boolean') {
       threadIDOrCallback = null;
     }
     try {

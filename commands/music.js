@@ -67,7 +67,7 @@ module.exports = {
 		if (!query)
 			return message.reply(`Usage: music <song name>\nExample: music blinding lights`);
 
-		const last = usersData.get(event.senderID) || { };
+		const last = (usersData && typeof usersData.get === "function") ? (usersData.get(event.senderID) || { }) : { };
 		const cached = last.data && last.data.lastMusic;
 
 		if (/^\d+$/.test(query) && cached && Array.isArray(cached.tracks) && cached.tracks.length) {
@@ -90,7 +90,9 @@ module.exports = {
 			return message.reply(`No songs found for "${query}".`);
 
 		const top = tracks.slice(0, 10);
-		usersData.update(event.senderID, { data: Object.assign({ }, last.data, { lastMusic: { query, tracks: top } }) });
+		if (usersData && typeof usersData.update === "function") {
+			usersData.update(event.senderID, { data: Object.assign({ }, last.data, { lastMusic: { query, tracks: top } }) });
+		}
 
 		if (top.length === 1 || args.includes("--top"))
 			return sendTrack(message, top[0]);
@@ -102,8 +104,7 @@ module.exports = {
 			`Results for "${query}"\n${lines.join("\n")}\n\nReply with music <number> to send one.`
 		);
 
-		if (typeof setReplyHandler === "function") {
-
+		if (typeof setReplyHandler === "function" && sent?.messageID) {
 			setReplyHandler(async ({ message: replyMessage, event: replyEvent }) => {
 				const pick = String(replyEvent.body || "").trim().split(/\s+/).pop();
 				if (!/^\d+$/.test(pick)) return;

@@ -2561,6 +2561,7 @@ async function main() {
 		for (const f of failed) console.error("\n" + f.name + ":\n", f.error);
 		process.exit(1);
 	}
+	process.exit(0);
 }
 
 main().catch(error => { console.error(error); process.exit(1); });

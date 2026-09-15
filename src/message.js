@@ -149,6 +149,9 @@ function createMessageContext({ api, event, log }) {
 				api.setMessageReaction(reaction, messageID, threadID, (error, result) => error ? reject(error) : resolve(result));
 			});
 		},
+		reaction(emoji, messageID = eventMessageID, callback) {
+			return this.react(emoji, messageID, callback);
+		},
 
 		/** Animated text effect ("love", "gift", "celebration", "fire"). */
 		effect(text, effect, callback) {

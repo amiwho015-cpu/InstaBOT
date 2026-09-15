@@ -238,9 +238,16 @@ function createDispatcher({ api, config, registry, database }) {
 		try {
 			await command.onStart(commandApi);
 			log.info("COMMAND", `${commandName} | ${senderID} | ${event.threadID} | ${args.join(" ")}`);
+			if (config.autoReactOnCommand !== false) {
+				const autoEmoji = typeof config.autoReactOnCommand === "string" ? config.autoReactOnCommand : "✅";
+				message.react(autoEmoji).catch(() => {});
+			}
 		}
 		catch (error) {
 			log.error("COMMAND", `Error in "${commandName}"`, error);
+			if (config.autoReactOnCommand !== false) {
+				message.react("❌").catch(() => {});
+			}
 			await message.reply(t(config.language, "errorOccurred", commandName, String(error.message || error)));
 		}
 	}
@@ -459,6 +466,40 @@ function createDispatcher({ api, config, registry, database }) {
 			case "message_reaction":
 				await runEventScripts(event, message, threadData, userData);
 				await runReactionHandlers(event, message, threadData, userData);
+
+				// Tap-to-replay & reaction unsend feature (Floppa compatible)
+				const targetMsgID = event.targetMessageID || event.messageID;
+				if (targetMsgID && event.reaction && event.reactionStatus !== "deleted") {
+					const UNSEND_EMOJIS = ["😠", "😡", "❌", "🗑️", "👎"];
+					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
+
+					if (UNSEND_EMOJIS.includes(event.reaction)) {
+						try {
+							if (typeof api.unsendMessage === "function") {
+								await api.unsendMessage(targetMsgID, event.threadID).catch(() => {});
+							}
+						} catch (_) {}
+					} else if (REPLAY_EMOJIS.includes(event.reaction)) {
+						try {
+							const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;
+							const text = targetMsg?.body || targetMsg?.text || "";
+							if (text) {
+								if (["🗣️", "🔊"].includes(event.reaction)) {
+									const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.slice(0, 200))}`;
+									if (typeof api.sendVoiceFromUrl === "function") {
+										await api.sendVoiceFromUrl(event.threadID, ttsUrl).catch(async () => {
+											await message.reply(`🎙️ Replay:\n"${text}"`);
+										});
+									} else {
+										await message.reply(`🎙️ Replay:\n"${text}"`);
+									}
+								} else {
+									await message.reply(`🔁 Replay:\n"${text}"`);
+								}
+							}
+						} catch (_) {}
+					}
+				}
 				break;
 			default:
 				await runEventScripts(event, message, threadData, userData);

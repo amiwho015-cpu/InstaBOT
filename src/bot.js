@@ -80,8 +80,9 @@ function normalizeEvent(event) {
 		});
 	}
 
-	if (normalized.repliedToMessage) {
-		const replied = normalized.repliedToMessage;
+	const repliedData = normalized.repliedMessage || normalized.repliedToMessage;
+	if (repliedData) {
+		const replied = repliedData;
 		normalized.messageReply = {
 			messageID: replied.messageID || null,
 			senderID: replied.senderID != null ? String(replied.senderID) : null,
@@ -379,8 +380,8 @@ function createBot(config) {
 			`Logged in as:  ${state.botID || "Instagram User"}`,
 			`Commands:      ${state.commandCount} active`,
 			`Events:        ${state.eventCount} active`,
-			`Prefix:        ${config.prefix || "!"}`,
-			`Try typing:    ${config.prefix || "!"}help in any chat`
+			`Prefix:        ${config.prefix || "*"}`,
+			`Try typing:    ${config.prefix || "*"}help in any chat`
 		], "green");
 	}
 

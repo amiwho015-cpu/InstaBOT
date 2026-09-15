@@ -3,7 +3,7 @@
 const API_BASE = "https://alldl.neokex.xyz/api";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 5 * 1024 * 1024);
+const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 25 * 1024 * 1024);
 const MAX_ATTEMPTS = 4;
 
 const REACT_LOADING = "⏳";

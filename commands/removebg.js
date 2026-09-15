@@ -1,86 +1,90 @@
-/**
- * Remove Background Command
- * Removes backgrounds from photos with AI and exports transparent PNGs
- */
+"use strict";
 
 const axios = require("axios");
-
-function extractImageUrl(args, event) {
-  let imageUrl = args.find(arg => typeof arg === 'string' && (arg.startsWith('http://') || arg.startsWith('https://')));
-
-  if (!imageUrl && event.messageReply?.attachments?.length > 0) {
-    const imageAttachment = event.messageReply.attachments.find(att => att.type === 'photo' || att.type === 'image');
-    if (imageAttachment?.url) imageUrl = imageAttachment.url;
-  } else if (!imageUrl && event.attachments?.length > 0) {
-    const imageAttachment = event.attachments.find(att => att.type === 'photo' || att.type === 'image');
-    if (imageAttachment?.url) imageUrl = imageAttachment.url;
-  }
-  return imageUrl;
-}
+const fs = require("fs-extra");
+const path = require("path");
+const { resolveUserTarget, resolveProfile } = require("../src/utils");
 
 module.exports = {
   config: {
     name: "removebg",
-    aliases: ["nobg", "bgremove", "rembg", "rbg"],
-    version: "1.2.0",
-    author: "Gtajisan && frnAlt",
-    countDown: 8,
+    aliases: ["nobg", "rmbg"],
+    version: "2.0.0",
+    author: "frnAlt & Floppa Team",
+    cooldown: 8,
     role: 0,
-    shortDescription: {
-      en: "Remove image backgrounds with AI"
-    },
-    longDescription: {
-      en: "Extracts foreground subjects and removes the backdrop to generate a transparent PNG."
-    },
-    category: "ai-image",
-    guide: {
-      en: "Reply to an image with {p}removebg or provide an image link"
-    }
+    category: "image",
+    description: { en: "Remove background from an image or profile picture" },
+    usage: { en: "{p}removebg (reply to photo) | {p}removebg -pfp" }
   },
 
-  onStart: async function ({ api, event, args, message }) {
-    const threadID = event.threadId || event.threadID;
-    const imageUrl = extractImageUrl(args, event);
+  onStart: async function ({ message, args, event, api }) {
+    let imageUrl = null;
+
+    if (args.includes("-pfp") || args.includes("--pfp")) {
+      const p = await resolveProfile([event.senderID], event, api);
+      imageUrl = p?.profilePicture;
+    }
+
+    if (!imageUrl && event.messageReply?.attachments?.length > 0) {
+      const a = event.messageReply.attachments[0];
+      imageUrl = a.url || a.image;
+    }
+
+    if (!imageUrl && event.attachments?.length > 0) {
+      imageUrl = event.attachments[0].url || event.attachments[0].image;
+    }
+
+    if (!imageUrl && args[0] && /^https?:\/\//i.test(args[0])) {
+      imageUrl = args[0];
+    }
 
     if (!imageUrl) {
-      const prompt = "🖼️ Please reply to a photo or provide an image URL with `/removebg`.";
-      return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
+      return message.reply("🖼️ 𝗥𝗲𝗺𝗼𝘃𝗲 𝗕𝗮𝗰𝗸𝗴𝗿𝗼𝘂𝗻𝗱\n\n📌 Reply to an image with: {p}removebg\nOr use: {p}removebg -pfp");
     }
 
-    if (message && typeof message.reaction === 'function') {
-      message.reaction("⏳", event.messageID);
+    if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, () => {}, true);
     }
 
+    let tempPath = null;
     try {
-      // Primary removebg API
-      const primaryUrl = `https://api.removal.ai/3.0/remove`; // or free proxy
-      const proxyUrl = `https://api.siputzx.my.id/api/ai/removebg?url=${encodeURIComponent(imageUrl)}`;
-      
-      let stream = await global.utils.getStreamFromURL(proxyUrl, "nobg.png").catch(() => null);
+      const apiUrl = `https://api.remove.bg/v1.0/removebg`; // fallback to free API service
+      const res = await axios.get(`https://kaiz-apis.gleeze.com/api/removebg?url=${encodeURIComponent(imageUrl)}`, {
+        responseType: "arraybuffer",
+        timeout: 30000
+      }).catch(async () => {
+        return await axios.get(`https://api.siputzx.my.id/api/iloveimg/removebg?url=${encodeURIComponent(imageUrl)}`, {
+          responseType: "arraybuffer",
+          timeout: 30000
+        });
+      });
 
-      if (!stream) {
-        // Fallback endpoint
-        const fallbackUrl = `https://widpe.com/removebg?url=${encodeURIComponent(imageUrl)}`;
-        stream = await global.utils.getStreamFromURL(fallbackUrl, "nobg.png").catch(() => null);
+      const tempDir = path.join(process.cwd(), "temp");
+      await fs.ensureDir(tempDir);
+      tempPath = path.join(tempDir, `nobg_${Date.now()}_${Math.random().toString(36).substring(7)}.png`);
+      await fs.writeFile(tempPath, Buffer.from(res.data));
+
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✨", event.messageID, () => {}, true);
       }
 
-      if (stream) {
-        if (message && typeof message.reaction === 'function') message.reaction("✨", event.messageID);
-        const caption = "✨ 𝗕𝗮𝗰𝗸𝗴𝗿𝗼𝘂𝗻𝗱 𝗥𝗲𝗺𝗼𝘃𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!";
-        return message 
-          ? message.reply({ body: caption, attachment: stream })
-          : api.sendMessage({ body: caption, attachment: stream }, threadID);
-      }
+      const sent = await message.reply({
+        body: "✨ Background removed successfully!",
+        attachment: tempPath,
+        textFirst: true
+      });
 
-      const failMsg = "❌ Unable to remove background from this image. Please ensure the image is clear and under 5MB.";
-      return message ? message.reply(failMsg) : api.sendMessage(failMsg, threadID);
+      setTimeout(() => {
+        if (tempPath) fs.unlink(tempPath).catch(() => {});
+      }, 20000);
+      return sent;
     } catch (err) {
-      const errMsg = `❌ Error removing background: ${err.message}`;
-      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
+      if (tempPath) fs.unlink(tempPath).catch(() => {});
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      }
+      return message.reply(`❌ Could not remove background: ${err.message}`);
     }
-  },
-
-  run: async function (params) {
-    return module.exports.onStart(params);
   }
 };

@@ -1,6 +1,8 @@
-name: Goat / InstaBOT Runner
+name: InstaBOT Engine Runner
 
 on:
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
     inputs:
       node_version:
@@ -24,10 +26,12 @@ on:
         required: false
         type: string
         default: ''
+  schedule:
+    - cron: "0 */6 * * *"
 
 jobs:
-  build-and-run:
-    name: Run InstaBOT Runner
+  run-bot:
+    name: 🚀 InstaBOT Engine Runner
     runs-on: ubuntu-latest
     timeout-minutes: 330
     env:
@@ -35,26 +39,21 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
-      - name: Checkout Source Code
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version || '22' }}
+          cache: 'npm'
 
-      - name: Cache Node Modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+      - name: 📦 Install Dependencies
+        run: |
+          echo "Installing runtime dependencies and native Canvas modules..."
+          npm install --include=optional
 
-      - name: Install Dependencies
-        run: npm install --include=optional
-
-      - name: Configure Credentials If Provided
+      - name: 🔐 Configure Authentication Credentials
         env:
           CUSTOM_COOKIES: ${{ inputs.custom_cookies }}
           ACCOUNT_TXT: ${{ secrets.ACCOUNT_TXT }}
@@ -63,28 +62,32 @@ jobs:
           IG_API_SERVER: ${{ secrets.IG_API_SERVER }}
           IG_API_TOKEN: ${{ secrets.IG_API_TOKEN }}
         run: |
+          echo "=================================================="
+          echo "🔑 CONFIGURING INSTAGRAM SESSION CREDENTIALS"
+          echo "=================================================="
           if [ -n "$CUSTOM_COOKIES" ]; then
             printf '%s\n' "$CUSTOM_COOKIES" > account.txt
-            echo "Loaded Instagram credentials from custom workflow input."
+            echo "✅ Loaded Instagram credentials from workflow custom input."
           elif [ -n "$IG_COOKIES" ]; then
             printf '%s\n' "$IG_COOKIES" > account.txt
-            echo "Loaded Instagram credentials from IG_COOKIES secret."
+            echo "✅ Loaded Instagram credentials from IG_COOKIES repository secret."
           elif [ -n "$ACCOUNT_TXT" ]; then
             printf '%s\n' "$ACCOUNT_TXT" > account.txt
-            echo "Loaded Instagram credentials from ACCOUNT_TXT secret."
+            echo "✅ Loaded Instagram credentials from ACCOUNT_TXT repository secret."
           elif [ -n "$FB_STATE" ]; then
             printf '%s\n' "$FB_STATE" > account.txt
-            echo "Loaded Instagram credentials from FB_STATE secret."
+            echo "✅ Loaded Instagram credentials from FB_STATE repository secret."
           fi
           if [ -s account.txt ]; then
-            echo "account.txt is present and configured ($(wc -c < account.txt) bytes)"
+            echo "✅ account.txt configured ($(wc -c < account.txt) bytes)"
           else
-            echo "account.txt will be loaded from repository or environment fallback."
+            echo "ℹ️ account.txt will be loaded from repository or environment fallback."
           fi
+          echo "=================================================="
 
-      - name: Start the Bot
+      - name: 🤖 Start InstaBOT Engine
         env:
-          PORT: 5000
+          PORT: 8080
           NODE_ENV: production
           FORCE_COLOR: '1'
           ACCOUNT_TXT: ${{ secrets.ACCOUNT_TXT }}
@@ -92,4 +95,6 @@ jobs:
           FB_STATE: ${{ secrets.FB_STATE }}
           IG_API_SERVER: ${{ secrets.IG_API_SERVER }}
           IG_API_TOKEN: ${{ secrets.IG_API_TOKEN }}
-        run: npm start
+        run: |
+          echo "Starting InstaBOT Engine with Floppa ecosystem..."
+          npm start

@@ -893,6 +893,28 @@ class InstagramMQTTClient extends EventEmitter {
     const isGroup = tid ? (item.is_group === true || tid.includes(':')) : false;
 
     const replyTo = this._extractReplyTo(item);
+    const repliedObj = item.replied_to_message || item.replied_to_item || item.reply_to_message || item.reply_to_item;
+    let repliedMessage = null;
+    if (repliedObj && typeof repliedObj === "object") {
+      const rMedia = repliedObj.media || repliedObj.visual_media?.media || repliedObj.raven_media?.media || repliedObj.clip?.clip || repliedObj.media_share;
+      const rAttach = [];
+      if (rMedia) {
+        const u = rMedia.image_versions2?.candidates?.[0]?.url || rMedia.video_versions?.[0]?.url || rMedia.url;
+        if (u) {
+          rAttach.push({
+            type: rMedia.media_type === 2 ? "video" : "photo",
+            url: u
+          });
+        }
+      }
+      repliedMessage = {
+        messageID: (repliedObj.item_id || repliedObj.id || replyTo)?.toString(),
+        senderID: (repliedObj.user_id || repliedObj.sender_id)?.toString(),
+        body: repliedObj.text || "",
+        attachments: rAttach,
+        timestamp: (repliedObj.timestamp || "").toString()
+      };
+    }
 
     // Text / generic message item
     if (item.item_type === 'text' || item.item_type === 'link' || item.text !== undefined) {
@@ -905,6 +927,7 @@ class InstagramMQTTClient extends EventEmitter {
         timestamp: ts,
         isGroup,
         replyTo,
+        repliedMessage,
         attachments: item.item_type === 'link' && item.link?.link_context ? [{
           type: 'share',
           url: item.link.link_context.link_url,
@@ -914,21 +937,46 @@ class InstagramMQTTClient extends EventEmitter {
       };
     }
 
-    // Media / photo / video
-    if (item.item_type === 'media' || item.item_type === 'photo' ||
-        item.item_type === 'video_call_event') {
+    // Raven / disappearing / visual media
+    if (item.item_type === 'raven_media' || item.visual_media || item.raven_media || item.item_type === 'visual_media') {
+      const vm = item.visual_media?.media || item.raven_media?.media || item.media;
+      const vUrl = vm?.image_versions2?.candidates?.[0]?.url || vm?.video_versions?.[0]?.url || vm?.url;
       return {
         type: 'message',
         senderID: sid,
-        body: '',
+        body: item.text || '',
         threadID: tid,
         messageID: mid,
         timestamp: ts,
         isGroup,
         replyTo,
-        attachments: item.media ? [{
-          type: item.media.media_type === 2 ? 'video' : 'photo',
-          url: item.media.image_versions2?.candidates?.[0]?.url
+        repliedMessage,
+        attachments: vUrl ? [{
+          type: vm?.media_type === 2 ? 'video' : 'photo',
+          url: vUrl
+        }] : [],
+        mentions: {}
+      };
+    }
+
+    // Media / photo / video / clip
+    if (item.item_type === 'media' || item.item_type === 'photo' ||
+        item.item_type === 'video_call_event' || item.item_type === 'clip' || item.clip || item.media_share) {
+      const clipMedia = item.clip?.clip || item.media_share || item.media;
+      const mUrl = clipMedia?.image_versions2?.candidates?.[0]?.url || clipMedia?.video_versions?.[0]?.url || clipMedia?.url;
+      return {
+        type: 'message',
+        senderID: sid,
+        body: item.text || clipMedia?.caption?.text || '',
+        threadID: tid,
+        messageID: mid,
+        timestamp: ts,
+        isGroup,
+        replyTo,
+        repliedMessage,
+        attachments: mUrl ? [{
+          type: clipMedia?.media_type === 2 ? 'video' : 'photo',
+          url: mUrl
         }] : [],
         mentions: {}
       };

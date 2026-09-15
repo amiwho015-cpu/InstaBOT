@@ -11,7 +11,7 @@
   "antiInbox": false,
   "language": "en",
   "nickNameBot": "InstaBOT",
-  "prefix": "!",
+  "prefix": "*",
   "noPrefix": true,
   "adminOnly": {
     "enable": false,

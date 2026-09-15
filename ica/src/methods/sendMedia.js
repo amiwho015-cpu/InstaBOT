@@ -189,13 +189,15 @@ class SendMedia {
       }
 
       const { form: messageData, clientContext } = this.buildBroadcastForm(threadID, {
-        allow_full_aspect_ratio: options.allowFullAspect !== false
+        allow_full_aspect_ratio: options.allowFullAspect !== false,
+        view_mode: options.viewMode || options.view_mode || 'permanent'
       });
 
       if (options.text) {
         messageData.text = options.text;
       }
       messageData.upload_id = uploadId;
+      messageData.view_mode = options.viewMode || options.view_mode || 'permanent';
 
       const response = await this.http.postForm(
         'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
@@ -350,11 +352,13 @@ class SendMedia {
         upload_id: uploadId,
         video_result: '',
         upload_media_duration_ms: durationMs.toString(),
-        sampled: typeof options.sampled !== 'undefined' ? options.sampled : true
+        sampled: typeof options.sampled !== 'undefined' ? options.sampled : true,
+        view_mode: options.viewMode || options.view_mode || 'permanent'
       });
       if (options.text) {
         messageData.text = options.text;
       }
+      messageData.view_mode = options.viewMode || options.view_mode || 'permanent';
 
       const response = await this.http.postForm(
         'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_video/',

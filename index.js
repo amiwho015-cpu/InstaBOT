@@ -64,7 +64,7 @@ async function main() {
 		`Platform:     ${process.platform}`,
 		`Process PID:  ${process.pid}`,
 		`Memory RSS:   ${memRss} MB (Heap: ${heapUsed} / ${heapTotal} MB)`,
-		`Prefix:       ${config.prefix || "!"}`,
+		`Prefix:       ${config.prefix || "*"}`,
 		`Environment:  ${process.env.NODE_ENV || "development"}`
 	], "cyan");
 

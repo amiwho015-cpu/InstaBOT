@@ -87,6 +87,16 @@ class Store {
 	count() {
 		return Object.keys(this.data).length;
 	}
+
+	getName(id) {
+		const u = this.get(id);
+		if (u && (u.name || u.username)) return u.name || u.username;
+		return "Unknown";
+	}
+
+	getUser(id) {
+		return this.get(id);
+	}
 }
 
 function createDatabase(config) {

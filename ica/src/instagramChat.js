@@ -505,12 +505,12 @@ class InstagramChatAPI extends EventEmitter {
 
   // ==================== REACTIONS ====================
 
-  sendReaction(reaction, messageID, callback) {
-    return this.reactions.send(reaction, messageID, callback);
+  sendReaction(reaction, messageID, threadIDOrCallback, callback) {
+    return this.reactions.send(reaction, messageID, threadIDOrCallback, callback);
   }
 
-  removeReaction(messageID, callback) {
-    return this.reactions.remove(messageID, callback);
+  removeReaction(messageID, threadIDOrCallback, callback) {
+    return this.reactions.remove(messageID, threadIDOrCallback, callback);
   }
 
   // ==================== THREAD METHODS ====================

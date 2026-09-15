@@ -1,72 +1,113 @@
-/**
- * Random Meme Command
- * Fetches hilarious viral memes from top communities
- */
+"use strict";
 
+const { createCanvas, loadImage } = require("canvas");
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = {
   config: {
     name: "meme",
-    aliases: ["memes", "dankmeme"],
-    version: "1.2.0",
-    author: "Gtajisan && frnAlt",
-    countDown: 5,
+    aliases: ["makememe"],
+    version: "2.0.0",
+    author: "frnAlt & Floppa Team",
+    cooldown: 5,
     role: 0,
-    shortDescription: {
-      en: "Fetches a random funny meme"
-    },
-    longDescription: {
-      en: "Retrieves high-rated trending memes from popular communities."
-    },
     category: "fun",
-    guide: {
-      en: "{p}meme"
-    }
+    description: { en: "Generate a custom meme or fetch a trending meme" },
+    usage: { en: "{p}meme | {p}meme <top text> | <bottom text> (reply to photo)" }
   },
 
-  onStart: async function ({ api, event, message }) {
-    const threadID = event.threadId || event.threadID;
+  onStart: async function ({ message, args, event, api }) {
+    if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🎭", event.messageID, () => {}, true);
+    }
 
+    let imageUrl = null;
+    if (event.messageReply?.attachments?.length > 0) {
+      imageUrl = event.messageReply.attachments[0].url || event.messageReply.attachments[0].image;
+    }
+
+    let tempPath = null;
     try {
-      // Primary API: meme-api.com
-      const res = await axios.get("https://meme-api.com/gimme", { timeout: 6000 }).catch(() => null);
+      // 1. Fetch random trending meme if no text and no image
+      if (!imageUrl && args.length === 0) {
+        const res = await axios.get("https://meme-api.com/gimme", { timeout: 15000 });
+        const data = res.data;
+        if (!data || !data.url) throw new Error("Could not fetch meme from api");
 
-      if (res?.data && res.data.url) {
-        const title = res.data.title;
-        const postLink = res.data.postLink;
-        const ups = res.data.ups;
-        const stream = await global.utils.getStreamFromURL(res.data.url, "meme.jpg").catch(() => null);
+        const imgRes = await axios.get(data.url, { responseType: "arraybuffer", timeout: 20000 });
+        const tempDir = path.join(process.cwd(), "temp");
+        await fs.ensureDir(tempDir);
+        tempPath = path.join(tempDir, `meme_${Date.now()}.jpg`);
+        await fs.writeFile(tempPath, Buffer.from(imgRes.data));
 
-        if (stream) {
-          const caption = `🐸 ${title}\n👍 ${ups.toLocaleString()} upvotes | r/${res.data.subreddit}`;
-          return message 
-            ? message.reply({ body: caption, attachment: stream })
-            : api.sendMessage({ body: caption, attachment: stream }, threadID);
+        if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("✅", event.messageID, () => {}, true);
         }
+
+        const sent = await message.reply({
+          body: `🎭 ${data.title || "Trending Meme"} (r/${data.subreddit})`,
+          attachment: tempPath,
+          textFirst: true
+        });
+
+        setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);
+        return sent;
       }
 
-      // Fallback API
-      const fallbackRes = await axios.get("https://api.popcat.xyz/meme", { timeout: 6000 }).catch(() => null);
-      if (fallbackRes?.data?.image) {
-        const stream = await global.utils.getStreamFromURL(fallbackRes.data.image, "meme.jpg").catch(() => null);
-        if (stream) {
-          const caption = `🐸 ${fallbackRes.data.title || 'Meme'}\n👍 ${fallbackRes.data.upvotes || 0} upvotes`;
-          return message 
-            ? message.reply({ body: caption, attachment: stream })
-            : api.sendMessage({ body: caption, attachment: stream }, threadID);
-        }
+      // 2. Custom Canvas meme generator
+      const fullText = args.join(" ");
+      const [topText, bottomText] = fullText.includes("|") ? fullText.split("|").map(s => s.trim()) : [fullText, ""];
+
+      const targetUrl = imageUrl || "https://i.imgflip.com/1g8my4.jpg"; // Two buttons fallback
+      const imgRes = await axios.get(targetUrl, { responseType: "arraybuffer", timeout: 20000 });
+      const img = await loadImage(Buffer.from(imgRes.data));
+
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      const fontSize = Math.max(24, Math.floor(img.height / 10));
+      ctx.font = `bold ${fontSize}px Impact, sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = Math.max(3, Math.floor(fontSize / 8));
+      ctx.textAlign = "center";
+
+      if (topText) {
+        ctx.strokeText(topText.toUpperCase(), img.width / 2, fontSize + 10);
+        ctx.fillText(topText.toUpperCase(), img.width / 2, fontSize + 10);
       }
 
-      const errMsg = "❌ Could not fetch a fresh meme right now. Please try again in a few moments!";
-      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
+      if (bottomText) {
+        ctx.strokeText(bottomText.toUpperCase(), img.width / 2, img.height - 20);
+        ctx.fillText(bottomText.toUpperCase(), img.width / 2, img.height - 20);
+      }
+
+      const tempDir = path.join(process.cwd(), "temp");
+      await fs.ensureDir(tempDir);
+      tempPath = path.join(tempDir, `meme_${Date.now()}.jpg`);
+      await fs.writeFile(tempPath, canvas.toBuffer("image/jpeg", { quality: 0.9 }));
+
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      }
+
+      const sent = await message.reply({
+        body: "🎭 Here is your meme!",
+        attachment: tempPath,
+        textFirst: true
+      });
+
+      setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);
+      return sent;
     } catch (err) {
-      const errMsg = `❌ Error retrieving meme: ${err.message}`;
-      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
+      if (tempPath) fs.unlink(tempPath).catch(() => {});
+      if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      }
+      return message.reply(`❌ Meme error: ${err.message}`);
     }
-  },
-
-  run: async function (params) {
-    return module.exports.onStart(params);
   }
 };

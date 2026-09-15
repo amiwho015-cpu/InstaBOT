@@ -416,6 +416,7 @@ class HttpClient extends EventEmitter {
   rememberMessageThread(messageID, threadID) {
     if (!messageID || !threadID) return;
     const key = messageID.toString();
+    this.lastThreadID = threadID.toString();
     // Proper FIFO eviction: use insertion-order array to find oldest entry
     if (this.messageThreadMap.size >= this.messageThreadMapMaxSize) {
       const oldestKey = this.messageThreadInsertionOrder.shift();
@@ -428,8 +429,8 @@ class HttpClient extends EventEmitter {
   }
 
   getRememberedThread(messageID) {
-    if (!messageID) return undefined;
-    return this.messageThreadMap.get(messageID.toString());
+    if (!messageID) return this.lastThreadID || undefined;
+    return this.messageThreadMap.get(messageID.toString()) || this.lastThreadID || undefined;
   }
 
   /**

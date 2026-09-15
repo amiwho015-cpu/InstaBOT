@@ -113,15 +113,32 @@ function buildApi(client) {
     },
 
     // Reactions
-    sendReaction:       (reaction, messageID, cb) => client.sendReaction(reaction, messageID, cb),
-    removeReaction:     (messageID, cb)           => client.removeReaction(messageID, cb),
-    setMessageReaction: (reaction, messageID, threadID, cb) => {
+    sendReaction:       (reaction, messageID, threadID, cb) => {
       if (typeof threadID === "function") {
         cb = threadID;
         threadID = undefined;
       }
-      if (!reaction) return client.removeReaction(messageID, cb);
-      return client.sendReaction(reaction, messageID, cb);
+      return client.sendReaction(reaction, messageID, threadID, cb);
+    },
+    removeReaction:     (messageID, threadID, cb)           => {
+      if (typeof threadID === "function") {
+        cb = threadID;
+        threadID = undefined;
+      }
+      return client.removeReaction(messageID, threadID, cb);
+    },
+    setMessageReaction: (reaction, messageID, threadID, cb, force) => {
+      if (typeof threadID === "function") {
+        cb = threadID;
+        threadID = undefined;
+      } else if (typeof threadID === "boolean") {
+        threadID = undefined;
+      }
+      if (typeof cb !== "function" && typeof threadID !== "string" && typeof threadID !== "number") {
+        if (typeof cb === "function") threadID = undefined;
+      }
+      if (!reaction) return client.removeReaction(messageID, threadID, cb);
+      return client.sendReaction(reaction, messageID, threadID, cb);
     },
 
     // Threads

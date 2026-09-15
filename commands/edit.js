@@ -38,8 +38,16 @@ function extractImageUrlFromEvent(event, args = []) {
     }
   }
 
-  if (Array.isArray(args) && args.length > 0 && typeof args[0] === "string" && /^https?:\/\//i.test(args[0])) {
-    return args[0];
+  if (event.messageReply && (event.messageReply.body || event.messageReply.text)) {
+    const text = event.messageReply.body || event.messageReply.text;
+    const m = text.match(/https?:\/\/[^\s]+/i);
+    if (m) return m[0];
+  }
+
+  if (Array.isArray(args) && args.length > 0) {
+    for (const a of args) {
+      if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
+    }
   }
 
   return null;
@@ -142,6 +150,17 @@ module.exports = {
         prompt = args.slice(1).join(" ").trim();
       } else {
         prompt = args.join(" ").trim();
+      }
+
+      if (!imageUrl && prompt) {
+        try {
+          const profile = await resolveProfile([event.senderID], event, api);
+          if (profile && profile.profilePicture) {
+            imageUrl = profile.profilePicture;
+            targetName = profile.name || profile.username || event.senderID;
+            isPfpMode = true;
+          }
+        } catch (_) {}
       }
     }
 
