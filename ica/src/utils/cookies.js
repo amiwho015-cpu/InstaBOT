@@ -33,7 +33,21 @@ class CookieUtils {
         // Try JSON parse first, fallback to header format
         try {
           const parsed = JSON.parse(cookieData);
-          return this.parseJSON(parsed, jar);
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.httpSession && parsed.httpSession.cookies) {
+              const inner = parsed.httpSession.cookies;
+              const list = inner.cookies || (Array.isArray(inner) ? inner : Object.values(inner));
+              return this.parseJSON(list, jar);
+            }
+            if (parsed.cookies) {
+              const list = Array.isArray(parsed.cookies) ? parsed.cookies : Object.values(parsed.cookies);
+              return this.parseJSON(list, jar);
+            }
+            if (Array.isArray(parsed)) {
+              return this.parseJSON(parsed, jar);
+            }
+            return this.parseObject(parsed, jar);
+          }
         } catch {
           return this.parseHeader(cookieData, jar);
         }
@@ -44,9 +58,19 @@ class CookieUtils {
       return this.parseArray(cookieData, jar);
     }
 
-    if (typeof cookieData === 'object') {
-      if (cookieData && Array.isArray(cookieData.cookies)) {
-        return this.parseArray(cookieData.cookies, jar);
+    if (typeof cookieData === 'object' && cookieData !== null) {
+      if (cookieData.httpSession && cookieData.httpSession.cookies) {
+        const inner = cookieData.httpSession.cookies;
+        const list = inner.cookies || (Array.isArray(inner) ? inner : Object.values(inner));
+        return this.parseJSON(list, jar);
+      }
+      if (cookieData.appState) {
+        const list = Array.isArray(cookieData.appState) ? cookieData.appState : Object.values(cookieData.appState);
+        return this.parseJSON(list, jar);
+      }
+      if (cookieData.cookies) {
+        const list = Array.isArray(cookieData.cookies) ? cookieData.cookies : Object.values(cookieData.cookies);
+        return this.parseJSON(list, jar);
       }
       return this.parseObject(cookieData, jar);
     }

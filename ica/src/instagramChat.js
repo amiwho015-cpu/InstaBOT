@@ -318,13 +318,13 @@ class InstagramChatAPI extends EventEmitter {
     return result;
   }
 
-  // ==================== LISTENING (MQTT) ====================
-
   listen(callback) {
-    if (this.mqttConnecting) {
-      const error = new Error('listen() already in progress. Wait for the current connection attempt to complete.');
-      if (callback) return callback(error);
-      return Promise.reject(error);
+    if (this.mqttConnecting || (this.listenActive && this.mqtt && this.mqtt.connected)) {
+      if (callback) {
+        this.listenerCallback = callback;
+        return () => this.stopListening();
+      }
+      return Promise.resolve();
     }
 
     if (!this.auth.isAuthenticated()) {

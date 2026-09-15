@@ -15,7 +15,9 @@ class Logger {
       warn: 1,
       info: 2,
       verbose: 3,
-      debug: 4
+      debug: 4,
+      silly: 5,
+      trace: 6
     };
   }
 
@@ -61,6 +63,23 @@ class Logger {
       console.debug(`[${new Date().toISOString()}] 🐛 DEBUG`, ...args);
     }
   }
+
+  silly(...args) {
+    if (this._shouldLog('silly')) {
+      console.log(`[${new Date().toISOString()}] 👾 SILLY`, ...args);
+    }
+  }
+
+  trace(...args) {
+    if (this._shouldLog('trace')) {
+      console.log(`[${new Date().toISOString()}] 🔍 TRACE`, ...args);
+    }
+  }
 }
+
+const defaultLogger = new Logger();
+Logger.nkxicaLog = defaultLogger;
+Logger.mqttLog = defaultLogger;
+Logger.Logger = Logger;
 
 module.exports = Logger;

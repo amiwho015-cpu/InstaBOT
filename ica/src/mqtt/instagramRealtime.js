@@ -13,6 +13,15 @@
  * - Topics: /ig_realtime_sub, /ig_sub_iris_response
  */
 
+// Relax strict MQTT header flag checks for Instagram custom FB-MQTT proxygen protocol
+try {
+  const mqttConstants = require('mqtt-packet/constants');
+  if (mqttConstants && mqttConstants.requiredHeaderFlags) {
+    delete mqttConstants.requiredHeaderFlags[4]; // puback
+    delete mqttConstants.requiredHeaderFlags[9]; // suback
+  }
+} catch (_) {}
+
 const mqtt = require('mqtt');
 const EventEmitter = require('events');
 const { mqttLog: log } = require('../utils/logger');
