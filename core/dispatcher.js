@@ -285,6 +285,8 @@ class Dispatcher {
 			threadsData: database.threadsData,
 			prefix,
 			utils: global.utils,
+			registry: this.bot.commandLoader,
+			config: this.config,
 			getLang: (...a) => global.utils ? global.utils.getText(replyData.commandName, ...a) : ""
 		};
 
@@ -440,6 +442,7 @@ class Dispatcher {
 			utils: global.utils,
 			logger,
 			config: this.config,
+			registry: this.bot.commandLoader,
 			PermissionManager: this.permissions,
 			getLang,
 			removeCommandNameFromBody: (b, p, n) => (b || "").replace(new RegExp(`^${p}(\\s+|)${n}`, "i"), "").trim()

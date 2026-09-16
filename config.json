@@ -12,7 +12,7 @@
   "server": {
     "url": "https://nkx-ica.neokex.xyz",
     "token": "chat.api.toke.neokex.ica.token.can.change.a9y.2ime.ok",
-    "timeout": 30000,
+    "timeout": 60000,
     "notes": "The shared ig-chat-api-server. url + token are the SAME for every bot and are intentionally global: one server hosts many accounts. Each bot is identified by the Instagram account id (ds_user_id) inside its own cookies, which it pushes to the server; the server returns that id and the bot adopts it. There is no per-bot id and no per-bot token. Point these at your own server instead only if you run a separate deployment (IG_API_SERVER / IG_API_TOKEN override whatever is here)."
   },
   "account": {

@@ -29,13 +29,32 @@ function createMessageContext({ api, event, log }) {
 	function sendPlain(form, replyTarget) {
 		const body = typeof form === "string" ? form : (form && form.body != null ? String(form.body) : "");
 		const payload = { body };
+		const hasEffects = form && typeof form === "object" && (form.effect != null || form.avatarEffect != null);
 		if (form && typeof form === "object") {
 			if (form.url) payload.url = form.url;
 			if (form.effect != null) payload.effect = form.effect;
 			if (form.avatarEffect != null) payload.avatarEffect = form.avatarEffect;
 		}
-		return new Promise((resolve, reject) => {
-			api.sendMessage(payload, threadID, (error, result) => error ? reject(error) : resolve(result), replyTarget);
+
+		const trySend = (p, rTarget) => new Promise((resolve, reject) => {
+			api.sendMessage(p, threadID, (error, result) => error ? reject(error) : resolve(result), rTarget);
+		});
+
+		return trySend(payload, replyTarget).catch(err => {
+			if (hasEffects) {
+				const fallbackPayload = { body };
+				if (form && form.url) fallbackPayload.url = form.url;
+				return trySend(fallbackPayload, replyTarget).catch(err2 => {
+					if (replyTarget) {
+						return trySend(fallbackPayload, undefined);
+					}
+					throw err2;
+				});
+			}
+			if (replyTarget) {
+				return trySend(payload, undefined);
+			}
+			throw err;
 		});
 	}
 
@@ -74,7 +93,16 @@ function createMessageContext({ api, event, log }) {
 					if (kind === "video") {
 						const videoReply = current === 0 ? replyTarget : undefined;
 						return api.sendVideo(source, threadID, (error, result) => {
-							if (error || !caption) return done(error, result);
+							if (error) {
+								if (videoReply) {
+									return api.sendVideo(source, threadID, (err2, res2) => {
+										if (err2 || !caption) return done(err2, res2);
+										api.sendMessage({ body: caption }, threadID, () => done(null, res2));
+									});
+								}
+								return done(error, result);
+							}
+							if (!caption) return done(null, result);
 							api.sendMessage({ body: caption }, threadID, () => done(null, result), videoReply);
 						}, videoReply);
 					}
@@ -83,12 +111,30 @@ function createMessageContext({ api, event, log }) {
 						// clip, then its caption as a separate plain message.
 						const audioReply = current === 0 ? replyTarget : undefined;
 						return api.sendAudio(source, threadID, (error, result) => {
-							if (error || !caption) return done(error, result);
+							if (error) {
+								if (audioReply) {
+									return api.sendAudio(source, threadID, (err2, res2) => {
+										if (err2 || !caption) return done(err2, res2);
+										api.sendMessage({ body: caption }, threadID, () => done(null, res2));
+									});
+								}
+								return done(error, result);
+							}
+							if (!caption) return done(null, result);
 							api.sendMessage({ body: caption }, threadID, () => done(null, result), audioReply);
 						}, audioReply);
 					}
 					return api.sendImage(source, threadID, "", (error, result) => {
-						if (error || !caption) return done(error, result);
+						if (error) {
+							if (current === 0 && replyTarget) {
+								return api.sendImage(source, threadID, "", (err2, res2) => {
+									if (err2 || !caption) return done(err2, res2);
+									api.sendMessage({ body: caption }, threadID, () => done(null, res2));
+								});
+							}
+							return done(error, result);
+						}
+						if (!caption) return done(null, result);
 						api.sendMessage({ body: caption }, threadID, () => done(null, result), current === 0 ? replyTarget : undefined);
 					}, current === 0 ? replyTarget : undefined);
 				}
@@ -99,7 +145,16 @@ function createMessageContext({ api, event, log }) {
 			if (!textFirst) return sendMedia();
 			// Text first, then the media (no caption on the media).
 			api.sendMessage({ body: String(form.body) }, threadID, (error, result) => {
-				if (error) return reject(error);
+				if (error) {
+					if (replyTarget) {
+						return api.sendMessage({ body: String(form.body) }, threadID, (err2, res2) => {
+							if (err2) return reject(err2);
+							textResult = res2;
+							sendMedia();
+						});
+					}
+					return reject(error);
+				}
 				textResult = result;
 				sendMedia();
 			}, replyTarget);

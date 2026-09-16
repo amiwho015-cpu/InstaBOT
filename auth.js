@@ -41,8 +41,8 @@ const { Readable } = require("stream");
 
 // Keep-alive agents: reuse one socket for RPC calls instead of reconnecting on
 // every command. maxSockets is generous since commands are low-volume.
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 16, keepAliveMsecs: 10000, timeout: 30000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 16, keepAliveMsecs: 10000, timeout: 30000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 16 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 16 });
 // Never hold the process open because of an idle pooled socket.
 if (httpAgent.unref) httpAgent.unref();
 if (httpsAgent.unref) httpsAgent.unref();
@@ -131,11 +131,39 @@ function encodeArgs(args) {
  * `sendImage(src, threadID, caption, cb, reply)`), so "last arg" is not enough.
  * Returns its index and the args with it removed, or { index: -1 }.
  */
-function splitCallback(args) {
+const METHOD_CALLBACK_INDEX = {
+	sendMessage: 2,
+	sendImage: 3,
+	sendVideo: 2,
+	sendAudio: 2,
+	sendTextEffect: 3,
+	sendAvatarTextEffect: 3,
+	sendMusic: 2,
+	musicSearch: 1,
+	getUserInfo: 1,
+	getThreadInfo: 1,
+	getThreadList: 2,
+	getThreadHistory: 2,
+	setMessageReaction: 3,
+	unsendMessage: 2,
+	deleteMessage: 2,
+	markAsRead: 1,
+	markAsDelivered: 1,
+	setTitle: 2,
+	addUserToThread: 2,
+	removeUserFromThread: 2,
+	changeThreadMute: 2,
+	changeBio: 1,
+	changeProfilePicture: 1,
+	changeAvatar: 1,
+	setOptions: 1
+};
+
+function splitCallback(args, method = "") {
 	for (let i = args.length - 1; i >= 0; i--) {
 		if (typeof args[i] === "function") {
 			const rest = args.slice(0, i).concat(args.slice(i + 1));
-			return { index: i, args: rest };
+			return { index: i, args: rest, hasFunction: true };
 		}
 	}
 	const cleaned = args.slice();
@@ -144,11 +172,16 @@ function splitCallback(args) {
 	}
 	if (cleaned.length === 4 && cleaned[2] === undefined) {
 		cleaned.splice(2, 1);
+		return { index: 2, args: cleaned, hasFunction: false };
 	}
 	if (cleaned.length === 5 && (cleaned[3] === undefined || cleaned[3] === null)) {
 		cleaned.splice(3, 1);
+		return { index: 3, args: cleaned, hasFunction: false };
 	}
-	return { index: -1, args: cleaned };
+
+	const defaultIdx = method && METHOD_CALLBACK_INDEX[method] != null ? METHOD_CALLBACK_INDEX[method] : -1;
+	const index = defaultIdx >= 0 ? Math.min(defaultIdx, cleaned.length) : -1;
+	return { index, args: cleaned, hasFunction: false };
 }
 
 function createError(payload) {
@@ -623,10 +656,10 @@ function login(options, callback) {
 
 function makeMethod(settings, method) {
 	return function (...args) {
-		const { index, args: callArgs } = splitCallback(args);
+		const { index, args: callArgs, hasFunction } = splitCallback(args, method);
 
 		const promise = encodeArgs(callArgs).then(encoded => request(settings, method, encoded, index));
-		if (index !== -1) {
+		if (hasFunction) {
 			const callback = args[index];
 			promise.then(result => callback(null, result), error => callback(error));
 			return undefined;

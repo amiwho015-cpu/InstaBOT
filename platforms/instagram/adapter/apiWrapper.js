@@ -73,7 +73,15 @@ function createAPIWrapper(rawClient, config = {}) {
 
 				if (ig) {
 					if (typeof ig.sendMessage === "function") {
-						return await ig.sendMessage(text, threadID, undefined, replyToMessageID);
+						if (replyToMessageID) {
+							try {
+								return await ig.sendMessage(text, threadID, undefined, replyToMessageID);
+							} catch (replyErr) {
+								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
+								return await ig.sendMessage(text, threadID);
+							}
+						}
+						return await ig.sendMessage(text, threadID);
 					}
 					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
 						return await (replyToMessageID && typeof ig.sendMessage.reply === "function"
@@ -109,13 +117,29 @@ function createAPIWrapper(rawClient, config = {}) {
 				opts = {};
 			}
 			const promise = (async () => {
+				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendPhoto === "function") {
-					return await ig.sendPhoto(threadID, pathOrUrl, opts);
+					try {
+						return await ig.sendPhoto(threadID, pathOrUrl, opts);
+					} catch (err) {
+						if (replyTo) {
+							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
+							return await ig.sendPhoto(threadID, pathOrUrl, fallbackOpts);
+						}
+						throw err;
+					}
 				}
 				if (ig && typeof ig.sendImage === "function") {
-					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "", undefined, opts.replyToMessageID);
+					if (replyTo) {
+						try {
+							return await ig.sendImage(pathOrUrl, threadID, opts.caption || "", undefined, replyTo);
+						} catch (_) {
+							return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
+						}
+					}
+					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
 				}
-				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
 			return wrapCallback(promise, callback);
 		},
@@ -134,10 +158,19 @@ function createAPIWrapper(rawClient, config = {}) {
 				opts = {};
 			}
 			const promise = (async () => {
+				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVideo === "function") {
-					return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, opts.replyToMessageID);
+					if (replyTo) {
+						try {
+							return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, replyTo);
+						} catch (_) {
+							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
+							return await ig.sendVideo(threadID, pathOrUrl, fallbackOpts);
+						}
+					}
+					return await ig.sendVideo(threadID, pathOrUrl, opts);
 				}
-				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
 			return wrapCallback(promise, callback);
 		},
@@ -148,13 +181,29 @@ function createAPIWrapper(rawClient, config = {}) {
 				opts = {};
 			}
 			const promise = (async () => {
+				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVoice === "function") {
-					return await ig.sendVoice(threadID, pathOrUrl, opts);
+					try {
+						return await ig.sendVoice(threadID, pathOrUrl, opts);
+					} catch (err) {
+						if (replyTo) {
+							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
+							return await ig.sendVoice(threadID, pathOrUrl, fallbackOpts);
+						}
+						throw err;
+					}
 				}
 				if (ig && typeof ig.sendAudio === "function") {
-					return await ig.sendAudio(pathOrUrl, threadID, undefined, opts.replyToMessageID);
+					if (replyTo) {
+						try {
+							return await ig.sendAudio(pathOrUrl, threadID, undefined, replyTo);
+						} catch (_) {
+							return await ig.sendAudio(pathOrUrl, threadID);
+						}
+					}
+					return await ig.sendAudio(pathOrUrl, threadID);
 				}
-				return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
+				return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
 			return wrapCallback(promise, callback);
 		},
