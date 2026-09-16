@@ -1,6 +1,8 @@
 <div align="center">
 
-![InstaBOT](assets/banner.svg)
+<a href="https://github.com/frnAlt/InstaBOT">
+  <img src="assets/banner.svg" alt="InstaBOT Banner" width="100%" />
+</a>
 
 # ⚡ InstaBOT
 
@@ -11,7 +13,7 @@ interactive multi-turn conversations (`onReply`, `onReaction`), roles, cooldowns
 
 [![MIT License](https://img.shields.io/badge/license-MIT-c13584?style=for-the-badge)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-3ddc84?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-164%20passing%20(100%25)-3ddc84?style=for-the-badge)](test/run.js)
+[![Tests](https://img.shields.io/badge/tests-179%20passing%20(100%25)-3ddc84?style=for-the-badge)](test/run.js)
 [![Commands](https://img.shields.io/badge/commands-196%20Loaded-blueviolet?style=for-the-badge)](#-complete-commands-catalog)
 [![Architecture](https://img.shields.io/badge/architecture-Dual--Mode%20ICA-ff007f?style=for-the-badge)](#-transport-modes-direct-ica-vs-remote-server)
 
@@ -59,7 +61,7 @@ The bot supports **dual transport execution**:
 - 🎨 **Canvas Compositing Engine:** Rich graphic generators (`rank`, `pair`, `marry`, `rip`, `jail`, `pfpframe`, etc.).
 - 🛡️ **Stealth & Protection:** Flood tracking, token buckets, and human typing jitter (40–200ms).
 - 📊 **Built-In Health Server:** Lightweight HTTP server on port `3000` / `8080` (`/health`) for 24/7 cloud probes (Render, Railway, Fly.io).
-- 🧪 **100% Verified Test Suite:** Comprehensive 164-test suite (`npm test`) passing with 0 failures.
+- 🧪 **100% Verified Test Suite:** Comprehensive 179-test suite (`npm test`) passing with 0 failures.
 
 ---
 
@@ -86,32 +88,47 @@ The bot supports **dual transport execution**:
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. Prerequisites
+- **Node.js**: `v18.0.0` or higher (`v20+` LTS recommended). Check with `node -v`.
+- **Instagram Account**: A dedicated secondary account for the bot.
+- **Session Cookies**: Exported via [Cookie-Editor](https://cookie-editor.cggn.dev/) (see [INSTAGRAM_SETUP.md](INSTAGRAM_SETUP.md)).
+
+### 2. Installation
 ```bash
-git clone git@github.com:frnAlt/InstaBOT.git
+# Clone the repository
+git clone https://github.com/frnAlt/InstaBOT.git
 cd InstaBOT
+
+# Install dependencies
 npm install
 ```
 
-### 2. Choose Your Execution Mode
+### 3. Authentication & Account Setup
+InstaBOT authenticates via browser cookies to ensure safe, session-based connections without entering account passwords on the server.
 
-#### Mode A: Remote Server (Recommended for Cloud Hosting)
-Point the bot at your deployed `ig-chat-api-server` by setting `server.url` and `server.token` in `config.json` (or via environment variables):
+1. Install the **Cookie-Editor** extension on Chrome, Edge, or Firefox.
+2. Log into [instagram.com](https://www.instagram.com) with your bot account.
+3. Open Cookie-Editor, click **Export**, and select **Netscape**.
+4. Create `account.txt` from the example and paste your exported cookies:
+   ```bash
+   cp account.txt.example account.txt
+   # Paste your cookies into account.txt
+   ```
+*(For detailed steps and anti-ban recommendations, read [INSTAGRAM_SETUP.md](INSTAGRAM_SETUP.md)).*
+
+### 4. Choose Your Execution Mode
+
+#### ⚡ Mode A: Direct Standalone Realtime ICA (Default / Easiest)
+Runs 100% locally with zero external services. Connects directly to Instagram's WebSocket Realtime gateway (`wss://edge-chat.instagram.com/chat`) using the built-in hardened `ica/` engine:
 ```bash
-export IG_API_SERVER="https://your-server.onrender.com"
-export IG_API_TOKEN="your-secret-token"
 npm start
 ```
 
-#### Mode B: Direct Local ICA (Standalone, No Server Needed)
-Simply paste your exported Instagram cookies into `account.txt` (Netscape format, JSON array, or raw cookie string) and leave `server.url` empty in `config.json`:
-```text
-# Netscape HTTP Cookie File
-.instagram.com	TRUE	/	TRUE	1798765432	sessionid	YOUR_SESSION_ID
-.instagram.com	TRUE	/	TRUE	1798765432	ds_user_id	YOUR_USER_ID
-.instagram.com	TRUE	/	TRUE	1798765432	csrftoken	YOUR_CSRF_TOKEN
-```
+#### 🌐 Mode B: Remote Microservice (For Cloud Platforms)
+Deploy an instance of [`ig-chat-api-server`](https://github.com/lazyneoaz/ig-chat-api-server) and point InstaBOT to it:
 ```bash
+export IG_API_SERVER="https://your-server.onrender.com"
+export IG_API_TOKEN="your-secret-token"
 npm start
 ```
 
@@ -119,50 +136,74 @@ npm start
 
 ## ⚙️ Configuration Reference
 
-Settings live in `config.json` and can be overridden by environment variables:
+Configuration is managed via [`config.json`](config.json) (or `config/default.json` and `.env`):
 
 ```jsonc
 {
   "botName": "InstaBOT",
   "prefix": "-",
   "language": "en",
-  "adminBot": ["YOUR_INSTAGRAM_USER_ID"],
-  "server": {
-    "url": "",
-    "token": "",
-    "timeout": 60000
-  },
-  "music": {
+
+  // 👑 Bot Administrators: Numeric Instagram User IDs
+  // (Admins bypass all cooldowns and can operate bot even when defaultOff is enabled)
+  "devUsers": ["36296727311", "49212864825"],
+  "adminBot": [],
+
+  // 🔒 Private / Default-Off Mode:
+  // When true, ONLY bot admins can operate the bot. Non-admins receive ZERO output
+  // (silent drop, no error messages, no responses to replies/comments).
+  "defaultOff": true,
+  "adminOnly": {
     "enable": true,
-    "apiUrl": "",
-    "apiToken": ""
+    "ignoreCommands": []
   },
-  "adminOnly": { "enable": false, "ignoreCommands": [] },
-  "whiteList": { "enable": false, "userIDs": [], "threadIDs": [] },
-  "cooldown": { "default": 3 },
+
+  // 🚪 Group Join & Leave Events:
+  // Disabled by default to prevent chat clutter. Set "enable": true to activate.
   "welcome": {
-    "enable": true,
+    "enable": false,
     "message": "Welcome %1 to %2! 👋",
     "selfMessage": "Thanks for inviting me to %2 💋. Type {prefix}help to see all available commands.",
     "threadIDs": []
   },
   "leave": {
-    "enable": true,
+    "enable": false,
     "message": "%1 left %2. 👋",
     "threadIDs": []
-  }
+  },
+
+  // 🌐 Remote Server Configuration (Mode A)
+  "server": {
+    "url": "",
+    "token": "",
+    "timeout": 60000
+  },
+
+  // 🎵 Music & Media Settings
+  "music": {
+    "enable": true,
+    "apiUrl": "",
+    "apiToken": ""
+  },
+
+  "whiteList": { "enable": false, "userIDs": [], "threadIDs": [] },
+  "cooldown": { "default": 3 }
 }
 ```
 
-### Environment Variables
-| Variable | Purpose |
-| :--- | :--- |
-| `IG_API_SERVER` | Remote server URL (`server.url`) |
-| `IG_API_TOKEN` | Remote server authentication token (`server.token`) |
-| `IG_COOKIES` | Session cookie string / JSON array (overrides `account.txt`) |
-| `IG_ADMIN_BOT` | Comma-separated admin Instagram User IDs |
-| `PORT` | Health check server port (default `8080`, set `0` to disable) |
-| `IG_MAX_MEDIA_BYTES` | Maximum local media upload size (default 5 MB) |
+### 🌍 Environment Variables
+Any configuration value can be set dynamically in your production environment or `.env` file:
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `IG_ADMIN_BOT` | Comma-separated list of Admin Instagram User IDs | `36296727311, 49212864825` |
+| `IG_COOKIES` | Session cookie string (overrides `account.txt`) | *empty* |
+| `IG_API_SERVER` | Remote `ig-chat-api-server` URL (Mode A) | *empty (uses Mode B)* |
+| `IG_API_TOKEN` | Remote server authentication token | *empty* |
+| `PREFIX` | Global command trigger prefix | `*` or `-` |
+| `PORT` | HTTP health probe & dashboard port | `8080` (or `3000`) |
+| `INSTABOT_URL` | Custom external media or music API endpoint | *empty* |
+| `INSTABOT_TOKEN` | Bearer token for custom external APIs | *empty* |
 
 ---
 
@@ -366,6 +407,35 @@ module.exports = {
 };
 ```
 
+### 3. Custom Event Handler Template (`events/myEvent.js`)
+```javascript
+module.exports = {
+  config: {
+    name: "logActivity",
+    // Listen to specific types: "message", "message_reply", "message_reaction", "join", "leave"
+    eventType: ["message", "message_reaction"],
+    author: "YourName"
+  },
+
+  onStart: async function ({ event, message, threadData, usersData, config }) {
+    if (event.type === "message_reaction") {
+      console.log(`User ${event.senderID} reacted ${event.reaction} in thread ${event.threadID}`);
+    }
+  }
+};
+```
+
+### 4. Handler Context Parameters
+Every `onStart`, `onReply`, and `onReaction` handler receives a rich contextual object:
+- `api` — Raw `ig-chat-api` instance with methods (`sendMessage`, `sendImage`, `sendAudio`, `sendMusic`, `sendAvatarTextEffect`, `unsendMessage`, etc.).
+- `message` — Standardized message interface with helpers: `message.reply(text)`, `message.react(emoji)`, `message.sendImage(url)`.
+- `event` — Normalized Instagram incoming event (`type`, `threadID`, `messageID`, `senderID`, `body`, `attachments`, `messageReply`).
+- `args` — Array of string arguments following the command name.
+- `role` — Caller permission level (`0` = User, `1` = Thread Admin, `2` = Bot Admin, `3` = Bot Owner).
+- `usersData` & `threadsData` — Persistent Key-Value & Database storage drivers (`get`, `set`, `update`, `ensure`).
+- `setReplyHandler(fn, messageID)` — Arm a stateful callback when a user replies to the bot's message.
+- `setReactionHandler(fn, messageID)` — Arm a stateful callback when a user reacts with an emoji.
+
 ---
 
 ## 🚢 Deployment & Production
@@ -404,10 +474,10 @@ npm test
   ok  - message: music routes to sendMusic with the track
   ok  - anisearch: searches, downloads and sends the video bytes
   ok  - eval: evaluates an expression for a bot admin
-  ok  - join: welcomes a new member with the configured message
-  ok  - auth: adopts the server id and session secret, then sends both
+  ok  - admin: configured admin accounts can operate bot in admin-only mode
+  ok  - events: silently ignores non-admins when bot is turned off
   ...
-  164/164 tests passed (100%)
+  179/179 tests passed (100%)
 ```
 
 ---
