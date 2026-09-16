@@ -535,6 +535,54 @@ async function main() {
 		assert.strictEqual(replies, "", "non-admin must receive no response for admin command");
 	});
 
+	await test("admin: configured admin accounts (36296727311 and 49212864825) can operate bot in admin-only mode", async () => {
+		const api = fakeApi();
+		const config = makeConfig({
+			adminOnly: { enable: true, ignoreCommands: [] },
+			adminBot: ["36296727311", "49212864825"]
+		});
+		const db = makeDatabase();
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		// Account 1
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m1", senderID: "36296727311", body: "-ping", isGroup: false });
+		let replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(/pong/i.test(replies), "Account 1 must be allowed to run commands");
+
+		// Account 2
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m2", senderID: "49212864825", body: "-ping", isGroup: false });
+		replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(/pong/i.test(replies), "Account 2 must be allowed to run commands");
+
+		// Non-admin stranger
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m3", senderID: "stranger999", body: "-ping", isGroup: false });
+		replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.strictEqual(replies, "", "Stranger must receive zero response");
+	});
+
+	await test("admin: bot admin can list, add, and remove admin", async () => {
+		const api = fakeApi();
+		const config = makeConfig({ adminBot: ["999"] });
+		const db = makeDatabase();
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m1", senderID: "999", body: "-admin list", isGroup: false });
+		let replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(replies.includes("999"));
+
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m2", senderID: "999", body: "-admin add 123456", isGroup: false });
+		assert.ok(config.adminBot.includes("123456"));
+
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m3", senderID: "999", body: "-admin remove 123456", isGroup: false });
+		assert.ok(!config.adminBot.includes("123456"));
+	});
+
 	await test("onReaction: unsend emoji removes target message for admin and DM", async () => {
 		const api = fakeApi();
 		const config = makeConfig();

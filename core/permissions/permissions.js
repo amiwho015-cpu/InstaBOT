@@ -29,12 +29,24 @@ class Permissions {
 		if (!uid) return 0;
 
 		// 1. Bot Owner / Developer
-		if (this.devUsers.includes(uid)) {
+		const devList = [
+			...(Array.isArray(this.config.DEV_USERS) ? this.config.DEV_USERS : []),
+			...(Array.isArray(this.config.devUsers) ? this.config.devUsers : []),
+			...this.devUsers
+		].map(String).map(s => s.trim()).filter(Boolean);
+
+		if (devList.includes(uid)) {
 			return 3;
 		}
 
 		// 2. Bot Admin
-		if (this.adminBot.includes(uid)) {
+		const adminList = [
+			...(Array.isArray(this.config.ADMIN_BOT) ? this.config.ADMIN_BOT : []),
+			...(Array.isArray(this.config.adminBot) ? this.config.adminBot : []),
+			...this.adminBot
+		].map(String).map(s => s.trim()).filter(Boolean);
+
+		if (adminList.includes(uid)) {
 			return 2;
 		}
 

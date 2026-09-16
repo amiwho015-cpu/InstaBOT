@@ -13,8 +13,9 @@
   "nickNameBot": "InstaBOT",
   "prefix": "*",
   "noPrefix": true,
+  "defaultOff": true,
   "adminOnly": {
-    "enable": false,
+    "enable": true,
     "ignoreCommand": []
   },
   "adminBot": [
@@ -22,10 +23,12 @@
     "49212864825"
   ],
   "premiumUsers": [
-    "49212864825"
+    "49212864825",
+    "36296727311"
   ],
   "devUsers": [
-    "49212864825"
+    "49212864825",
+    "36296727311"
   ],
   "whiteListMode": {
     "enable": false,

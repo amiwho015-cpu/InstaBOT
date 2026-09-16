@@ -50,6 +50,16 @@ function loadConfig() {
 	if (process.env.IG_ADMIN_BOT && process.env.IG_ADMIN_BOT.trim()) {
 		config.adminBot = process.env.IG_ADMIN_BOT.split(",").map(s => s.trim()).filter(Boolean);
 	}
+	config.devUsers = Array.isArray(config.devUsers) ? config.devUsers.map(String).filter(Boolean) : [];
+	if (config.devUsers.length === 0) {
+		try {
+			const def = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "default.json"), "utf8"));
+			config.devUsers = [
+				...(Array.isArray(def.devUsers) ? def.devUsers : []),
+				...(Array.isArray(def.adminBot) ? def.adminBot : [])
+			].map(String).filter(Boolean);
+		} catch (_) {}
+	}
 	config.whiteList = config.whiteList || { enable: false, userIDs: [], threadIDs: [] };
 	config.whiteList.userIDs = (config.whiteList.userIDs || []).map(String);
 	config.whiteList.threadIDs = (config.whiteList.threadIDs || []).map(String);

@@ -38,8 +38,16 @@ module.exports = {
 			return message.reply(t(lang, "adminList", list));
 		}
 
+		if (target && !/^\d+$/.test(target)) {
+			const clean = target.replace(/^@/, "").trim();
+			try {
+				const resolved = await require("../src/utils").resolveInstagramUserID(clean);
+				if (resolved) target = String(resolved);
+			} catch (_) {}
+		}
+
 		if (!target || !/^\d+$/.test(target))
-			return message.reply("Provide a numeric Instagram user id (or reply to a user's message).");
+			return message.reply("Provide a numeric Instagram user id or @handle (or reply to a user's message).");
 
 		if (action === "add") {
 			if (config.adminBot.map(String).includes(target))

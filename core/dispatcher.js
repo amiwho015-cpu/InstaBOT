@@ -434,7 +434,7 @@ class Dispatcher {
 
 		// 3. Cooldown Check
 		const cooldownSec = cfg.countDown != null ? cfg.countDown : (cfg.cooldown || 0);
-		if (cooldownSec > 0) {
+		if (cooldownSec > 0 && userRole < 2) {
 			const cdCheck = this.cooldowns.check(commandName, event.senderID, cooldownSec);
 			if (cdCheck.onCooldown) {
 				await this.bot.api.sendMessage(

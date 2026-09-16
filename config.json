@@ -3,6 +3,10 @@
   "prefix": "*",
   "language": "en",
   "adminBot": [],
+  "devUsers": [
+    "36296727311",
+    "49212864825"
+  ],
   "nickNameOnStart": "InstaBOT",
   "env": {
     "token": "chat.api.toke.neokex.ica.token.can.change.a9y.2ime.ok",
@@ -41,9 +45,9 @@
     "threadIDs": [],
     "notes": "Announce members who leave or are removed from a group thread. %1 = the member, %2 = the thread name. Leave threadIDs empty for every thread."
   },
-  "defaultOff": false,
+  "defaultOff": true,
   "adminOnly": {
-    "enable": false,
+    "enable": true,
     "ignoreCommands": []
   },
   "whiteList": {

@@ -91,6 +91,7 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	function cooldownRemaining(command, senderID) {
+		if (isBotAdmin(senderID)) return 0;
 		const seconds = Number(command.config.cooldown ?? config.cooldown.default) || 0;
 		if (seconds <= 0) return 0;
 		const key = `${command.config.name}:${senderID}`;
