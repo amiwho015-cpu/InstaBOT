@@ -41,8 +41,8 @@ const { Readable } = require("stream");
 
 // Keep-alive agents: reuse one socket for RPC calls instead of reconnecting on
 // every command. maxSockets is generous since commands are low-volume.
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 16 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 16 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 16, keepAliveMsecs: 10000, timeout: 30000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 16, keepAliveMsecs: 10000, timeout: 30000 });
 // Never hold the process open because of an idle pooled socket.
 if (httpAgent.unref) httpAgent.unref();
 if (httpsAgent.unref) httpsAgent.unref();
@@ -138,7 +138,14 @@ function splitCallback(args) {
 			return { index: i, args: rest };
 		}
 	}
-	return { index: -1, args };
+	const cleaned = args.slice();
+	while (cleaned.length > 0 && cleaned[cleaned.length - 1] === undefined) {
+		cleaned.pop();
+	}
+	if (cleaned.length === 4 && cleaned[2] === undefined) {
+		cleaned.splice(2, 1);
+	}
+	return { index: -1, args: cleaned };
 }
 
 function createError(payload) {
@@ -222,8 +229,13 @@ function request(settings, method, args, callbackIndex) {
 			});
 		});
 
-		req.on("timeout", () => req.destroy(new Error(`Request timed out after ${settings.timeout}ms`)));
-		req.on("error", reject);
+		req.on("timeout", () => {
+			req.destroy(new Error(`Request timed out after ${settings.timeout}ms`));
+		});
+		req.on("error", err => {
+			req.destroy();
+			reject(err);
+		});
 		req.write(payload);
 		req.end();
 	});
@@ -482,6 +494,9 @@ function login(options, callback) {
 	api.sendMessage = function (...args) {
 		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
 			api._lastThreadID = String(args[1]);
+		}
+		if (args.length === 4 && args[2] === undefined) {
+			args.splice(2, 1);
 		}
 		return originalSendMessage.apply(this, args);
 	};

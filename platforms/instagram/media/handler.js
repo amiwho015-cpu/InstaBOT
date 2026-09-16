@@ -172,26 +172,34 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 			const replyTarget = isFirst ? replyToMessageID : undefined;
 
 			let res;
-			if (kind === "video") {
-				if (typeof api.sendVideo === "function") {
-					res = await api.sendVideo(threadID, filePath, { caption, replyToMessageID: replyTarget }, undefined, replyTarget);
-				} else if (typeof api.sendPhoto === "function") {
-					res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
-				}
-			} else if (kind === "audio") {
-				if (typeof api.sendVoice === "function") {
-					res = await api.sendVoice(threadID, filePath, { replyToMessageID: replyTarget });
-				} else if (typeof api.sendAudio === "function") {
-					res = await api.sendAudio(filePath, threadID, undefined, replyTarget);
-				}
-			} else {
-				if (typeof api.sendPhoto === "function") {
-					res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
-				} else if (typeof api.sendImage === "function") {
-					res = await api.sendImage(filePath, threadID, caption, undefined, replyTarget);
+			try {
+				if (kind === "video") {
+					if (typeof api.sendVideo === "function") {
+						res = await api.sendVideo(threadID, filePath, { caption, replyToMessageID: replyTarget }, undefined, replyTarget);
+					} else if (typeof api.sendPhoto === "function") {
+						res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
+					}
+				} else if (kind === "audio") {
+					if (typeof api.sendVoice === "function") {
+						res = await api.sendVoice(threadID, filePath, { replyToMessageID: replyTarget });
+					} else if (typeof api.sendAudio === "function") {
+						res = await api.sendAudio(filePath, threadID, undefined, replyTarget);
+					}
 				} else {
-					res = await api.sendMessage({ body: caption, attachment: filePath, replyTo: replyTarget }, threadID, undefined, replyTarget);
+					if (typeof api.sendPhoto === "function") {
+						res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
+					} else if (typeof api.sendImage === "function") {
+						res = await api.sendImage(filePath, threadID, caption, undefined, replyTarget);
+					} else {
+						res = await api.sendMessage({ body: caption, attachment: filePath, replyTo: replyTarget }, threadID, undefined, replyTarget);
+					}
 				}
+			} catch (err) {
+				logger.warn("Failed to dispatch media item", { kind, error: err.message });
+				if (hasVideoOrAudio && bodyText) {
+					return primaryResult || { threadID, messageID: "preamble_sent" };
+				}
+				throw err;
 			}
 
 			if (isFirst) primaryResult = res;

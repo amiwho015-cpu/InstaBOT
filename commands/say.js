@@ -103,22 +103,32 @@ module.exports = {
         api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
-      const sent = await message.reply({
-        body: `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"`,
-        attachment: { path: tempPath, type: "audio" },
-        textFirst: true
-      });
+      let sent;
+      try {
+        const sendPromise = message.reply({
+          body: `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"`,
+          attachment: { path: tempPath, type: "audio" },
+          textFirst: true
+        });
+        const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Voice delivery timed out")), 25000));
+        sent = await Promise.race([sendPromise, sendTimer]);
+      } catch (_) {
+        const fallbackMsg = `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"\n\n🔗 Audio Link: ${audioUrl}`;
+        sent = await (message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg));
+      }
 
       setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);
       return sent;
     } catch (err) {
       await fs.unlink(tempPath).catch(() => {});
       if (message && typeof message.react === "function") {
-        message.react("❌");
+        message.react("❌").catch(() => {});
       } else if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+        try { api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true); } catch (_) {}
       }
-      return message.reply(`❌ Error: ${err.message || "Failed to generate voice."}`);
+      try {
+        return await (message.reply ? message.reply(`❌ Error: ${err.message || "Failed to generate voice."}`) : message.send(`❌ Error: ${err.message || "Failed to generate voice."}`));
+      } catch (_) {}
     }
   },
 

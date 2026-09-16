@@ -253,7 +253,9 @@ function createDispatcher({ api, config, registry, database }) {
 			if (config.autoReactOnCommand !== false) {
 				message.react("❌").catch(() => {});
 			}
-			await message.reply(t(config.language, "errorOccurred", commandName, String(error.message || error)));
+			try {
+				await message.reply(t(config.language, "errorOccurred", commandName, String(error.message || error)));
+			} catch (_) {}
 		}
 	}
 

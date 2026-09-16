@@ -163,7 +163,9 @@ async function searchSongs(query, message, config, api) {
 	// 2. Fallback to Instagram's musicSearch if available
 	if (message && typeof message.musicSearch === "function") {
 		try {
-			const result = await message.musicSearch(query);
+			const searchPromise = message.musicSearch(query);
+			const timerPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("musicSearch timeout")), 5000));
+			const result = await Promise.race([searchPromise, timerPromise]);
 			const tracks = normalizeTracks(result || {});
 			if (tracks.length) return tracks;
 		}
@@ -177,7 +179,9 @@ async function searchSongs(query, message, config, api) {
 
 	// 4. Live fallback: Search via YouTube (yt-search) so users never get "no full songs found"
 	try {
-		const search = await yts(query.replace(/--top/gi, "").trim());
+		const searchPromise = yts(query.replace(/--top/gi, "").trim());
+		const timerPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("yt-search timeout")), 8000));
+		const search = await Promise.race([searchPromise, timerPromise]);
 		const videos = (search && search.videos) || [];
 		if (videos.length) {
 			return videos.slice(0, 10).map(v => ({
@@ -206,13 +210,17 @@ async function sendSong(message, track, api, event) {
 	if (track.isYouTube || /youtu\.?be/i.test(track.url)) {
 		let tempFile = null;
 		try {
-			tempFile = await downloadAudioToFile(track.url, track.title);
+			const downloadPromise = downloadAudioToFile(track.url, track.title);
+			const downloadTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Audio extraction timed out")), 25000));
+			tempFile = await Promise.race([downloadPromise, downloadTimer]);
 			const caption = `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`;
-			await message.reply({
+			const sendPromise = message.reply({
 				body: caption,
 				attachment: { path: tempFile, type: "audio" },
 				textFirst: true
 			});
+			const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Audio send timed out")), 25000));
+			await Promise.race([sendPromise, sendTimer]);
 			if (message && typeof message.react === "function") message.react("✅").catch(() => {});
 			setTimeout(() => {
 				if (tempFile) fs.unlink(tempFile).catch(() => {});
@@ -222,22 +230,26 @@ async function sendSong(message, track, api, event) {
 		catch (err) {
 			if (tempFile) fs.unlink(tempFile).catch(() => {});
 			if (message && typeof message.react === "function") message.react("❌").catch(() => {});
-			return message.reply(`Could not send "${track.title || "the song"}": ${String(err.message || err)}`);
+			const fallbackMsg = `🎵 ${track.title || "Song"} — ${track.artist || "Unknown"}\n🔗 Stream: ${track.url}\n(Audio file delivery: ${err.message || "timed out"})`;
+			return message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg);
 		}
 	}
 
 	// Standard audio URL (direct stream or Instagram progressive audio)
 	try {
-		await message.send({
+		const sendPromise = message.send({
 			body: `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`,
 			attachment: { url: track.url, type: "audio", mimetype: track.mimetype || "audio/mp4" },
 			textFirst: true
 		});
+		const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Audio send timed out")), 25000));
+		await Promise.race([sendPromise, sendTimer]);
 		if (message && typeof message.react === "function") message.react("✅").catch(() => {});
 	}
 	catch (error) {
 		if (message && typeof message.react === "function") message.react("❌").catch(() => {});
-		return message.reply(`Could not send "${track.title || "the song"}": ${String(error.message || error)}`);
+		const fallbackMsg = `🎵 ${track.title || "Song"} — ${track.artist || "Unknown"}\n🔗 Stream: ${track.url}\n(Audio clip delivery: ${String(error.message || error)})`;
+		return message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg);
 	}
 }
 
