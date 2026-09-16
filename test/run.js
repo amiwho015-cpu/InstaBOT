@@ -96,7 +96,10 @@ function makeConfig(overrides = {}) {
 		antiInbox: false,
 		noPrefix: false,
 		adminOnly: { enable: false, ignoreCommands: [] },
+		defaultOff: false,
 		whiteList: { enable: false, userIDs: [], threadIDs: [] },
+		welcome: { enable: true, message: "Welcome %1 to %2! 👋", selfMessage: "Thanks for inviting me to %2 💋. Type {prefix}help to see all available commands.", threadIDs: [] },
+		leave: { enable: true, message: "%1 left %2. 👋", threadIDs: [] },
 		hideNotiMessage: {},
 		cooldown: { default: 0 },
 		logEvents: { disableAll: true },
@@ -440,14 +443,34 @@ async function main() {
 		assert.ok(/banned/i.test(replies), "expected a ban notice");
 	});
 
-	await test("dispatcher: honours bot-admin-only mode", async () => {
+	await test("dispatcher: honours bot-admin-only mode (silent drop for non-admins)", async () => {
 		const api = fakeApi();
 		const config = makeConfig({ adminOnly: { enable: true, ignoreCommands: [] } });
 		const db = makeDatabase();
 		const dispatcher = createDispatcher({ api, config, registry, database: db });
 		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m", senderID: "5", body: "-ping", isGroup: false });
 		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
-		assert.ok(/admin/i.test(replies), "expected an admin-only notice");
+		assert.strictEqual(replies, "", "expected silent drop for non-admins when admin-only is on");
+	});
+
+	await test("dispatcher: unknown commands are completely silent in admin-only mode", async () => {
+		const api = fakeApi();
+		const config = makeConfig({ adminOnly: { enable: true, ignoreCommands: [] } });
+		const db = makeDatabase();
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m", senderID: "5", body: "-unknowncommandxyz", isGroup: false });
+		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.strictEqual(replies, "", "expected zero output for unknown command in admin-only mode");
+	});
+
+	await test("dispatcher: default-off mode blocks non-admins silently", async () => {
+		const api = fakeApi();
+		const config = makeConfig({ defaultOff: true });
+		const db = makeDatabase();
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m", senderID: "5", body: "-ping", isGroup: false });
+		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.strictEqual(replies, "", "expected zero output for non-admins in default-off mode");
 	});
 
 	await test("bot: off turns bot off for non-admins, but admins can use commands", async () => {

@@ -171,6 +171,29 @@ class Dispatcher {
 			if (replyHandled) return;
 		}
 
+		// Early silent drop for global admin-only / default-off and thread bot-off (Floppa standard)
+		const userRole = this.permissions.getUserRole(event.senderID, event.threadID, threadData);
+		const isThreadAdminOnly = threadData?.settings?.adminOnly === true || threadData?.settings?.botOff === true || threadData?.adminOnly === true;
+		const isGlobalAdminOnly = this.config.ADMIN_ONLY_ENABLE === true || this.config.adminOnly?.enable === true || this.config.defaultOff === true;
+
+		if (isGlobalAdminOnly && userRole < 2) {
+			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
+			const p = threadData?.prefix || this.config.PREFIX || "!";
+			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
+			if (!cmdName || !ignored.includes(cmdName)) {
+				return; // Silently ignore non-admins when global admin-only is on (Floppa standard)
+			}
+		}
+
+		if (isThreadAdminOnly && userRole < 1) {
+			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
+			const p = threadData?.prefix || this.config.PREFIX || "!";
+			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
+			if (!cmdName || !ignored.includes(cmdName)) {
+				return; // Silently ignore non-admins when thread admin-only is on (Floppa standard)
+			}
+		}
+
 		// Prefix Resolution
 		const threadPrefix = threadData?.prefix || this.config.PREFIX || "!";
 		const body = (event.body || "").trim();

@@ -168,6 +168,29 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const args = rawArgs.slice();
 		const name = (args.shift() || "").toLowerCase();
+
+		const role = roleOf(event, threadData);
+
+		// 1. Thread Admin-Only / Bot OFF check (Floppa standard)
+		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
+		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
+			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
+			if (!name || !ignored.includes(name)) {
+				// Silently ignore non-admins when bot is OFF in this thread (Floppa standard: zero response)
+				return;
+			}
+		}
+
+		// 2. Global Admin-Only / Default-OFF check (Floppa standard)
+		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
+		if (isGlobalAdminOnly && !isBotAdmin(senderID)) {
+			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
+			if (!name || !ignored.includes(name)) {
+				// Silently ignore non-admins when global admin-only is on: zero response
+				return;
+			}
+		}
+
 		const command = registry.resolve(name);
 
 		if (!command) {
@@ -184,20 +207,6 @@ function createDispatcher({ api, config, registry, database }) {
 		if (userData && userData.banned && userData.banned.status) {
 			if (!config.hideNotiMessage.userBanned)
 				return message.reply(t(config.language, "userBanned", config.botName, userData.banned.reason || "—"));
-			return;
-		}
-
-		if (config.adminOnly.enable && !isBotAdmin(senderID) && !config.adminOnly.ignoreCommands.includes(commandName)) {
-			if (!config.hideNotiMessage.adminOnly)
-				return message.reply(t(config.language, "onlyAdminBot", commandName));
-			return;
-		}
-
-		const role = roleOf(event, threadData);
-
-		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
-		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
-			// Silently ignore non-admins when bot is OFF in this thread (Floppa standard)
 			return;
 		}
 
@@ -286,6 +295,14 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	async function runReplyHandlers(event, message, threadData, userData) {
+		const senderID = senderIDOf(event);
+		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
+		if (isGlobalAdminOnly && !isBotAdmin(senderID)) return false;
+
+		const role = roleOf(event, threadData);
+		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
+		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) return false;
+
 		const repliedID = event.messageReply && event.messageReply.messageID;
 		if (!repliedID) return false;
 		const entry = onReply.get(String(repliedID));
@@ -354,6 +371,14 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	async function runReactionHandlers(event, message, threadData, userData) {
+		const senderID = senderIDOf(event);
+		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
+		if (isGlobalAdminOnly && !isBotAdmin(senderID)) return false;
+
+		const role = roleOf(event, threadData);
+		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
+		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) return false;
+
 		const entry = onReaction.get(String(event.messageID));
 		if (!entry) return false;
 		if (userData && userData.banned && userData.banned.status) return true;

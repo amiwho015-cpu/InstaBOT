@@ -61,7 +61,9 @@ function loadConfig() {
 	// even when an operator trims them out of config.json.
 	config.hideNotiMessage = config.hideNotiMessage || {};
 	config.adminOnly = config.adminOnly || {};
-	config.adminOnly.enable = config.adminOnly.enable === true;
+	config.adminOnly.enable = config.adminOnly.enable === true || config.defaultOff === true;
+	config.defaultOff = config.adminOnly.enable;
+	config.ADMIN_ONLY_ENABLE = config.adminOnly.enable;
 	config.adminOnly.ignoreCommands = Array.isArray(config.adminOnly.ignoreCommands)
 		? config.adminOnly.ignoreCommands.map(String)
 		: [];
@@ -108,14 +110,14 @@ function loadConfig() {
 	delete config.server.botId;
 	config.server.timeout = Number(config.server.timeout) || 60000;
 
-	// Welcome / leave announcements for group threads.
+	// Welcome / leave announcements for group threads (disabled by default, can be enabled via config.json)
 	config.welcome = config.welcome || {};
-	if (config.welcome.enable == null) config.welcome.enable = true;
+	if (config.welcome.enable == null) config.welcome.enable = false;
 	if (!config.welcome.message) config.welcome.message = "Welcome %1 to %2! 👋";
 	if (!Array.isArray(config.welcome.threadIDs)) config.welcome.threadIDs = [];
 
 	config.leave = config.leave || {};
-	if (config.leave.enable == null) config.leave.enable = true;
+	if (config.leave.enable == null) config.leave.enable = false;
 	if (!config.leave.message) config.leave.message = "%1 left %2. 👋";
 	if (!Array.isArray(config.leave.threadIDs)) config.leave.threadIDs = [];
 

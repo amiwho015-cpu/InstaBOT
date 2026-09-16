@@ -29,18 +29,19 @@
   "antiInbox": false,
   "noPrefix": false,
   "welcome": {
-    "enable": true,
+    "enable": false,
     "message": "Welcome %1 to %2! 👋",
     "threadIDs": [],
     "selfMessage": "Thanks for inviting me to %2 💋. Type {prefix}help to see all available commands.",
     "notes": "Greet members added to a group thread. %1 = the new member, %2 = the thread name. selfMessage is sent when the BOT itself is added ({prefix} = the live prefix, %2 = the group name). Leave threadIDs empty for every thread, or list the thread IDs to limit it."
   },
   "leave": {
-    "enable": true,
+    "enable": false,
     "message": "%1 left %2. 👋",
     "threadIDs": [],
     "notes": "Announce members who leave or are removed from a group thread. %1 = the member, %2 = the thread name. Leave threadIDs empty for every thread."
   },
+  "defaultOff": false,
   "adminOnly": {
     "enable": false,
     "ignoreCommands": []

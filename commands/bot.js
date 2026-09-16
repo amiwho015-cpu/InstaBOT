@@ -75,26 +75,28 @@ module.exports = {
 		const subCmd = args[0] ? args[0].toLowerCase() : "status";
 		const p = (config && (config.prefix || config.PREFIX)) || "-";
 
-		// 1. Global toggle (Bot Admin only)
-		if (subCmd === "global") {
+		// 1. Global toggle / Default-Off (Bot Admin only)
+		if (subCmd === "global" || subCmd === "defaultoff" || subCmd === "default-off") {
 			if (!isBotAdmin) {
 				return;
 			}
 			const gMode = args[1] ? args[1].toLowerCase() : null;
-			if (gMode === "off" || gMode === "disable" || gMode === "admin") {
+			if (gMode === "off" || gMode === "disable" || gMode === "admin" || (subCmd.includes("default") && gMode !== "off" && gMode !== "enable")) {
 				if (config.adminOnly) config.adminOnly.enable = true;
 				config.ADMIN_ONLY_ENABLE = true;
+				config.defaultOff = true;
 				try { require("../src/config").saveConfig(config); } catch (_) {}
-				return message.reply("🔒 Global Bot Status: DISABLED for non-admins (Admin-Only mode activated globally).");
+				return message.reply("🔒 Global Bot Status: DISABLED for non-admins (Admin-Only / Default-OFF mode activated globally).");
 			}
 			if (gMode === "on" || gMode === "enable" || gMode === "public") {
 				if (config.adminOnly) config.adminOnly.enable = false;
 				config.ADMIN_ONLY_ENABLE = false;
+				config.defaultOff = false;
 				try { require("../src/config").saveConfig(config); } catch (_) {}
 				return message.reply("✅ Global Bot Status: ENABLED globally for all users.");
 			}
-			const isGlobalOn = (config.adminOnly && config.adminOnly.enable) || config.ADMIN_ONLY_ENABLE;
-			return message.reply(`🌐 Global Bot Mode: ${isGlobalOn ? "ADMIN-ONLY 🔒" : "PUBLIC ✅"}\nUsage: ${p}bot global [on | off]`);
+			const isGlobalOn = Boolean((config.adminOnly && config.adminOnly.enable) || config.ADMIN_ONLY_ENABLE || config.defaultOff);
+			return message.reply(`🌐 Global Bot Mode: ${isGlobalOn ? "ADMIN-ONLY / DEFAULT-OFF 🔒" : "PUBLIC ✅"}\nUsage: ${p}bot global [on | off]`);
 		}
 
 		// 2. Turn Bot OFF for non-admins (Admins can still use all commands)
@@ -161,7 +163,7 @@ module.exports = {
 
 		// 6. Show Bot Status panel
 		const isBotOff = tData.adminOnly === true || tData.settings.adminOnly === true || tData.settings.botOff === true;
-		const isGlobalOff = (config.adminOnly && config.adminOnly.enable === true) || config.ADMIN_ONLY_ENABLE === true;
+		const isGlobalOff = Boolean((config.adminOnly && config.adminOnly.enable === true) || config.ADMIN_ONLY_ENABLE === true || config.defaultOff === true);
 		const autoTalkState = tData.autotalk === true || tData.settings.autotalk === true;
 		const eventsState = !(tData.eventsOff === true || tData.settings.eventsOff === true);
 
