@@ -28,8 +28,10 @@ module.exports = {
       return message.reply("🤗 Please @mention or reply to someone you want to hug!");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("🤗", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("🤗").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🤗", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
@@ -39,8 +41,10 @@ module.exports = {
         resolveProfile([targetID], event, api).catch(() => null)
       ]);
 
-      const senderName = (senderProfile && (senderProfile.name || senderProfile.username)) || (usersData && usersData.getName ? await usersData.getName(senderID) : "You");
-      const targetName = (targetProfile && (targetProfile.name || targetProfile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : "Friend");
+      let senderName = (senderProfile && (senderProfile.name || senderProfile.username)) || (usersData && usersData.getName ? await usersData.getName(senderID) : null);
+      if (!senderName || /^\d+$/.test(String(senderName).trim())) senderName = "You";
+      let targetName = (targetProfile && (targetProfile.name || targetProfile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
+      if (!targetName || /^\d+$/.test(String(targetName).trim())) targetName = "Friend";
 
       const [senderAvatar, targetAvatar] = await Promise.all([
         senderProfile?.profilePicture ? axios.get(senderProfile.profilePicture, { responseType: "arraybuffer", timeout: 10000 }).then(r => loadImage(Buffer.from(r.data))).catch(() => null) : null,
@@ -128,7 +132,7 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      return message.reply(`🤗 Warm hug sent to ${targetID}!`);
+      return message.reply(`🤗 Warm hug sent to ${targetName}!`);
     }
   }
 };

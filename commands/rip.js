@@ -4,38 +4,47 @@ const { createCanvas, loadImage } = require("canvas");
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
-const { resolveUserTarget, resolveProfile } = require("../src/utils");
+const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
 
 module.exports = {
   config: {
     name: "rip",
     aliases: ["grave", "tombstone", "dead"],
-    version: "2.0.0",
+    version: "2.5.0",
     author: "frnAlt & Floppa Team",
     cooldown: 5,
     role: 0,
-    description: { en: "Generate a RIP tombstone graphic for a user" },
+    description: { en: "Generate a RIP tombstone graphic for a user or replied image" },
     category: "fun",
     usage: { en: "{p}rip [@mention|UID|reply]" }
   },
 
   onStart: async function ({ event, args, message, api, usersData }) {
-    let target = await resolveUserTarget(args, event, api);
-    if (!target.id && (!args || args.length === 0) && event.senderID) {
-      target = { id: String(event.senderID) };
+    if (message && typeof message.react === "function") {
+      message.react("⏳").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
-    const targetID = target.id || event.senderID;
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    let photoUrl = await extractImageUrl(event, args, api);
+    let name = "Legend";
+
+    if (!photoUrl) {
+      let target = await resolveUserTarget(args, event, api);
+      if (!target.id && (!args || args.length === 0) && event.senderID) {
+        target = { id: String(event.senderID) };
+      }
+      const targetID = target.id || event.senderID;
+      const profile = await resolveProfile([targetID], event, api);
+      name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
+      if (!name || /^\d+$/.test(String(name).trim())) {
+        name = "Legend";
+      }
+      photoUrl = profile && profile.profilePicture;
     }
 
     let tempPath = null;
     try {
-      const profile = await resolveProfile([targetID], event, api);
-      const name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : targetID);
-      const photoUrl = profile && profile.profilePicture;
-
       let avatar = null;
       if (photoUrl && photoUrl.startsWith("http")) {
         try {
@@ -119,12 +128,14 @@ module.exports = {
       tempPath = path.join(tempDir, `rip_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
       await fs.writeFile(tempPath, canvas.toBuffer("image/jpeg", { quality: 0.9 }));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({
-        body: `🪦 Rest In Peace @${name}`,
+        body: `🪦 Rest In Peace ${name === "Legend" ? "Legend" : "@" + name}`,
         attachment: tempPath,
         textFirst: true
       });
@@ -135,8 +146,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Error: ${err.message}`);
     }

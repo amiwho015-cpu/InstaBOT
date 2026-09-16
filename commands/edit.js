@@ -14,15 +14,13 @@ const axios = require("axios");
 const { Jimp } = require("jimp");
 const fs = require("fs-extra");
 const path = require("path");
-const { resolveUserTarget, resolveProfile } = require("../src/utils");
+const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
 
 const MAX_ATTACHMENT_BYTES = 35 * 1024 * 1024;
 
-function extractImageUrlFromEvent(event, args = []) {
-  if (global.utils && typeof global.utils.extractImageUrl === "function") {
-    const extracted = global.utils.extractImageUrl(event, args, { allowAvatar: false });
-    if (extracted) return extracted;
-  }
+async function extractImageUrlFromEvent(event, args = [], api = null) {
+  const extracted = await extractImageUrl(event, args, api);
+  if (extracted) return extracted;
 
   if (event.messageReply?.attachments?.length > 0) {
     for (const a of event.messageReply.attachments) {
@@ -145,22 +143,11 @@ module.exports = {
         return message.reply(`❌ Could not fetch profile picture for user ${targetId || "target"}. Please ensure the profile is accessible.`);
       }
     } else {
-      imageUrl = extractImageUrlFromEvent(event, args);
+      imageUrl = await extractImageUrlFromEvent(event, args, api);
       if (imageUrl && args.length > 0 && args[0].startsWith("http")) {
         prompt = args.slice(1).join(" ").trim();
       } else {
         prompt = args.join(" ").trim();
-      }
-
-      if (!imageUrl && prompt) {
-        try {
-          const profile = await resolveProfile([event.senderID], event, api);
-          if (profile && profile.profilePicture) {
-            imageUrl = profile.profilePicture;
-            targetName = profile.name || profile.username || event.senderID;
-            isPfpMode = true;
-          }
-        } catch (_) {}
       }
     }
 
@@ -184,8 +171,10 @@ module.exports = {
       );
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     const CANVAS_ACTIONS = [
@@ -245,17 +234,29 @@ module.exports = {
 
       // 2. Primary AI Edit API
       if (!finalBuffer) {
-        let targetUrl = imageUrl;
+        let sourceBuffer = null;
         try {
-          if (!imageUrl.includes("imgur.com")) {
-            const imgurRes = await axios.get(
-              `https://toshiro-api-editz6t9.vercel.app/api/tools/Imgur?url=${encodeURIComponent(imageUrl)}`,
-              { timeout: 15000 }
-            );
-            if (imgurRes.data?.success && imgurRes.data?.result?.url) {
-              targetUrl = imgurRes.data.result.url;
+          sourceBuffer = await downloadToBuffer(imageUrl);
+        } catch (_) {}
+
+        let targetUrl = imageUrl;
+        if (sourceBuffer) {
+          try {
+            const FormData = require("form-data");
+            const form = new FormData();
+            form.append("reqtype", "fileupload");
+            form.append("fileToUpload", sourceBuffer, { filename: "edit.jpg" });
+            const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
+              headers: form.getHeaders(),
+              timeout: 20000
+            });
+            if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
+              targetUrl = cbRes.data.trim();
             }
-          }
+          } catch (_) {}
+        }
+
+        try {
           const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
           const editRes = await axios.get(editApiUrl, { timeout: 35000 });
           if (editRes.data?.success && editRes.data?.url) {
@@ -263,20 +264,21 @@ module.exports = {
             appliedType = "AI Edit";
           }
         } catch (_) {}
-      }
 
-      // 3. Fallback: Pollinations Image-to-Image / Variation
-      if (!finalBuffer) {
-        try {
-          const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?image=${encodeURIComponent(imageUrl)}&width=768&height=768&model=turbo&nologo=true`;
-          finalBuffer = await downloadToBuffer(turboUrl);
-          appliedType = "AI Turbo Edit";
-        } catch (_) {
-          const sourceBuffer = await downloadToBuffer(imageUrl);
-          const jimg = await Jimp.read(sourceBuffer);
-          jimg.contrast(0.2);
-          finalBuffer = await jimg.getBuffer("image/jpeg");
-          appliedType = "Enhanced Edit";
+        // 3. Fallback: Pollinations Image-to-Image / Variation
+        if (!finalBuffer) {
+          try {
+            const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?image=${encodeURIComponent(targetUrl)}&width=768&height=768&model=turbo&nologo=true`;
+            finalBuffer = await downloadToBuffer(turboUrl);
+            appliedType = "AI Turbo Edit";
+          } catch (_) {
+            if (sourceBuffer) {
+              const jimg = await Jimp.read(sourceBuffer);
+              jimg.contrast(0.2);
+              finalBuffer = await jimg.getBuffer("image/jpeg");
+              appliedType = "Enhanced Edit";
+            }
+          }
         }
       }
 
@@ -290,8 +292,10 @@ module.exports = {
       tempFilePath = path.join(tempDir, `edit_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
       await fs.writeFile(tempFilePath, finalBuffer);
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const caption = targetName
@@ -312,8 +316,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempFilePath) fs.unlink(tempFilePath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Failed to edit image: ${err.message || err}`);
     }

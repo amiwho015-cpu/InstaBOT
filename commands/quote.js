@@ -31,6 +31,9 @@ module.exports = {
     let quote = "";
     let author = "";
 
+    const reply = event.messageReply || event.repliedMessage;
+    const replyText = reply && (reply.body || reply.text);
+
     if (text) {
       if (text.includes("|")) {
         const parts = text.split("|").map(s => s.trim());
@@ -38,16 +41,28 @@ module.exports = {
         author = parts[1] || "Anonymous";
       } else {
         quote = text;
-        author = event.senderID ? `@${event.senderID}` : "Anonymous";
+        const prof = event.senderID ? await resolveProfile([event.senderID], event, api).catch(() => null) : null;
+        author = (prof && (prof.name || (prof.username ? `@${prof.username}` : null))) || "Anonymous";
       }
+    } else if (replyText) {
+      quote = replyText;
+      const targetUID = reply.senderID;
+      const prof = targetUID ? await resolveProfile([targetUID], event, api).catch(() => null) : null;
+      author = (prof && (prof.name || (prof.username ? `@${prof.username}` : null))) || "Anonymous";
     } else {
       const q = DEFAULT_QUOTES[Math.floor(Math.random() * DEFAULT_QUOTES.length)];
       quote = q.quote;
       author = q.author;
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("📜", event.messageID, () => {}, true);
+    if (!author || /^@?\d+$/.test(author.trim())) {
+      author = "Anonymous";
+    }
+
+    if (message && typeof message.react === "function") {
+      message.react("📜");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("📜", event.messageID, event.threadID, () => {}, true);
     }
 
     const width = 800;

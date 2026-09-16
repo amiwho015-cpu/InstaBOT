@@ -210,7 +210,7 @@ async function sendSong(message, track, api, event) {
 			const caption = `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`;
 			await message.reply({
 				body: caption,
-				attachment: tempFile,
+				attachment: { path: tempFile, type: "audio" },
 				textFirst: true
 			});
 			if (message && typeof message.react === "function") message.react("✅").catch(() => {});
@@ -230,7 +230,7 @@ async function sendSong(message, track, api, event) {
 	try {
 		await message.send({
 			body: `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`,
-			attachment: { url: track.url, mimetype: track.mimetype || "audio/mp4" },
+			attachment: { url: track.url, type: "audio", mimetype: track.mimetype || "audio/mp4" },
 			textFirst: true
 		});
 		if (message && typeof message.react === "function") message.react("✅").catch(() => {});
@@ -254,7 +254,8 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, args, event, config, usersData, setReplyHandler, api }) {
-		const query = args.join(" ").trim();
+		const reply = event.messageReply || event.repliedMessage;
+		const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 		if (!query)
 			return message.reply(`Usage: sing <song name>\nExample: sing blinding lights`);
 

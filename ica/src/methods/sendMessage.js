@@ -190,11 +190,16 @@ class SendMessage {
   // Execute the full send sequence; returns single object or array
   async _dispatch(threadID, msg, { recipient, recipientType } = {}) {
     const results = [];
+    const replyTarget = msg.replyTo || msg.replied_to_item_id || msg.options?.replyTo || msg.options?.replyToMessageID;
+    const mediaOptions = {
+      ...(msg.options || {}),
+      ...(replyTarget ? { replyTo: replyTarget, replyToMessageID: replyTarget } : {})
+    };
 
     // 1. Text / sticker
     if (msg.body || msg.text) {
       results.push(await this._sendText(threadID, msg.body || msg.text, {
-        replyTo: msg.replyTo || msg.replied_to_item_id,
+        replyTo: replyTarget,
         recipient, recipientType
       }));
     }
@@ -204,33 +209,33 @@ class SendMessage {
       ? (Array.isArray(msg.attachment) ? msg.attachment : [msg.attachment])
       : [];
     for (const att of attachments) {
-      results.push(await this._sendAttachmentItem(threadID, att, msg.options || {}));
+      results.push(await this._sendAttachmentItem(threadID, att, mediaOptions));
     }
 
     // 3. Explicit image URL
     if (msg.image) {
       if (!this.sendMedia) throw new Error('sendMedia not wired');
-      results.push(await this.sendMedia.photoFromUrl(threadID, msg.image, msg.options || {}));
+      results.push(await this.sendMedia.photoFromUrl(threadID, msg.image, mediaOptions));
     }
 
     // 4. Explicit video URL (streamed)
     if (msg.video) {
       if (!this.sendMedia) throw new Error('sendMedia not wired');
-      results.push(await this.sendMedia.videoFromUrl(threadID, msg.video, msg.options || {}));
+      results.push(await this.sendMedia.videoFromUrl(threadID, msg.video, mediaOptions));
     }
 
     // 5. GIF URL
     if (msg.gif) {
       if (!this.sendMedia) throw new Error('sendMedia not wired');
-      results.push(await this.sendMedia.gif(threadID, msg.gif, msg.options || {}));
+      results.push(await this.sendMedia.gif(threadID, msg.gif, mediaOptions));
     }
 
     // 6. Audio file — local path or remote URL
     if (msg.audio) {
       if (!this.sendMedia) throw new Error('sendMedia not wired');
       const r = isRemoteUrl(msg.audio)
-        ? await this.sendMedia.voiceFromUrl(threadID, msg.audio, msg.options || {})
-        : await this.sendMedia.voice(threadID, validateLocalPath(msg.audio), msg.options || {});
+        ? await this.sendMedia.voiceFromUrl(threadID, msg.audio, mediaOptions)
+        : await this.sendMedia.voice(threadID, validateLocalPath(msg.audio), mediaOptions);
       results.push(r);
     }
 
@@ -238,8 +243,8 @@ class SendMessage {
     if (msg.photo) {
       if (!this.sendMedia) throw new Error('sendMedia not wired');
       const r = isRemoteUrl(msg.photo)
-        ? await this.sendMedia.photoFromUrl(threadID, msg.photo, msg.options || {})
-        : await this.sendMedia.photo(threadID, validateLocalPath(msg.photo), msg.options || {});
+        ? await this.sendMedia.photoFromUrl(threadID, msg.photo, mediaOptions)
+        : await this.sendMedia.photo(threadID, validateLocalPath(msg.photo), mediaOptions);
       results.push(r);
     }
 

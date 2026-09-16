@@ -438,6 +438,54 @@ function login(options, callback) {
 	const api = {};
 	for (const method of METHODS) api[method] = makeMethod(settings, method);
 
+	api._recentMessageThreads = new Map();
+	api._lastThreadID = null;
+
+	const originalSetMessageReaction = api.setMessageReaction;
+	api.setMessageReaction = function (reaction, messageID, threadID, callback, force) {
+		let cb = callback;
+		let tid = threadID;
+		let f = force;
+		if (typeof tid === "function") {
+			cb = tid;
+			tid = undefined;
+			f = callback;
+		} else if (typeof tid === "boolean") {
+			f = tid;
+			tid = undefined;
+		}
+		if (!tid) {
+			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || undefined;
+		}
+		if (!tid) {
+			if (typeof cb === "function") cb(null);
+			return Promise.resolve();
+		}
+		let p;
+		try {
+			const callArgs = [reaction, messageID, tid];
+			if (typeof f === "boolean") callArgs.push(f);
+			p = originalSetMessageReaction(...callArgs);
+		} catch (_) {
+			p = Promise.resolve();
+		}
+		const safePromise = (p && typeof p.then === "function") ? p.catch(() => {}) : Promise.resolve();
+		if (typeof cb === "function") {
+			safePromise.then(r => cb(null, r), () => cb(null));
+			return undefined;
+		}
+		return safePromise;
+	};
+	api.sendReaction = api.setMessageReaction;
+
+	const originalSendMessage = api.sendMessage;
+	api.sendMessage = function (...args) {
+		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
+			api._lastThreadID = String(args[1]);
+		}
+		return originalSendMessage.apply(this, args);
+	};
+
 	// `sendTypingIndicator(threadID, cb)` returns a local stop function that
 	// asks the server to clear the indicator (the server-side handle cannot
 	// travel over the wire).
@@ -455,7 +503,23 @@ function login(options, callback) {
 	api.getAppState = function () { return []; };
 	api.listen = api.listenMqtt = function (cb) {
 		if (typeof cb !== "function") throw new Error("listenMqtt requires a callback");
-		const stream = new EventStream(settings, cb);
+		const stream = new EventStream(settings, (err, event) => {
+			if (event) {
+				const tid = event.threadID || event.threadId;
+				if (tid) {
+					api._lastThreadID = String(tid);
+					const mid = event.messageID || event.messageId;
+					if (mid) {
+						api._recentMessageThreads.set(String(mid), String(tid));
+						if (api._recentMessageThreads.size > 1000) {
+							const firstKey = api._recentMessageThreads.keys().next().value;
+							api._recentMessageThreads.delete(firstKey);
+						}
+					}
+				}
+			}
+			cb(err, event);
+		});
 		stream.start();
 		return function stop() { stream.stop(); };
 	};

@@ -26,14 +26,17 @@ module.exports = {
 
   onStart: async function ({ message, args, event, api, usersData, setReplyHandler }) {
     const threadID = event.threadId || event.threadID;
-    const query = args.join(" ").trim();
+    const reply = event.messageReply || event.repliedMessage;
+    const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 
     if (!query) {
       return message.reply("🎥 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗩𝗶𝗱𝗲𝗼 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n📌 Usage: {p}video <title>\nExample: {p}video Alan Walker Faded");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     const userEntry = (usersData && typeof usersData.get === "function") ? (usersData.get(event.senderID) || {}) : {};
@@ -56,7 +59,11 @@ module.exports = {
       }));
 
       if (searchResults.length === 0) {
-        if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("❌", event.messageID, () => {}, true);
+        if (message && typeof message.react === "function") {
+          message.react("❌");
+        } else if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+        }
         return message.reply("❌ No videos found. Please try another query.");
       }
 
@@ -70,7 +77,11 @@ module.exports = {
         return deliverVideo(message, api, event, searchResults[0]);
       }
 
-      if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
+      }
 
       let msg = `🎥 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗩𝗶𝗱𝗲𝗼 𝗦𝗲𝗮𝗿𝗰𝗵:\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
       searchResults.forEach((v, i) => {
@@ -100,7 +111,11 @@ module.exports = {
 
       return sent;
     } catch (e) {
-      if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+      }
       return message.reply(`❌ Search error: ${e.message}`);
     }
   },
@@ -119,8 +134,10 @@ module.exports = {
 };
 
 async function deliverVideo(message, api, event, selected) {
-  if (api && typeof api.setMessageReaction === "function") {
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
+  if (message && typeof message.react === "function") {
+    message.react("⏳");
+  } else if (api && typeof api.setMessageReaction === "function") {
+    api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
   }
 
   const tempDir = path.join(process.cwd(), "temp");
@@ -141,9 +158,13 @@ async function deliverVideo(message, api, event, selected) {
 
       const stats = await fs.stat(tempPath);
       if (stats.size > 10000) {
-        if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("✅", event.messageID, () => {}, true);
+        if (message && typeof message.react === "function") {
+          message.react("✅");
+        } else if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
+        }
         const caption = `🎥 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗩𝗶𝗱𝗲𝗼: ${selected.title}\n⏱️ [${selected.duration}]`;
-        const sent = await message.reply({ body: caption, attachment: tempPath, textFirst: true });
+        const sent = await message.reply({ body: caption, attachment: { path: tempPath, type: "video" }, textFirst: true });
         setTimeout(() => fs.unlink(tempPath).catch(() => {}), 30000);
         return sent;
       }
@@ -161,16 +182,24 @@ async function deliverVideo(message, api, event, selected) {
         timeout: 15000
       });
       if (cobRes.data?.url) {
-        if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("✅", event.messageID, () => {}, true);
+        if (message && typeof message.react === "function") {
+          message.react("✅");
+        } else if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
+        }
         const caption = `🎥 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗩𝗶𝗱𝗲𝗼: ${selected.title}`;
-        return message.reply({ body: caption, attachment: cobRes.data.url, textFirst: true });
+        return message.reply({ body: caption, attachment: { url: cobRes.data.url, type: "video" }, textFirst: true });
       }
     } catch (_) {}
 
     throw new Error("Could not download video stream");
   } catch (err) {
     if (tempPath) fs.unlink(tempPath).catch(() => {});
-    if (api && typeof api.setMessageReaction === "function") api.setMessageReaction("❌", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("❌");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+    }
     return message.reply(`❌ Download error: ${err.message}`);
   }
 }

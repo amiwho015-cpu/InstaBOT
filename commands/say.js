@@ -20,25 +20,40 @@ module.exports = {
   },
 
   onStart: async function ({ api, args, message, event }) {
-    if (!args[0]) return message.reply("⚠️ Please enter text to speak.\nExample: {p}say Hello world\nOr: {p}say goku I am strong!");
+    let replyText = (event.messageReply && (event.messageReply.body || event.messageReply.text)) ||
+                    (event.repliedMessage && (event.repliedMessage.body || event.repliedMessage.text)) || "";
 
-    let voiceOrText = args[0].toLowerCase();
-    let text = args.slice(1).join(" ");
+    let text = "";
+    let voiceOrText = "";
     let langMode = false;
 
-    // Support for legacy "text | lang" format
-    if (args.join(" ").includes("|")) {
+    if (args.length === 0) {
+      if (replyText) {
+        text = replyText;
+        voiceOrText = "random";
+      } else {
+        return message.reply("🎙️ 𝗩𝗼𝗶𝗰𝗲 𝗦𝗽𝗲𝗲𝗰𝗵 (𝗧𝗧𝗦)\n\n📌 Usage:\n• {p}say <text>\n• {p}say <character> <text>\n• Reply to any message with {p}say [character]\n\nCharacters: goku, naruto, luffy, trump, biden, obama, anime");
+      }
+    } else if (args.join(" ").includes("|")) {
       const splitArgs = args.join(" ").split("|").map(arg => arg.trim());
       text = splitArgs[0];
       voiceOrText = splitArgs[1] || "en";
       langMode = true;
-    } else if (!text) {
-      text = voiceOrText;
-      voiceOrText = "random";
+    } else {
+      voiceOrText = args[0].toLowerCase();
+      text = args.slice(1).join(" ").trim();
+      if (!text && replyText) {
+        text = replyText;
+      } else if (!text) {
+        text = voiceOrText;
+        voiceOrText = "random";
+      }
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     const tempDir = path.join(process.cwd(), "temp");
@@ -82,13 +97,15 @@ module.exports = {
         await fs.writeFile(tempPath, Buffer.from(res.data));
       }
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({
         body: `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"`,
-        attachment: tempPath,
+        attachment: { path: tempPath, type: "audio" },
         textFirst: true
       });
 
@@ -96,8 +113,10 @@ module.exports = {
       return sent;
     } catch (err) {
       await fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Error: ${err.message || "Failed to generate voice."}`);
     }

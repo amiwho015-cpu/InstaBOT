@@ -116,6 +116,9 @@ function createMessageContext({ api, event, log }) {
 	const context = {
 		threadID,
 		event,
+		messageReply: event.messageReply || event.repliedMessage || null,
+		replyTo: event.messageReply || event.repliedMessage || event.replyTo || null,
+		repliedMessage: event.repliedMessage || event.messageReply || null,
 
 		/** Send to the thread. Accepts an optional node-style callback. */
 		send(form, callback) {

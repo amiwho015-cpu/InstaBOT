@@ -63,7 +63,8 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, args, event, config, usersData, setReplyHandler }) {
-		const query = args.join(" ").trim();
+		const reply = event.messageReply || event.repliedMessage;
+		const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 		if (!query)
 			return message.reply(`Usage: music <song name>\nExample: music blinding lights`);
 

@@ -22,10 +22,18 @@ const ValidationUtils = require('../utils/validation');
  */
 function _assertMediaSize(filePath, kind) {
   let size;
-  try {
-    size = fs.statSync(filePath).size;
-  } catch (err) {
-    throw new Error(`Cannot stat media file ${filePath}: ${err.message}`);
+  if (Buffer.isBuffer(filePath)) {
+    size = filePath.length;
+  } else if (filePath && typeof filePath === 'object' && filePath.buffer && Buffer.isBuffer(filePath.buffer)) {
+    size = filePath.buffer.length;
+  } else if (typeof filePath === 'string') {
+    try {
+      size = fs.statSync(filePath).size;
+    } catch (err) {
+      throw new Error(`Cannot stat media file ${filePath}: ${err.message}`);
+    }
+  } else {
+    size = 0;
   }
   const check = ValidationUtils.validateMediaFileSize(size, kind);
   if (!check.valid) throw new Error(check.error);
@@ -179,8 +187,12 @@ class SendMedia {
     try {
       const uploadId = Date.now().toString();
       _assertMediaSize(imagePath, 'image');
-      const imageBuffer = fs.readFileSync(imagePath);
-      const mimeType = this._getMimeType(imagePath, 'image/jpeg');
+      const imageBuffer = Buffer.isBuffer(imagePath)
+        ? imagePath
+        : (imagePath && imagePath.buffer && Buffer.isBuffer(imagePath.buffer) ? imagePath.buffer : fs.readFileSync(imagePath));
+      const mimeType = (typeof imagePath === 'string')
+        ? this._getMimeType(imagePath, 'image/jpeg')
+        : (options.mimeType || options.mimetype || 'image/jpeg');
 
       const uploadResponse = await this.uploadPhotoBuffer(imageBuffer, uploadId, mimeType);
 
@@ -193,8 +205,15 @@ class SendMedia {
         view_mode: options.viewMode || options.view_mode || 'permanent'
       });
 
-      if (options.text) {
-        messageData.text = options.text;
+      const captionText = options.text || options.caption;
+      if (captionText) {
+        messageData.text = captionText;
+      }
+      const replyTarget = options.replyToMessageID || options.replyTo;
+      if (replyTarget) {
+        messageData.replied_to_target_id = replyTarget.toString();
+        messageData.replied_to_action_source = 'swipe_reply';
+        messageData.reply_to_item_id = replyTarget.toString();
       }
       messageData.upload_id = uploadId;
       messageData.view_mode = options.viewMode || options.view_mode || 'permanent';
@@ -240,14 +259,16 @@ class SendMedia {
 
   // Get real audio duration in ms via ffprobe; falls back to WAV header parse or 1000ms
   _getAudioDurationMs(filePath, buffer) {
-    try {
-      const out = execFileSync('ffprobe', [
-        '-v', 'error', '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1', filePath
-      ], { timeout: 10000 }).toString().trim();
-      const secs = parseFloat(out);
-      if (!isNaN(secs) && secs > 0) return Math.round(secs * 1000);
-    } catch (_) {}
+    if (typeof filePath === 'string' && fs.existsSync(filePath)) {
+      try {
+        const out = execFileSync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=noprint_wrappers=1:nokey=1', filePath
+        ], { timeout: 10000 }).toString().trim();
+        const secs = parseFloat(out);
+        if (!isNaN(secs) && secs > 0) return Math.round(secs * 1000);
+      } catch (_) {}
+    }
     return this._getMediaDurationMs(filePath, buffer);
   }
 
@@ -261,8 +282,15 @@ class SendMedia {
     try {
       const uploadId = Date.now().toString();
       _assertMediaSize(audioPath, 'audio');
-      const audioBuffer = fs.readFileSync(audioPath);
-      const durationMs = this._getAudioDurationMs(audioPath, audioBuffer);
+      const audioBuffer = Buffer.isBuffer(audioPath)
+        ? audioPath
+        : (audioPath && audioPath.buffer && Buffer.isBuffer(audioPath.buffer) ? audioPath.buffer : fs.readFileSync(audioPath));
+      let durationMs = 1000;
+      if (typeof audioPath === 'string') {
+        durationMs = this._getAudioDurationMs(audioPath, audioBuffer);
+      } else {
+        durationMs = this._getMediaDurationMs(audioPath, audioBuffer);
+      }
 
       // Step 1: upload to rupload_igdirect
       const uploadResponse = await this.uploadAudioBuffer(audioBuffer, uploadId, durationMs);
@@ -279,8 +307,16 @@ class SendMedia {
       const { form: messageData, clientContext } = this.buildBroadcastForm(threadID, {
         upload_id: uploadId,
         waveform: JSON.stringify(waveform),
-        waveform_sampling_frequency_hz: options.waveformFrequency || 10
+        waveform_sampling_frequency_hz: options.waveformFrequency || 10,
+        view_mode: options.viewMode || options.view_mode || 'permanent'
       });
+
+      const replyTarget = options.replyToMessageID || options.replyTo;
+      if (replyTarget) {
+        messageData.replied_to_target_id = replyTarget.toString();
+        messageData.replied_to_action_source = 'swipe_reply';
+        messageData.reply_to_item_id = replyTarget.toString();
+      }
 
       const voiceUrls = [
         'https://i.instagram.com/api/v1/direct_v2/threads/broadcast/voice_media/',
@@ -323,8 +359,12 @@ class SendMedia {
     try {
       const uploadId = Date.now().toString();
       _assertMediaSize(videoPath, 'video');
-      const videoBuffer = fs.readFileSync(videoPath);
-      const mimeType = this._getMimeType(videoPath, 'video/mp4');
+      const videoBuffer = Buffer.isBuffer(videoPath)
+        ? videoPath
+        : (videoPath && videoPath.buffer && Buffer.isBuffer(videoPath.buffer) ? videoPath.buffer : fs.readFileSync(videoPath));
+      const mimeType = (typeof videoPath === 'string')
+        ? this._getMimeType(videoPath, 'video/mp4')
+        : (options.mimeType || options.mimetype || 'video/mp4');
       const durationMs = this._getMediaDurationMs(videoPath, videoBuffer);
 
       const uploadResponse = await this.uploadVideoBuffer(videoBuffer, uploadId, mimeType, {
@@ -355,8 +395,16 @@ class SendMedia {
         sampled: typeof options.sampled !== 'undefined' ? options.sampled : true,
         view_mode: options.viewMode || options.view_mode || 'permanent'
       });
-      if (options.text) {
-        messageData.text = options.text;
+
+      const captionText = options.text || options.caption;
+      if (captionText) {
+        messageData.text = captionText;
+      }
+      const replyTarget = options.replyToMessageID || options.replyTo;
+      if (replyTarget) {
+        messageData.replied_to_target_id = replyTarget.toString();
+        messageData.replied_to_action_source = 'swipe_reply';
+        messageData.reply_to_item_id = replyTarget.toString();
       }
       messageData.view_mode = options.viewMode || options.view_mode || 'permanent';
 
@@ -673,6 +721,7 @@ class SendMedia {
   }
 
   _getMimeType(filePath, defaultType = 'application/octet-stream') {
+    if (!filePath || typeof filePath !== 'string') return defaultType;
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
       '.jpg': 'image/jpeg',
@@ -690,15 +739,16 @@ class SendMedia {
   }
 
   _getMediaDurationMs(filePath, buffer) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.wav' && buffer.length >= 44) {
-      const byteRate = buffer.readUInt32LE(28);
-      const dataSize = buffer.readUInt32LE(40);
-      if (byteRate > 0) {
-        return Math.max(1000, Math.round((dataSize / byteRate) * 1000));
+    if (typeof filePath === 'string') {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === '.wav' && buffer && buffer.length >= 44) {
+        const byteRate = buffer.readUInt32LE(28);
+        const dataSize = buffer.readUInt32LE(40);
+        if (byteRate > 0) {
+          return Math.max(1000, Math.round((dataSize / byteRate) * 1000));
+        }
       }
     }
-
     // Conservative fallback when we cannot inspect container metadata locally.
     return 1000;
   }

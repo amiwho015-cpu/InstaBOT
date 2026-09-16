@@ -109,8 +109,9 @@ module.exports = {
 		usage: { en: "{p}anisearch <anime or character>" }
 	},
 
-	onStart: async function ({ args, message }) {
-		const query = args.join(" ").trim();
+	onStart: async function ({ args, message, event }) {
+		const reply = event && (event.messageReply || event.repliedMessage);
+		const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 		if (!query)
 			return message.reply("Usage: anisearch <anime or character>\nExample: anisearch naruto");
 
@@ -135,7 +136,7 @@ module.exports = {
 				lastUrl = video.url;
 				const buffer = await fetchVideoBuffer(video.url);
 				await message.reply(String(video.title || "Here is your video.").slice(0, 200));
-				await message.reply({ attachment: { buffer, fileName: "anisearch.mp4" } });
+				await message.reply({ attachment: { buffer, fileName: "anisearch.mp4", type: "video" } });
 				await react(message, REACT_SUCCESS);
 				return;
 			}

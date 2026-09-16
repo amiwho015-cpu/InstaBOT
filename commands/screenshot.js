@@ -20,6 +20,14 @@ module.exports = {
   onStart: async function ({ message, args, event, api }) {
     let url = args[0];
     if (!url) {
+      const reply = event.messageReply || event.repliedMessage || event.replyTo;
+      if (reply?.body) {
+        const match = reply.body.match(/https?:\/\/[^\s]+/i);
+        if (match) url = match[0];
+      }
+    }
+
+    if (!url) {
       return message.reply("📸 𝗪𝗲𝗯 𝗦𝗰𝗿𝗲𝗲𝗻𝘀𝗵𝗼𝘁\n\n📌 Usage: {p}ss <website_url>\n💡 Example: {p}ss https://google.com");
     }
 
@@ -27,8 +35,10 @@ module.exports = {
       url = "https://" + url;
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("📸", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("📸");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("📸", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
@@ -41,8 +51,10 @@ module.exports = {
       tempPath = path.join(tempDir, `ss_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
       await fs.writeFile(tempPath, Buffer.from(res.data));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({
@@ -57,8 +69,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Could not capture screenshot: ${err.message}`);
     }

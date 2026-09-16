@@ -37,8 +37,8 @@ function defineCommand(command) {
       };
       const output = event.output || {
         reply: (text) => message.reply(text),
-        send: (text) => message.send(text),
-        react: (emoji) => message.reaction(emoji)
+        send: (text) => message.reply ? message.reply(text) : message.send(text),
+        react: (emoji) => message.reaction ? message.reaction(emoji) : (message.react ? message.react(emoji) : null)
       };
 
       return command.entry({

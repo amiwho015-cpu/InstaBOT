@@ -50,7 +50,7 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 		event,
 
 		send(form, callback) {
-			return wrap(api.sendMessage(form, threadID), callback);
+			return wrap(api.sendMessage(form, threadID, undefined, eventMessageID), callback);
 		},
 
 		reply(form, callback) {

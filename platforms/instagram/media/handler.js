@@ -134,10 +134,10 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 			try {
 				return await api.replyToMessage(threadID, bodyText, replyToMessageID);
 			} catch (_) {
-				return await api.sendMessage(bodyText, threadID);
+				return await api.sendMessage(bodyText, threadID, undefined, replyToMessageID);
 			}
 		}
-		return await api.sendMessage(bodyText, threadID);
+		return await api.sendMessage(bodyText, threadID, undefined, replyToMessageID);
 	}
 
 	const tempFiles = [];
@@ -156,7 +156,7 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 				if (replyToMessageID && typeof api.replyToMessage === "function") {
 					await api.replyToMessage(threadID, bodyText, replyToMessageID);
 				} else {
-					await api.sendMessage(bodyText, threadID);
+					await api.sendMessage(bodyText, threadID, undefined, replyToMessageID);
 				}
 			} catch (err) {
 				logger.warn("Failed to send text preamble before media", { error: err.message });
@@ -174,23 +174,23 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 			let res;
 			if (kind === "video") {
 				if (typeof api.sendVideo === "function") {
-					res = await api.sendVideo(threadID, filePath, { caption, replyToMessageID: replyTarget });
+					res = await api.sendVideo(threadID, filePath, { caption, replyToMessageID: replyTarget }, undefined, replyTarget);
 				} else if (typeof api.sendPhoto === "function") {
 					res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
 				}
 			} else if (kind === "audio") {
 				if (typeof api.sendVoice === "function") {
-					res = await api.sendVoice(threadID, filePath);
+					res = await api.sendVoice(threadID, filePath, { replyToMessageID: replyTarget });
 				} else if (typeof api.sendAudio === "function") {
-					res = await api.sendAudio(filePath, threadID);
+					res = await api.sendAudio(filePath, threadID, undefined, replyTarget);
 				}
 			} else {
 				if (typeof api.sendPhoto === "function") {
 					res = await api.sendPhoto(threadID, filePath, { caption, replyToMessageID: replyTarget });
 				} else if (typeof api.sendImage === "function") {
-					res = await api.sendImage(filePath, threadID, caption);
+					res = await api.sendImage(filePath, threadID, caption, undefined, replyTarget);
 				} else {
-					res = await api.sendMessage({ body: caption, attachment: filePath }, threadID);
+					res = await api.sendMessage({ body: caption, attachment: filePath, replyTo: replyTarget }, threadID, undefined, replyTarget);
 				}
 			}
 

@@ -64,6 +64,8 @@ function extensionOf(source) {
 function mediaKind(source) {
 	if (source == null) return "image";
 	if (typeof source === "object") {
+		const type = source.type || source.kind || "";
+		if (type === "video" || type === "audio" || type === "image") return type;
 		const mime = source.mimetype || source.mimeType || "";
 		if (/^video\//i.test(mime)) return "video";
 		if (/^audio\//i.test(mime)) return "audio";
@@ -73,6 +75,13 @@ function mediaKind(source) {
 	if (VIDEO_EXT.includes(ext)) return "video";
 	if (AUDIO_EXT.includes(ext)) return "audio";
 	if (IMAGE_EXT.includes(ext)) return "image";
+
+	const str = typeof source === "string" ? source : (source && (source.url || source.path || source.fileName || source.name) ? String(source.url || source.path || source.fileName || source.name) : "");
+	if (str) {
+		if (/\.(mp4|m4v|mov|webm|mkv|avi|flv)(\?|#|$)/i.test(str) || /video[_\-\/]|mime_type=video/i.test(str) || /googlevideo\.com|tiktokcdn.*video/i.test(str)) return "video";
+		if (/\.(mp3|m4a|wav|ogg|aac|flac|opus)(\?|#|$)/i.test(str) || /audio[_\-\/]|mime_type=audio|voice_media/i.test(str)) return "audio";
+	}
+
 	return "image";
 }
 
@@ -306,8 +315,11 @@ function isRateLimitError(error) {
  * say "try again" rather than "not found").
  */
 async function resolveUserTarget(args, event, api) {
-	if (event && event.messageReply && event.messageReply.senderID)
-		return { id: String(event.messageReply.senderID), source: "reply" };
+	const replySenderID = (event && event.messageReply && event.messageReply.senderID) ||
+	                      (event && event.repliedMessage && event.repliedMessage.senderID) ||
+	                      (event && event.replyTo && event.replyTo.senderID);
+	if (replySenderID)
+		return { id: String(replySenderID), source: "reply" };
 
 	const numeric = (args || []).find(arg => /^\d+$/.test(arg));
 	if (numeric) return { id: String(numeric), source: "id" };
@@ -464,6 +476,146 @@ async function resolveProfile(args, event, api) {
 	return result;
 }
 
+function findImageInMessage(msg) {
+	if (!msg || typeof msg !== "object") return null;
+
+	// 1. Array of attachments
+	const attachs = Array.isArray(msg.attachments) ? msg.attachments : (msg.attachment ? [msg.attachment] : []);
+	for (const a of attachs) {
+		if (!a) continue;
+		if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
+		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo;
+		if (u && typeof u === "string") return u;
+		if (u && typeof u === "object" && u.url) return u.url;
+	}
+
+	// 2. Direct image or media fields
+	const m = msg.media || msg.visual_media?.media || msg.raven_media?.media || msg.clip?.clip || msg.media_share;
+	if (m) {
+		const u = m.image_versions2?.candidates?.[0]?.url || m.video_versions?.[0]?.url || m.url;
+		if (u && typeof u === "string") return u;
+	}
+	if (msg.image_versions2?.candidates?.[0]?.url) return msg.image_versions2.candidates[0].url;
+	if (msg.image) return typeof msg.image === "string" ? msg.image : (msg.image.url || null);
+	if (msg.photo) return typeof msg.photo === "string" ? msg.photo : (msg.photo.url || null);
+	if (msg.url && (/\.(jpe?g|png|webp|gif|bmp)/i.test(msg.url) || /cdninstagram|fbcdn/i.test(msg.url))) return msg.url;
+
+	// 3. Link inside text/body
+	const text = msg.body || msg.text;
+	if (text) {
+		const match = String(text).match(/https?:\/\/[^\s]+/i);
+		if (match && (/\.(jpe?g|png|webp|gif|bmp)/i.test(match[0]) || /cdninstagram|fbcdn/i.test(match[0]))) return match[0];
+	}
+
+	return null;
+}
+
+async function extractImageUrl(event, args = [], apiOrOptions = null) {
+	if (!event) return null;
+
+	const api = (apiOrOptions && (apiOrOptions.getUserInfo || apiOrOptions.getThreadHistory) ? apiOrOptions : null) || (apiOrOptions && apiOrOptions.api) || null;
+
+	// 1. Replied message object
+	const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.replyTo || event.replied_to_message;
+	if (reply && typeof reply === "object") {
+		const u = findImageInMessage(reply);
+		if (u) return u;
+	}
+
+	// 2. Current message attachments
+	const currUrl = findImageInMessage(event);
+	if (currUrl) return currUrl;
+
+	// 3. Direct URL in args
+	if (Array.isArray(args) && args.length > 0) {
+		for (const a of args) {
+			if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
+		}
+	}
+
+	// 4. Direct URL in message body
+	if (event.body || event.text) {
+		const m = String(event.body || event.text).match(/https?:\/\/[^\s]+/i);
+		if (m && (/\.(jpe?g|png|webp|gif|bmp)/i.test(m[0]) || /cdninstagram|fbcdn/i.test(m[0]))) return m[0];
+	}
+
+	// 5. If we have api and threadID, check thread history (Floppa intelligence)
+	const threadID = event.threadID || event.threadId;
+	if (api && threadID && typeof api.getThreadHistory === "function") {
+		try {
+			const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
+			                (typeof event.replyTo === "string" ? event.replyTo : null);
+
+			const history = await new Promise((resolve) => {
+				const handler = (err, res) => {
+					if (err) return resolve(null);
+					const msgs = (res && res.messages) || (res && res.items) || (res && res.thread && res.thread.items) || (Array.isArray(res) ? res : null);
+					resolve(msgs);
+				};
+				const ret = api.getThreadHistory(threadID, 15, undefined, handler);
+				if (ret && typeof ret.then === "function") {
+					ret.then(res => handler(null, res)).catch(err => handler(err));
+				}
+			});
+
+			if (Array.isArray(history) && history.length > 0) {
+				if (replyID) {
+					const target = history.find(m => String(m.messageID || m.item_id || m.id) === String(replyID));
+					if (target) {
+						const u = findImageInMessage(target);
+						if (u) return u;
+					}
+				}
+				for (const m of history) {
+					if (String(m.messageID || m.item_id) === String(event.messageID)) continue;
+					const u = findImageInMessage(m);
+					if (u) return u;
+				}
+			}
+		} catch (_) {}
+	}
+
+	return null;
+}
+
+function extractMediaUrl(event, args = [], kind = "any") {
+	if (!event) return null;
+	const reply = event.messageReply || event.repliedMessage || event.replyToMessage;
+	if (reply) {
+		const attachs = Array.isArray(reply.attachments) ? reply.attachments : (reply.attachment ? [reply.attachment] : []);
+		for (const a of attachs) {
+			if (!a) continue;
+			if (kind === "any" || a.type === kind) {
+				const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl;
+				if (u) return u;
+			}
+		}
+		if (reply.url) return reply.url;
+		if (reply.body || reply.text) {
+			const m = String(reply.body || reply.text).match(/https?:\/\/[^\s]+/i);
+			if (m) return m[0];
+		}
+	}
+	const attachs = Array.isArray(event.attachments) ? event.attachments : (event.attachment ? [event.attachment] : []);
+	for (const a of attachs) {
+		if (!a) continue;
+		if (kind === "any" || a.type === kind) {
+			const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl;
+			if (u) return u;
+		}
+	}
+	if (Array.isArray(args)) {
+		for (const a of args) {
+			if (typeof a === "string" && /^https?:\/\/[^\s]+/i.test(a)) return a;
+		}
+	}
+	if (event.body || event.text) {
+		const m = String(event.body || event.text).match(/https?:\/\/[^\s]+/i);
+		if (m) return m[0];
+	}
+	return null;
+}
+
 module.exports = {
 	getType,
 	isStream,
@@ -484,6 +636,8 @@ module.exports = {
 	resolveUserTarget,
 	resolveProfile,
 	isRateLimitError,
+	extractImageUrl,
+	extractMediaUrl,
 	_resetUsernameCache() {
 		usernameCache = {};
 		try { fs.rmSync(USERNAME_CACHE_FILE, { force: true }); }

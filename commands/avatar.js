@@ -17,11 +17,8 @@ module.exports = {
 
 	onStart: async function ({ message, args, event, config, api }) {
 		const lang = config.language;
-		let source = args[0];
-
-		const fromReply = pickImage(event.messageReply && event.messageReply.attachments);
-		const fromSelf = pickImage(event.attachments);
-		if (!source) source = fromReply || fromSelf;
+		const { extractImageUrl } = require("../src/utils");
+		let source = (await extractImageUrl(event, args, api)) || pickImage(event.messageReply && event.messageReply.attachments) || pickImage(event.attachments) || args[0];
 
 		if (!source || !/^https?:\/\//i.test(source))
 			return message.reply("Provide an image URL, or reply to an image with -avatar.");

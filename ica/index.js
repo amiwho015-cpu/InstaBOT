@@ -40,7 +40,16 @@ function buildApi(client) {
     once:          (...a)   => client.once(...a),
 
     // Messaging
-    sendMessage:       (message, threadID, cb)                    => client.sendMessage.toThread(threadID, message, cb),
+    sendMessage:       (message, threadID, cb, reply) => {
+      if (typeof cb === 'string' && !reply) {
+        reply = cb;
+        cb = undefined;
+      }
+      if (reply) {
+        return client.sendMessage.reply(threadID, message, reply, cb);
+      }
+      return client.sendMessage.toThread(threadID, message, cb);
+    },
     sendDirectMessage: (userID, message, cb)                      => client.sendDirectMessage(userID, message, cb),
     replyToMessage:    (threadID, message, replyToMessageID, cb)  => client.replyToMessage(threadID, message, replyToMessageID, cb),
     unsendMessage:     (messageID, cb)                            => client.unsendMessage(messageID, cb),
@@ -69,8 +78,13 @@ function buildApi(client) {
         cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
       } else {
         source = a; threadID = b;
-        cb = typeof c === "function" ? c : undefined;
-        opts = { replyToMessageID: d };
+        if (typeof c === "string") {
+          opts = { caption: c, replyToMessageID: d };
+          cb = typeof d === "function" ? d : undefined;
+        } else {
+          cb = typeof c === "function" ? c : undefined;
+          opts = typeof d === "object" ? d : { replyToMessageID: d };
+        }
       }
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendVideoFromUrl(threadID, source, opts, cb);
@@ -85,7 +99,7 @@ function buildApi(client) {
       } else {
         source = a; threadID = b;
         cb = typeof c === "function" ? c : undefined;
-        opts = { replyToMessageID: d };
+        opts = typeof d === "object" ? d : { replyToMessageID: d };
       }
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendVoiceFromUrl(threadID, source, opts, cb);

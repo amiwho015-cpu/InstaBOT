@@ -90,17 +90,25 @@ class FormatUtils {
       
       case 'media':
       case 'photo':
+      case 'raven_media':
+      case 'visual_media':
+      case 'media_share': {
+        const m = item.visual_media?.media || item.raven_media?.media || item.media || item;
+        const candidate = m.image_versions2?.candidates?.[0];
+        const isVideo = m.media_type === 2 || Boolean(m.video_versions);
+        const url = candidate?.url || m.video_versions?.[0]?.url || m.url;
         return {
           ...base,
-          body: '',
-          attachments: [{
-            type: 'photo',
-            url: item.media?.image_versions2?.candidates?.[0]?.url,
-            width: item.media?.image_versions2?.candidates?.[0]?.width,
-            height: item.media?.image_versions2?.candidates?.[0]?.height,
-            mediaId: item.media?.id
-          }]
+          body: item.text || m.caption?.text || '',
+          attachments: url ? [{
+            type: isVideo ? 'video' : 'photo',
+            url,
+            width: candidate?.width,
+            height: candidate?.height,
+            mediaId: m.id
+          }] : []
         };
+      }
       
       case 'voice_media':
         return {

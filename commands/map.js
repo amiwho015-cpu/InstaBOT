@@ -23,8 +23,10 @@ module.exports = {
       return message.reply("🗺️ 𝗠𝗮𝗽 & 𝗚𝗣𝗦 𝗩𝗶𝗲𝘄𝗲𝗿\n\n📌 Usage: {p}map <location name>\n💡 Example: {p}map Tokyo, Japan");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("🗺️", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("🗺️").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🗺️", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
@@ -53,8 +55,10 @@ module.exports = {
       tempPath = path.join(tempDir, `map_${Date.now()}.jpg`);
       await fs.writeFile(tempPath, Buffer.from(imgRes.data));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const caption = `🗺️ 𝗠𝗮𝗽 𝗟𝗼𝗰𝗮𝘁𝗶𝗼𝗻:\n📍 ${displayName.slice(0, 100)}\n🌐 Coordinates: [${lat.toFixed(4)}, ${lon.toFixed(4)}]`;
@@ -70,8 +74,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Map error: ${err.message}`);
     }

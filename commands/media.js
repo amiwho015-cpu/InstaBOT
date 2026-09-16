@@ -20,7 +20,7 @@ function extractUrl(event, args) {
     }
   }
 
-  const reply = event.messageReply;
+  const reply = event.messageReply || event.repliedMessage || event.replyTo;
   if (reply?.body) {
     const match = reply.body.match(/https?:\/\/[^\s]+/i);
     if (match) return match[0];
@@ -121,7 +121,12 @@ module.exports = {
     const isAudio = args.some(a => ["--audio", "-a", "audio", "mp3", "sound"].includes(String(a).toLowerCase()));
     const isInfoOnly = args.some(a => ["--info", "-i", "info"].includes(String(a).toLowerCase()));
 
-    const targetUrl = extractUrl(event, args);
+    let targetUrl = extractUrl(event, args);
+    if (!targetUrl && global.utils?.extractMediaUrl) {
+      try {
+        targetUrl = await global.utils.extractMediaUrl(event, args, api);
+      } catch (_) {}
+    }
 
     if (!targetUrl) {
       return message.reply(
@@ -134,16 +139,20 @@ module.exports = {
       );
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     try {
       const { downloadUrl, title, author } = await resolveMediaUrl(targetUrl, isAudio);
 
       if (isInfoOnly) {
-        if (api && typeof api.setMessageReaction === "function") {
-          api.setMessageReaction("ℹ️", event.messageID, () => {}, true);
+        if (message && typeof message.react === "function") {
+          message.react("ℹ️");
+        } else if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("ℹ️", event.messageID, event.threadID, () => {}, true);
         }
         return message.reply(
           `ℹ️ 𝗠𝗲𝗱𝗶𝗮 𝗜𝗻𝗳𝗼𝗿𝗺𝗮𝘁𝗶𝗼𝗻\n\n` +
@@ -156,18 +165,27 @@ module.exports = {
 
       const caption = `🎬 𝗠𝗲𝗱𝗶𝗮: ${title}${author ? ` (by ${author})` : ""}\n[${isAudio ? "AUDIO" : "VIDEO"}]`;
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
+
+      const attachment = {
+        url: downloadUrl,
+        type: isAudio ? "audio" : "video"
+      };
 
       return await message.reply({
         body: caption,
-        attachment: downloadUrl,
+        attachment,
         textFirst: true
       });
     } catch (err) {
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Failed to retrieve media: ${err.message || err}`);
     }

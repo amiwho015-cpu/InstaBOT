@@ -4,6 +4,7 @@ const { createCanvas, loadImage } = require("canvas");
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
+const { extractImageUrl } = require("../src/utils");
 
 module.exports = {
   config: {
@@ -19,14 +20,13 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, event, api }) {
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("🎭", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("🎭").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🎭", event.messageID, event.threadID, () => {}, true);
     }
 
-    let imageUrl = null;
-    if (event.messageReply?.attachments?.length > 0) {
-      imageUrl = event.messageReply.attachments[0].url || event.messageReply.attachments[0].image;
-    }
+    let imageUrl = await extractImageUrl(event, args, api);
 
     let tempPath = null;
     try {
@@ -42,8 +42,10 @@ module.exports = {
         tempPath = path.join(tempDir, `meme_${Date.now()}.jpg`);
         await fs.writeFile(tempPath, Buffer.from(imgRes.data));
 
-        if (api && typeof api.setMessageReaction === "function") {
-          api.setMessageReaction("✅", event.messageID, () => {}, true);
+        if (message && typeof message.react === "function") {
+          message.react("✅").catch(() => {});
+        } else if (api && typeof api.setMessageReaction === "function") {
+          api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
         }
 
         const sent = await message.reply({
@@ -90,8 +92,10 @@ module.exports = {
       tempPath = path.join(tempDir, `meme_${Date.now()}.jpg`);
       await fs.writeFile(tempPath, canvas.toBuffer("image/jpeg", { quality: 0.9 }));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({
@@ -104,8 +108,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Meme error: ${err.message}`);
     }

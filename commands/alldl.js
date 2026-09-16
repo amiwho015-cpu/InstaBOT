@@ -10,6 +10,8 @@ const ytdl = require("@distube/ytdl-core");
 const fs = require("fs-extra");
 const path = require("path");
 
+const { extractMediaUrl } = require("../src/utils");
+
 module.exports = {
   config: {
     name: "alldl",
@@ -33,12 +35,16 @@ module.exports = {
     let url = args.find(a => /^https?:\/\//i.test(a));
     let isAudio = args.includes("--audio") || args.includes("--a") || args.includes("-a");
 
-    if (event.messageReply && (event.messageReply.body || event.messageReply.text)) {
-      const text = event.messageReply.body || event.messageReply.text;
+    const reply = event.messageReply || event.repliedMessage;
+    if (!url && reply && (reply.body || reply.text)) {
+      const text = reply.body || reply.text;
       const urlMatch = text.match(/https?:\/\/[^\s]+/i);
       if (urlMatch) {
         url = urlMatch[0];
       }
+    }
+    if (!url) {
+      url = extractMediaUrl(event, args);
     }
 
     if (!url) {
@@ -46,8 +52,10 @@ module.exports = {
       return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempFilePath = null;
@@ -161,11 +169,15 @@ module.exports = {
       }
 
       const caption = `✅ 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗱 [${isAudio ? "AUDIO" : "VIDEO"}]\n📝 ${title.slice(0, 100)}`;
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
-      const attachment = tempFilePath || downloadUrl;
+      const attachment = tempFilePath
+        ? { path: tempFilePath, type: isAudio ? "audio" : "video" }
+        : { url: downloadUrl, type: isAudio ? "audio" : "video" };
       const sent = await message.reply({
         body: caption,
         attachment,
@@ -179,8 +191,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempFilePath) fs.unlink(tempFilePath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       const errMsg = `❌ Download failed: ${err.message}. Please check if the link is public and valid.`;
       return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);

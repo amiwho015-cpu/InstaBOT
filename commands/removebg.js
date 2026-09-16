@@ -3,13 +3,13 @@
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
-const { resolveUserTarget, resolveProfile } = require("../src/utils");
+const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
 
 module.exports = {
   config: {
     name: "removebg",
     aliases: ["nobg", "rmbg"],
-    version: "2.0.0",
+    version: "2.5.0",
     author: "frnAlt & Floppa Team",
     cooldown: 8,
     role: 0,
@@ -19,42 +19,46 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, event, api }) {
-    let imageUrl = null;
+    let imageUrl = await extractImageUrl(event, args, api);
 
-    if (args.includes("-pfp") || args.includes("--pfp")) {
+    if (!imageUrl && (args.includes("-pfp") || args.includes("--pfp"))) {
       const p = await resolveProfile([event.senderID], event, api);
       imageUrl = p?.profilePicture;
-    }
-
-    if (!imageUrl && event.messageReply?.attachments?.length > 0) {
-      const a = event.messageReply.attachments[0];
-      imageUrl = a.url || a.image;
-    }
-
-    if (!imageUrl && event.attachments?.length > 0) {
-      imageUrl = event.attachments[0].url || event.attachments[0].image;
-    }
-
-    if (!imageUrl && args[0] && /^https?:\/\//i.test(args[0])) {
-      imageUrl = args[0];
     }
 
     if (!imageUrl) {
       return message.reply("🖼️ 𝗥𝗲𝗺𝗼𝘃𝗲 𝗕𝗮𝗰𝗸𝗴𝗿𝗼𝘂𝗻𝗱\n\n📌 Reply to an image with: {p}removebg\nOr use: {p}removebg -pfp");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
     try {
-      const apiUrl = `https://api.remove.bg/v1.0/removebg`; // fallback to free API service
-      const res = await axios.get(`https://kaiz-apis.gleeze.com/api/removebg?url=${encodeURIComponent(imageUrl)}`, {
+      let targetUrl = imageUrl;
+      try {
+        const FormData = require("form-data");
+        const form = new FormData();
+        const dlRes = await axios.get(imageUrl, { responseType: "arraybuffer", timeout: 25000 });
+        form.append("reqtype", "fileupload");
+        form.append("fileToUpload", Buffer.from(dlRes.data), { filename: "rbg.jpg" });
+        const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
+          headers: form.getHeaders(),
+          timeout: 20000
+        });
+        if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
+          targetUrl = cbRes.data.trim();
+        }
+      } catch (_) {}
+
+      const res = await axios.get(`https://kaiz-apis.gleeze.com/api/removebg?url=${encodeURIComponent(targetUrl)}`, {
         responseType: "arraybuffer",
         timeout: 30000
       }).catch(async () => {
-        return await axios.get(`https://api.siputzx.my.id/api/iloveimg/removebg?url=${encodeURIComponent(imageUrl)}`, {
+        return await axios.get(`https://api.siputzx.my.id/api/iloveimg/removebg?url=${encodeURIComponent(targetUrl)}`, {
           responseType: "arraybuffer",
           timeout: 30000
         });
@@ -65,8 +69,10 @@ module.exports = {
       tempPath = path.join(tempDir, `nobg_${Date.now()}_${Math.random().toString(36).substring(7)}.png`);
       await fs.writeFile(tempPath, Buffer.from(res.data));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✨", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✨").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✨", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({
@@ -81,8 +87,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Could not remove background: ${err.message}`);
     }

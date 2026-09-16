@@ -73,10 +73,12 @@ function createAPIWrapper(rawClient, config = {}) {
 
 				if (ig) {
 					if (typeof ig.sendMessage === "function") {
-						return await ig.sendMessage(text, threadID);
+						return await ig.sendMessage(text, threadID, undefined, replyToMessageID);
 					}
 					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
-						return await ig.sendMessage.toThread(threadID, text);
+						return await (replyToMessageID && typeof ig.sendMessage.reply === "function"
+							? ig.sendMessage.reply(threadID, text, replyToMessageID)
+							: ig.sendMessage.toThread(threadID, replyToMessageID ? { body: text, replyTo: replyToMessageID } : text));
 					}
 					if (typeof ig.sendDirectMessage === "function") {
 						return await ig.sendDirectMessage(threadID, text);
@@ -111,9 +113,9 @@ function createAPIWrapper(rawClient, config = {}) {
 					return await ig.sendPhoto(threadID, pathOrUrl, opts);
 				}
 				if (ig && typeof ig.sendImage === "function") {
-					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
+					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "", undefined, opts.replyToMessageID);
 				}
-				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl }, threadID);
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
 			})();
 			return wrapCallback(promise, callback);
 		},
@@ -133,9 +135,9 @@ function createAPIWrapper(rawClient, config = {}) {
 			}
 			const promise = (async () => {
 				if (ig && typeof ig.sendVideo === "function") {
-					return await ig.sendVideo(threadID, pathOrUrl, opts);
+					return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, opts.replyToMessageID);
 				}
-				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl }, threadID);
+				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
 			})();
 			return wrapCallback(promise, callback);
 		},
@@ -150,9 +152,9 @@ function createAPIWrapper(rawClient, config = {}) {
 					return await ig.sendVoice(threadID, pathOrUrl, opts);
 				}
 				if (ig && typeof ig.sendAudio === "function") {
-					return await ig.sendAudio(pathOrUrl, threadID);
+					return await ig.sendAudio(pathOrUrl, threadID, undefined, opts.replyToMessageID);
 				}
-				return await wrapper.sendMessage({ attachment: pathOrUrl }, threadID);
+				return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo: opts.replyToMessageID }, threadID, undefined, opts.replyToMessageID);
 			})();
 			return wrapCallback(promise, callback);
 		},

@@ -25,14 +25,17 @@ module.exports = {
     const textWords = args.filter(a => !a.startsWith("@") && !/^\d{4,}$/.test(a));
     const text = textWords.join(" ").trim() || "Hey, what are you doing right now?";
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("💬", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("💬").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("💬", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
     try {
       const profile = await resolveProfile([targetID], event, api);
-      const name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : "Friend");
+      let name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
+      if (!name || /^\d+$/.test(String(name).trim())) name = "Friend";
       const photoUrl = profile && profile.profilePicture;
 
       let avatar = null;
@@ -112,8 +115,10 @@ module.exports = {
       tempPath = path.join(tempDir, `sms_${Date.now()}.jpg`);
       await fs.writeFile(tempPath, canvas.toBuffer("image/jpeg", { quality: 0.9 }));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const sent = await message.reply({

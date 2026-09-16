@@ -197,6 +197,11 @@ function createDispatcher({ api, config, registry, database }) {
 			api,
 			message,
 			event,
+			messageReply: event.messageReply || event.repliedMessage || null,
+			replyTo: event.messageReply || event.repliedMessage || event.replyTo || null,
+			repliedMessage: event.repliedMessage || event.messageReply || null,
+			threadID: event.threadID,
+			senderID,
 			args,
 			commandName,
 			// The name the user actually typed (an alias like `unban`), which is

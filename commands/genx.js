@@ -13,10 +13,21 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, event, api }) {
-    const prompt = args.join(" ");
-    if (!prompt) return message.reply("❌ Please provide a prompt.");
+    let prompt = args.join(" ").trim();
+    if (!prompt) {
+      const reply = event.messageReply || event.repliedMessage || event.replyTo;
+      if (reply?.body) {
+        prompt = reply.body.trim();
+      }
+    }
 
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (!prompt) return message.reply("❌ Please provide a prompt or reply to a message with {p}genx.");
+
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
+    }
 
     try {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
@@ -24,10 +35,18 @@ module.exports = {
         body: `✅ | GenX: "${prompt}"`,
         attachment: url
       });
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
+      }
     } catch (error) {
       console.error('genx error:', error.message);
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+      }
       message.reply("❌ | Failed to generate GenX image.");
     }
   }

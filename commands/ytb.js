@@ -19,15 +19,18 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, event, api }) {
+    const reply = event.messageReply || event.repliedMessage;
     const isAudio = args.includes("--audio") || args.includes("-a") || !args.includes("--video");
-    const query = args.filter(a => !a.startsWith("-")).join(" ").trim();
+    const query = args.filter(a => !a.startsWith("-")).join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 
     if (!query) {
       return message.reply("▶️ 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n📌 Usage: {p}ytb <song/video title or link> [--audio|--video]");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
@@ -63,14 +66,16 @@ module.exports = {
         stream.on("error", reject);
       });
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const caption = `▶️ 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 [${isAudio ? "AUDIO" : "VIDEO"}]\n📝 ${title.slice(0, 100)}${duration ? `\n⏱️ [${duration}]` : ""}`;
       const sent = await message.reply({
         body: caption,
-        attachment: tempPath,
+        attachment: { path: tempPath, type: isAudio ? "audio" : "video" },
         textFirst: true
       });
 
@@ -80,8 +85,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ YouTube download error: ${err.message}`);
     }

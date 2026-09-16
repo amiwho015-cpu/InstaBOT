@@ -21,9 +21,10 @@ module.exports = {
     let url = args.find(a => /tiktok\.com/i.test(a));
     const isAudio = args.includes("--audio") || args.includes("-a");
 
-    if (!url && event.messageReply && (event.messageReply.body || event.messageReply.text)) {
-      const text = event.messageReply.body || event.messageReply.text;
-      const m = text.match(/https?:\/\/[^\s]+tiktok\.com[^\s]*/i);
+    const reply = event.messageReply || event.repliedMessage;
+    if (!url && reply && (reply.body || reply.text)) {
+      const text = reply.body || reply.text;
+      const m = text.match(/https?:\/\/[^\s]+tiktok\.com[^\s]*/i) || text.match(/https?:\/\/[^\s]+/i);
       if (m) url = m[0];
     }
 
@@ -31,8 +32,10 @@ module.exports = {
       return message.reply("📱 𝗧𝗶𝗸𝗧𝗼𝗸 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n📌 Usage: {p}tiktok <tiktok_url> [--audio]\n💡 Example: {p}tiktok https://vt.tiktok.com/xxxx/");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
 
     let tempPath = null;
@@ -53,14 +56,16 @@ module.exports = {
       const mediaRes = await axios.get(downloadUrl, { responseType: "arraybuffer", timeout: 45000 });
       await fs.writeFile(tempPath, Buffer.from(mediaRes.data));
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const caption = `📱 𝗧𝗶𝗸𝗧𝗼𝗸 [${isAudio ? "AUDIO" : "VIDEO"}]\n👤 ${author}\n📝 ${title.slice(0, 100)}`;
       const sent = await message.reply({
         body: caption,
-        attachment: tempPath,
+        attachment: { path: tempPath, type: isAudio ? "audio" : "video" },
         textFirst: true
       });
 
@@ -70,8 +75,10 @@ module.exports = {
       return sent;
     } catch (err) {
       if (tempPath) fs.unlink(tempPath).catch(() => {});
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ TikTok download failed: ${err.message}`);
     }

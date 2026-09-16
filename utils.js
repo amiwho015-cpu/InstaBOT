@@ -977,5 +977,9 @@ const utils = {
 	box: (...args) => require("./src/logger").box(...args)
 };
 
+try {
+	Object.assign(utils, require("./src/utils"));
+} catch (_) {}
+
 global.utils = utils;
 module.exports = utils;

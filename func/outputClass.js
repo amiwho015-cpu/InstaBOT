@@ -44,10 +44,17 @@ class OutputClass {
     body = autoBold(body);
     const payload = typeof content === "object" && !Array.isArray(content) ? { ...content, body } : body;
 
-    if (this.message?.send && threadID === this.threadID) {
-      const res = await this.message.send(payload);
-      if (res?.messageID) this.lastID = res.messageID;
-      return res;
+    if (threadID === this.threadID) {
+      if (this.message?.reply) {
+        const res = await this.message.reply(payload);
+        if (res?.messageID) this.lastID = res.messageID;
+        return res;
+      }
+      if (this.message?.send) {
+        const res = await this.message.send(payload);
+        if (res?.messageID) this.lastID = res.messageID;
+        return res;
+      }
     }
 
     return new Promise((resolve, reject) => {
@@ -55,7 +62,7 @@ class OutputClass {
         if (err) return reject(err);
         if (info?.messageID) this.lastID = info.messageID;
         resolve(info);
-      });
+      }, threadID === this.threadID ? this.messageID : undefined);
     });
   }
 

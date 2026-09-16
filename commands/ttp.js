@@ -18,13 +18,16 @@ module.exports = {
   },
 
   onStart: async function ({ api, event, args, message }) {
-    const text = args.join(" ").trim();
+    const reply = event.messageReply || event.repliedMessage;
+    const text = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
     if (!text) {
-      return message.reply("⚠️ Please provide text to convert to an image.\nExample: {p}ttp Hello Instagram");
+      return message.reply("⚠️ Please provide text to convert to an image, or reply to a message with {p}ttp.\nExample: {p}ttp Hello Instagram");
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("🎨", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("🎨");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🎨", event.messageID, event.threadID, () => {}, true);
     }
 
     const width = 600;

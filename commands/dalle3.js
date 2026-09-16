@@ -13,10 +13,15 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, event, api }) {
-    const prompt = args.join(" ");
+    const reply = event.messageReply || event.repliedMessage;
+    const prompt = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
     if (!prompt) return message.reply("❌ Please provide a prompt.");
 
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("⏳");
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
+    }
 
     try {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
@@ -24,10 +29,18 @@ module.exports = {
         body: `✅ | DALL-E 3: "${prompt}"`,
         attachment: url
       });
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
+      }
     } catch (error) {
       console.error('dalle3 error:', error.message);
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌");
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
+      }
       message.reply("❌ | Failed to generate DALL-E 3 image.");
     }
   }

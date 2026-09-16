@@ -23,17 +23,8 @@ module.exports = {
   onStart: async function ({ message, args, event, api }) {
     let prompt = args.join(" ").trim();
 
-    // Check if replying to an image to do image-to-image variation
-    let replyImageUrl = null;
-    if (event.messageReply?.attachments?.length > 0) {
-      for (const a of event.messageReply.attachments) {
-        const u = a.url || a.largePreviewUrl || a.previewUrl || a.image;
-        if (u) {
-          replyImageUrl = u;
-          break;
-        }
-      }
-    }
+    const { extractImageUrl } = require("../src/utils");
+    const replyImageUrl = extractImageUrl(event, args);
 
     if (!prompt && !replyImageUrl) {
       return message.reply(
@@ -49,8 +40,10 @@ module.exports = {
       prompt = "cinematic photorealistic masterpiece portrait, highly detailed 8k";
     }
 
-    if (api && typeof api.setMessageReaction === "function") {
-      api.setMessageReaction("🎨", event.messageID, () => {}, true);
+    if (message && typeof message.react === "function") {
+      message.react("🎨").catch(() => {});
+    } else if (api && typeof api.setMessageReaction === "function") {
+      api.setMessageReaction("🎨", event.messageID, event.threadID, () => {}, true);
     }
 
     try {
@@ -63,8 +56,10 @@ module.exports = {
         imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true&model=flux`;
       }
 
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("✅").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
       const caption = `✨ 𝗔𝗜 𝗣𝗵𝗼𝘁𝗼: "${prompt}"\n[Model: ${replyImageUrl ? "Turbo Variation" : "Flux 8K"}]`;
@@ -75,8 +70,10 @@ module.exports = {
         textFirst: true
       });
     } catch (err) {
-      if (api && typeof api.setMessageReaction === "function") {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
+      if (message && typeof message.react === "function") {
+        message.react("❌").catch(() => {});
+      } else if (api && typeof api.setMessageReaction === "function") {
+        api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       return message.reply(`❌ Failed to generate AI photo: ${err.message || err}`);
     }

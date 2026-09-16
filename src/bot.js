@@ -80,16 +80,31 @@ function normalizeEvent(event) {
 		});
 	}
 
-	const repliedData = normalized.repliedMessage || normalized.repliedToMessage;
+	const repliedData = normalized.messageReply || normalized.repliedMessage || normalized.repliedToMessage || normalized.replyToMessage || normalized.replied_to_message || normalized.reply_to_item;
 	if (repliedData) {
 		const replied = repliedData;
+		let attachList = [];
+		if (Array.isArray(replied.attachments) && replied.attachments.length > 0) {
+			attachList = replied.attachments;
+		} else if (replied.attachment) {
+			attachList = Array.isArray(replied.attachment) ? replied.attachment : [replied.attachment];
+		} else if (replied.media || replied.visual_media || replied.clip || replied.media_share) {
+			const m = replied.media || replied.visual_media?.media || replied.clip?.clip || replied.media_share;
+			const u = m?.image_versions2?.candidates?.[0]?.url || m?.video_versions?.[0]?.url || m?.url;
+			if (u) attachList.push({ type: (m?.media_type === 2 || m?.video_versions) ? "video" : "photo", url: u });
+		} else if (replied.image) {
+			attachList.push({ type: "photo", url: typeof replied.image === "string" ? replied.image : replied.image.url });
+		}
+
 		normalized.messageReply = {
-			messageID: replied.messageID || null,
-			senderID: replied.senderID != null ? String(replied.senderID) : null,
-			body: replied.body != null ? String(replied.body) : "",
-			attachments: Array.isArray(replied.attachments) ? replied.attachments : [],
-			timestamp: replied.timestamp || null
+			messageID: (replied.messageID || replied.item_id || replied.id || normalized.replyTo)?.toString() || null,
+			senderID: (replied.senderID || replied.user_id || replied.sender_id) != null ? String(replied.senderID || replied.user_id || replied.sender_id) : null,
+			body: (replied.body || replied.text) != null ? String(replied.body || replied.text) : "",
+			attachments: attachList,
+			timestamp: (replied.timestamp || "").toString() || null
 		};
+		normalized.repliedMessage = normalized.messageReply;
+		normalized.replyTo = normalized.messageReply.messageID;
 		if (normalized.type === "message") normalized.type = "message_reply";
 	}
 
