@@ -1,7 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
+const { createCanvas, loadAvatarOrFallback } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
@@ -35,7 +34,7 @@ module.exports = {
         target = { id: String(event.senderID) };
       }
       const targetID = target.id || event.senderID;
-      const profile = await resolveProfile([targetID], event, api);
+      const profile = await resolveProfile([targetID], null, api);
       name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!name || /^\d+$/.test(String(name).trim())) {
         name = "Legend";
@@ -45,20 +44,7 @@ module.exports = {
 
     let tempPath = null;
     try {
-      let avatar = null;
-      if (photoUrl && photoUrl.startsWith("http")) {
-        try {
-          const res = await axios.get(photoUrl, {
-            responseType: "arraybuffer",
-            timeout: 15000,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-            }
-          });
-          avatar = await loadImage(Buffer.from(res.data));
-        } catch (_) {}
-      }
+      const avatar = await loadAvatarOrFallback(photoUrl, name, 170);
 
       const canvas = createCanvas(600, 700);
       const ctx = canvas.getContext("2d");
@@ -96,15 +82,7 @@ module.exports = {
       ctx.beginPath();
       ctx.arc(300, 310, 85, 0, Math.PI * 2);
       ctx.clip();
-      if (avatar) {
-        ctx.drawImage(avatar, 215, 225, 170, 170);
-      } else {
-        ctx.fillStyle = "#1f2937";
-        ctx.fillRect(215, 225, 170, 170);
-        ctx.fillStyle = "#9ca3af";
-        ctx.font = "bold 70px serif";
-        ctx.fillText((name[0] || "?").toUpperCase(), 300, 335);
-      }
+      ctx.drawImage(avatar, 215, 225, 170, 170);
       ctx.restore();
 
       ctx.lineWidth = 4;

@@ -63,12 +63,64 @@ function normalizeTracks(data) {
 	return rows;
 }
 
+async function downloadAudioUrlToTempFile(audioUrl) {
+	const tempDir = path.join(process.cwd(), "temp");
+	await fs.ensureDir(tempDir);
+	const ext = audioUrl.includes(".m4a") ? "m4a" : "mp3";
+	const tempPath = path.join(tempDir, `sing_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+	const res = await axios.get(audioUrl, {
+		responseType: "arraybuffer",
+		timeout: 30000,
+		headers: {
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+		}
+	});
+	await fs.writeFile(tempPath, Buffer.from(res.data));
+	return tempPath;
+}
+
 async function downloadAudioToFile(videoUrl, title) {
 	const tempDir = path.join(process.cwd(), "temp");
 	await fs.ensureDir(tempDir);
 	const tempPath = path.join(tempDir, `sing_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`);
 
-	// 1. Primary: @distube/ytdl-core stream
+	// 1. Primary: Match by song title on Deezer/iTunes for fast, reliable audio delivery
+	let songTitle = title;
+	if (!songTitle || songTitle === "Unknown") {
+		try {
+			const oe = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`, { timeout: 5000 });
+			songTitle = oe.data?.title;
+		} catch (_) {}
+	}
+	const cleanTitle = (songTitle || "").replace(/\[.*?\]|\(.*?\)|ft\.?.*|feat\.?.*|official.*|video/gi, "").trim();
+
+	if (cleanTitle || songTitle) {
+		try {
+			const dzRes = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(cleanTitle || songTitle)}`, { timeout: 6000 });
+			const track = dzRes.data?.data?.[0];
+			if (track && track.preview) {
+				const aRes = await axios.get(track.preview, { responseType: "arraybuffer", timeout: 25000 });
+				await fs.writeFile(tempPath, Buffer.from(aRes.data));
+				if ((await fs.stat(tempPath)).size > 5000) return tempPath;
+			}
+		} catch (_) {
+			await fs.unlink(tempPath).catch(() => {});
+		}
+
+		try {
+			const itRes = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle || songTitle)}&entity=song&limit=3`, { timeout: 6000 });
+			const track = itRes.data?.results?.[0];
+			if (track && track.previewUrl) {
+				const aRes = await axios.get(track.previewUrl, { responseType: "arraybuffer", timeout: 25000 });
+				await fs.writeFile(tempPath, Buffer.from(aRes.data));
+				if ((await fs.stat(tempPath)).size > 5000) return tempPath;
+			}
+		} catch (_) {
+			await fs.unlink(tempPath).catch(() => {});
+		}
+	}
+
+	// 2. Secondary: @distube/ytdl-core stream
 	try {
 		const stream = ytdl(videoUrl, {
 			filter: "audioonly",
@@ -90,7 +142,7 @@ async function downloadAudioToFile(videoUrl, title) {
 		await fs.unlink(tempPath).catch(() => {});
 	}
 
-	// 2. Secondary: Cobalt API
+	// 3. Tertiary: Cobalt API
 	try {
 		const cobRes = await axios.post(
 			"https://api.cobalt.tools/api/json",
@@ -99,40 +151,6 @@ async function downloadAudioToFile(videoUrl, title) {
 		);
 		if (cobRes.data && cobRes.data.url) {
 			const res = await axios.get(cobRes.data.url, { responseType: "arraybuffer", timeout: 45000 });
-			await fs.writeFile(tempPath, Buffer.from(res.data));
-			if ((await fs.stat(tempPath)).size > 10000) return tempPath;
-		}
-	}
-	catch (_) {
-		await fs.unlink(tempPath).catch(() => {});
-	}
-
-	// 3. Tertiary: Kaiz API
-	try {
-		const kaizRes = await axios.get(`https://kaiz-apis.gleeze.com/api/ytdl?url=${encodeURIComponent(videoUrl)}`, {
-			timeout: 20000
-		});
-		const aUrl = kaizRes.data && (kaizRes.data.audio || kaizRes.data.downloadUrl);
-		if (aUrl) {
-			const res = await axios.get(aUrl, { responseType: "arraybuffer", timeout: 45000 });
-			await fs.writeFile(tempPath, Buffer.from(res.data));
-			if ((await fs.stat(tempPath)).size > 10000) return tempPath;
-		}
-	}
-	catch (_) {
-		await fs.unlink(tempPath).catch(() => {});
-	}
-
-	// 4. Quaternary: NeoKEX AllDL API
-	try {
-		const neoRes = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(videoUrl)}`, {
-			timeout: 20000
-		});
-		const dl = (neoRes.data && ((neoRes.data.metadata && neoRes.data.metadata.data && neoRes.data.metadata.data.downloads) || (neoRes.data.data && neoRes.data.data.downloads) || [])).find(
-			d => d.ext === "mp3" || String(d.label).toLowerCase().includes("audio")
-		);
-		if (dl && dl.url) {
-			const res = await axios.get(dl.url, { responseType: "arraybuffer", timeout: 45000 });
 			await fs.writeFile(tempPath, Buffer.from(res.data));
 			if ((await fs.stat(tempPath)).size > 10000) return tempPath;
 		}
@@ -177,7 +195,41 @@ async function searchSongs(query, message, config, api) {
 		throw new Error("no full songs found (Instagram returned no audio URL)");
 	}
 
-	// 4. Live fallback: Search via YouTube (yt-search) so users never get "no full songs found"
+	// 4. Live fallback: Search via Deezer (direct audio streams)
+	try {
+		const cleanQ = query.replace(/--top/gi, "").trim();
+		const dzRes = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(cleanQ)}`, { timeout: 6000 });
+		const dzData = dzRes.data?.data || [];
+		if (dzData.length) {
+			const valid = dzData.slice(0, 10).map(t => ({
+				title: t.title,
+				artist: t.artist?.name || "Unknown",
+				durationMs: (t.duration || 0) * 1000,
+				url: t.preview,
+				isDirect: true
+			})).filter(t => t.url);
+			if (valid.length) return valid;
+		}
+	} catch (_) {}
+
+	// 5. Live fallback: Search via iTunes (direct audio streams)
+	try {
+		const cleanQ = query.replace(/--top/gi, "").trim();
+		const itRes = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanQ)}&entity=song&limit=10`, { timeout: 6000 });
+		const itData = itRes.data?.results || [];
+		if (itData.length) {
+			const valid = itData.slice(0, 10).map(t => ({
+				title: t.trackName,
+				artist: t.artistName || "Unknown",
+				durationMs: t.trackTimeMillis || 0,
+				url: t.previewUrl,
+				isDirect: true
+			})).filter(t => t.url);
+			if (valid.length) return valid;
+		}
+	} catch (_) {}
+
+	// 6. Live fallback: Search via YouTube (yt-search)
 	try {
 		const searchPromise = yts(query.replace(/--top/gi, "").trim());
 		const timerPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("yt-search timeout")), 8000));
@@ -230,8 +282,7 @@ async function sendSong(message, track, api, event) {
 		catch (err) {
 			if (tempFile) fs.unlink(tempFile).catch(() => {});
 			if (message && typeof message.react === "function") message.react("❌").catch(() => {});
-			const fallbackMsg = `🎵 ${track.title || "Song"} — ${track.artist || "Unknown"}\n🔗 Stream: ${track.url}\n(Audio file delivery: ${err.message || "timed out"})`;
-			return message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg);
+			return message.reply(`Could not send "${track.title || "the song"}": ${String(err.message || err)}`);
 		}
 	}
 
@@ -247,9 +298,26 @@ async function sendSong(message, track, api, event) {
 		if (message && typeof message.react === "function") message.react("✅").catch(() => {});
 	}
 	catch (error) {
-		if (message && typeof message.react === "function") message.react("❌").catch(() => {});
-		const fallbackMsg = `🎵 ${track.title || "Song"} — ${track.artist || "Unknown"}\n🔗 Stream: ${track.url}\n(Audio clip delivery: ${String(error.message || error)})`;
-		return message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg);
+		// Fallback: download audio stream to temp file and deliver as attachment
+		let tempFile = null;
+		try {
+			tempFile = await downloadAudioUrlToTempFile(track.url);
+			const caption = `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`;
+			await message.reply({
+				body: caption,
+				attachment: { path: tempFile, type: "audio" },
+				textFirst: true
+			});
+			if (message && typeof message.react === "function") message.react("✅").catch(() => {});
+			setTimeout(() => {
+				if (tempFile) fs.unlink(tempFile).catch(() => {});
+			}, 30000);
+			return;
+		} catch (innerErr) {
+			if (tempFile) fs.unlink(tempFile).catch(() => {});
+			if (message && typeof message.react === "function") message.react("❌").catch(() => {});
+			return message.reply(`Could not send "${track.title || "the song"}": ${String(innerErr.message || error.message || error)}`);
+		}
 	}
 }
 

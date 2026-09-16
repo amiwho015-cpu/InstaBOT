@@ -45,9 +45,9 @@
     "threadIDs": [],
     "notes": "Announce members who leave or are removed from a group thread. %1 = the member, %2 = the thread name. Leave threadIDs empty for every thread."
   },
-  "defaultOff": true,
+  "defaultOff": false,
   "adminOnly": {
-    "enable": true,
+    "enable": false,
     "ignoreCommands": []
   },
   "whiteList": {

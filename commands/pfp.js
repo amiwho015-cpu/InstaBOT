@@ -15,7 +15,7 @@ module.exports = {
 		usage: { en: "{p}pfp [userID | @handle | username | profile URL] — or reply to a message" }
 	},
 
-	onStart: async function ({ message, args, event, api }) {
+	onStart: async function ({ message, args, event, api, usersData }) {
 		let target = await resolveUserTarget(args, event, api);
 		if (!target.id && (!args || args.length === 0) && event.senderID) {
 			target = { id: String(event.senderID), source: "self" };
@@ -26,8 +26,32 @@ module.exports = {
 			return message.reply("Provide a numeric user id or @mention, or reply to a user's message.");
 		}
 
-		const profile = await resolveProfile(args && args.length > 0 ? args : [target.id], event, api);
-		const picture = profile && profile.profilePicture;
+		let profile = await resolveProfile(args && args.length > 0 ? args : [target.id], (args && args.length > 0) ? event : null, api);
+		let picture = profile && profile.profilePicture;
+
+		// Fallback 1: If picture is missing but we have a username, fetch fresh
+		const username = (profile && profile.username) || target.username;
+		if (!picture && username) {
+			try {
+				const { fetchInstagramProfile } = require("../src/utils");
+				const fresh = await fetchInstagramProfile(username, 15000, true);
+				if (fresh && fresh.profilePicture) {
+					picture = fresh.profilePicture;
+					profile = Object.assign({}, profile, fresh);
+				}
+			} catch (_) {}
+		}
+
+		// Fallback 2: Check database/usersData
+		if (!picture && usersData && typeof usersData.get === "function") {
+			try {
+				const dbUser = await usersData.get(target.id);
+				if (dbUser && dbUser.avatarUrl) {
+					picture = dbUser.avatarUrl;
+				}
+			} catch (_) {}
+		}
+
 		if (!picture) {
 			if (profile && profile.rateLimited) return message.reply("Instagram is rate-limiting lookups right now. Please try again in a few minutes.");
 			return message.reply(`Could not find a profile picture for ${target.id}.`);
@@ -53,7 +77,12 @@ module.exports = {
 						"Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
 					}
 				});
-				await fs.writeFile(tempPath, Buffer.from(res.data));
+				const buf = Buffer.from(res.data);
+				const str = buf.slice(0, 30).toString("utf8").toLowerCase();
+				if (str.includes("<html") || str.includes("<!doctype") || str.includes("<?xml")) {
+					throw new Error("Received HTML instead of image");
+				}
+				await fs.writeFile(tempPath, buf);
 				await message.reply({ attachment: tempPath, body: name, textFirst: true });
 				setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);
 			} catch (_) {

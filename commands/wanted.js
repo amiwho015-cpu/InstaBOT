@@ -1,7 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
+const { createCanvas, loadAvatarOrFallback } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
@@ -35,7 +34,7 @@ module.exports = {
         target = { id: String(event.senderID) };
       }
       const targetID = target.id || event.senderID;
-      const profile = await resolveProfile([targetID], event, api);
+      const profile = await resolveProfile([targetID], null, api);
       name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!name || /^\d+$/.test(String(name).trim())) {
         name = "OUTLAW";
@@ -45,20 +44,7 @@ module.exports = {
 
     let tempPath = null;
     try {
-      let avatar = null;
-      if (photoUrl && photoUrl.startsWith("http")) {
-        try {
-          const res = await axios.get(photoUrl, {
-            responseType: "arraybuffer",
-            timeout: 15000,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-            }
-          });
-          avatar = await loadImage(Buffer.from(res.data));
-        } catch (_) {}
-      }
+      const avatar = await loadAvatarOrFallback(photoUrl, name, 500);
 
       const canvas = createCanvas(700, 900);
       const ctx = canvas.getContext("2d");
@@ -88,13 +74,7 @@ module.exports = {
       ctx.strokeStyle = "#3b1e08";
       ctx.strokeRect(100, 210, 500, 500);
 
-      if (avatar) {
-        ctx.drawImage(avatar, 100, 210, 500, 500);
-      } else {
-        ctx.fillStyle = "#3b1e08";
-        ctx.font = "bold 140px serif";
-        ctx.fillText((name[0] || "?").toUpperCase(), 350, 500);
-      }
+      ctx.drawImage(avatar, 100, 210, 500, 500);
 
       ctx.fillStyle = "#3b1e08";
       ctx.font = "bold 44px serif";

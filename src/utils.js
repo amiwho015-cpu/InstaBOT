@@ -234,13 +234,58 @@ function cachedHandleForID(userID) {
 	return null;
 }
 
-async function fetchInstagramProfile(username, timeout = 15000) {
+function extractProfileFromInfo(info, targetId) {
+	if (!info || typeof info !== "object") return null;
+	let user = null;
+	const tid = targetId ? String(targetId) : null;
+	if (tid && info[tid] && typeof info[tid] === "object") {
+		user = info[tid];
+	} else if (info.userID || info.userId || info.username || info.profilePicUrl || info.profile_pic_url || info.profilePicture || info.fullName) {
+		user = info;
+	} else {
+		for (const val of Object.values(info)) {
+			if (val && typeof val === "object" && (val.userID || val.userId || val.name || val.username || val.profilePicUrl || val.profilePicture || val.fullName)) {
+				user = val;
+				break;
+			}
+		}
+	}
+	if (!user) return null;
+
+	const id = user.userID || user.userId || user.pk || user.pk_id || user.id || targetId;
+	const pic = user.profilePicture || user.profilePicUrl || user.profile_pic_url_hd || user.profile_pic_url || user.thumbSrc || user.avatarUrl || (user.hd_profile_pic_url_info && user.hd_profile_pic_url_info.url) || null;
+	const name = user.name || user.fullName || user.full_name || user.firstName || user.username || null;
+	const username = user.vanity || user.username || null;
+	const bio = user.biography || user.bio || "";
+	const followers = user.followers ?? user.followerCount ?? user.follower_count;
+	const following = user.following ?? user.followingCount ?? user.following_count;
+	const posts = user.posts ?? user.mediaCount ?? user.media_count;
+	const isPrivate = user.isPrivate ?? user.is_private;
+	const isVerified = user.isVerified ?? user.is_verified;
+
+	return {
+		userID: id ? String(id) : null,
+		username,
+		name,
+		biography: bio,
+		followers,
+		following,
+		posts,
+		isPrivate: Boolean(isPrivate),
+		isVerified: Boolean(isVerified),
+		profilePicture: pic
+	};
+}
+
+async function fetchInstagramProfile(username, timeout = 15000, forceFresh = false) {
 	const handle = instagramUsername(username) || (username ? String(username).replace(/^@/, "") : null);
 	if (!handle) return null;
 
 	const cache = loadUsernameCache();
 	const cached = cache[handle.toLowerCase()];
-	if (cached && cached.userID) return Object.assign({}, cached);
+	if (!forceFresh && cached && cached.userID && cached.profilePicture && (!cached.cachedAt || (Date.now() - cached.cachedAt < 6 * 3600 * 1000))) {
+		return Object.assign({}, cached);
+	}
 
 	const url = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`;
 	const headers = {
@@ -253,12 +298,12 @@ async function fetchInstagramProfile(username, timeout = 15000) {
 		buffer = await module.exports.download(url, { headers, timeout });
 	}
 	catch (_) {
-		return null;
+		return cached && cached.userID ? Object.assign({}, cached) : null;
 	}
 	try {
 		const data = JSON.parse(buffer.toString("utf8"));
 		const user = data && data.data && data.data.user;
-		if (!user) return null;
+		if (!user) return cached && cached.userID ? Object.assign({}, cached) : null;
 		const profile = {
 			userID: user.id != null ? String(user.id) : null,
 			username: user.username || handle,
@@ -269,7 +314,8 @@ async function fetchInstagramProfile(username, timeout = 15000) {
 			posts: user.edge_owner_to_timeline_media ? user.edge_owner_to_timeline_media.count : undefined,
 			isPrivate: !!user.is_private,
 			isVerified: !!user.is_verified,
-			profilePicture: user.profile_pic_url_hd || user.profile_pic_url || null
+			profilePicture: (user.hd_profile_pic_url_info && user.hd_profile_pic_url_info.url) || user.profile_pic_url_hd || user.profile_pic_url || null,
+			cachedAt: Date.now()
 		};
 		if (profile.userID) {
 			cache[handle.toLowerCase()] = profile;
@@ -278,7 +324,7 @@ async function fetchInstagramProfile(username, timeout = 15000) {
 		return profile;
 	}
 	catch (_) {
-		return null;
+		return cached && cached.userID ? Object.assign({}, cached) : null;
 	}
 }
 
@@ -333,9 +379,18 @@ async function resolveUserTarget(args, event, api) {
 		// public endpoint for servers that cannot resolve usernames.
 		if (api) {
 			try {
-				const info = await new Promise((resolve, reject) =>
-					api.getUserInfo(username, (error, result) => error ? reject(error) : resolve(result)));
-				const profile = info && Object.values(info)[0];
+				let info = null;
+				if (typeof api.getUserInfoByUsername === "function") {
+					try {
+						info = await new Promise((resolve, reject) =>
+							api.getUserInfoByUsername(username, (error, result) => error ? reject(error) : resolve(result)));
+					} catch (_) {}
+				}
+				if (!info && typeof api.getUserInfo === "function") {
+					info = await new Promise((resolve, reject) =>
+						api.getUserInfo(username, (error, result) => error ? reject(error) : resolve(result)));
+				}
+				const profile = extractProfileFromInfo(info, username);
 				// Carry the fetched profile out so resolveProfile does not repeat
 				// the same lookup (each call is a round trip that can be throttled).
 				if (profile && profile.userID) {
@@ -345,14 +400,15 @@ async function resolveUserTarget(args, event, api) {
 					const cache = loadUsernameCache();
 					cache[username.toLowerCase()] = {
 						userID: String(profile.userID),
-						username: profile.vanity || profile.username || username,
-						name: profile.name || profile.firstName || null,
+						username: profile.username || username,
+						name: profile.name || null,
 						biography: profile.biography || "",
-						followers: profile.followerCount,
-						following: profile.followingCount,
+						followers: profile.followers,
+						following: profile.following,
 						isPrivate: profile.isPrivate,
 						isVerified: profile.isVerified,
-						profilePicture: profile.profilePicture || profile.thumbSrc || null
+						profilePicture: profile.profilePicture || null,
+						cachedAt: Date.now()
 					};
 					saveUsernameCache();
 					return { id: String(profile.userID), source: "mention", profile };
@@ -384,7 +440,8 @@ async function resolveUserTarget(args, event, api) {
  * caller can distinguish "no such user" from "try again shortly".
  */
 async function resolveProfile(args, event, api) {
-	const target = await resolveUserTarget(args, event, api);
+	const isExplicitTarget = Array.isArray(args) && args.length > 0 && (/^\d+$/.test(args[0]) || /^@?[A-Za-z0-9._]{1,30}$/.test(args[0]));
+	const target = await resolveUserTarget(args, isExplicitTarget ? null : event, api);
 	if (!target.id) {
 		return target.rateLimited ? { rateLimited: true } : null;
 	}
@@ -392,19 +449,8 @@ async function resolveProfile(args, event, api) {
 	// A mention already fetched the profile while resolving the id; reuse it
 	// rather than issuing a second getUserInfo for the same account.
 	if (target.profile) {
-		const p = target.profile;
-		return {
-			userID: String(p.userID || target.id),
-			username: p.vanity || null,
-			name: p.name || p.firstName || null,
-			biography: p.biography || "",
-			followers: p.followerCount,
-			following: p.followingCount,
-			posts: undefined,
-			isPrivate: p.isPrivate,
-			isVerified: p.isVerified,
-			profilePicture: p.profilePicture || p.thumbSrc || null
-		};
+		const extracted = extractProfileFromInfo(target.profile, target.id);
+		if (extracted) return extracted;
 	}
 
 	let rateLimited = false;
@@ -417,20 +463,9 @@ async function resolveProfile(args, event, api) {
 		for (let attempt = 0; attempt < 2 && !authenticated; attempt++) {
 			try {
 				const info = await lookupAuthed();
-				const profile = info && Object.values(info)[0];
-				if (profile) {
-					authenticated = {
-						userID: String(profile.userID || target.id),
-						username: profile.vanity || profile.username || null,
-						name: profile.name || profile.firstName || null,
-						biography: profile.biography || "",
-						followers: profile.followerCount,
-						following: profile.followingCount,
-						posts: undefined,
-						isPrivate: profile.isPrivate,
-						isVerified: profile.isVerified,
-						profilePicture: profile.profilePicture || profile.thumbSrc || null
-					};
+				const extracted = extractProfileFromInfo(info, target.id);
+				if (extracted) {
+					authenticated = extracted;
 				}
 			}
 			catch (error) {
@@ -450,7 +485,7 @@ async function resolveProfile(args, event, api) {
 	// when it resolves to the SAME user id: a handle can collide with an
 	// unrelated account, and overwriting a correct id with the wrong profile is
 	// worse than a missing follower count.
-	const incomplete = (p) => !p || p.followers == null || p.following == null || !p.biography;
+	const incomplete = (p) => !p || p.followers == null || p.following == null || !p.biography || !p.profilePicture;
 	if (incomplete(authenticated)) {
 		const raw = (args || []).find(arg => instagramUsername(arg) || /^@?[A-Za-z0-9._]{1,30}$/.test(arg) && !/^\d+$/.test(arg));
 		const handle = (raw && (instagramUsername(raw) || raw.replace(/^@/, ""))) ||

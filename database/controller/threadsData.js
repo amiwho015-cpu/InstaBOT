@@ -192,11 +192,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 					});
 				}
 				threadInfo = threadInfo || await api.getThreadInfo(threadID);
-				const { threadName, userInfo, adminIDs } = threadInfo;
-				const newAdminsIDs = adminIDs.reduce(function (_, b) {
-					_.push(b.id);
-					return _;
-				}, []);
+				const newAdminsIDs = (Array.isArray(adminIDs) ? adminIDs : []).map(function (b) {
+					if (!b) return "";
+					if (typeof b === "object") return String(b.id || b.userID || b.pk || b.uid || "").trim();
+					return String(b).trim();
+				}).filter(Boolean);
 
 				const newMembers = userInfo.reduce(function (arr, user) {
 					const userID = user.id;
@@ -292,10 +292,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 						user.inGroup = false;
 						return user;
 					});
-					const newAdminsIDs = adminIDs.reduce(function (acc, cur) {
-						acc.push(cur.id);
-						return acc;
-					}, []);
+					const newAdminsIDs = (Array.isArray(adminIDs) ? adminIDs : []).map(function (cur) {
+						if (!cur) return "";
+						if (typeof cur === "object") return String(cur.id || cur.userID || cur.pk || cur.uid || "").trim();
+						return String(cur).trim();
+					}).filter(Boolean);
 					let threadData = {
 						...threadInfo,
 						threadName: newThreadInfo.threadName,

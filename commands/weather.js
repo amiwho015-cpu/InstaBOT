@@ -1,17 +1,19 @@
 const axios = require("axios");
 const moment = require("moment-timezone");
-const Canvas = require("canvas");
+const Canvas = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 
-Canvas.registerFont(
-	path.join(__dirname, "assets/font/BeVietnamPro-SemiBold.ttf"), {
-	family: "BeVietnamPro-SemiBold"
-});
-Canvas.registerFont(
-	path.join(__dirname, "assets/font/BeVietnamPro-Regular.ttf"), {
-	family: "BeVietnamPro-Regular"
-});
+try {
+	Canvas.registerFont(
+		path.join(__dirname, "assets/font/BeVietnamPro-SemiBold.ttf"), {
+		family: "BeVietnamPro-SemiBold"
+	});
+	Canvas.registerFont(
+		path.join(__dirname, "assets/font/BeVietnamPro-Regular.ttf"), {
+		family: "BeVietnamPro-Regular"
+	});
+} catch (_) {}
 
 function convertFtoC(F) {
 	return Math.floor((F - 32) / 1.8);
@@ -90,13 +92,18 @@ module.exports = {
 			X += 135;
 		}
 
-		const pathSaveImg = path.join(__dirname, `tmp/weather_${areaKey}.png`);
-		fs.writeFileSync(pathSaveImg, canvas.toBuffer('image/jpeg', { quality: 0.9 }));
+		const tempDir = path.join(process.cwd(), "temp");
+		await fs.ensureDir(tempDir);
+		const pathSaveImg = path.join(tempDir, `weather_${areaKey}_${Date.now()}.jpg`);
+		await fs.writeFile(pathSaveImg, canvas.toBuffer("image/jpeg", { quality: 0.9 }));
 
-		return message.reply({
+		const sent = await message.reply({
 			body: msg,
-			attachment: fs.createReadStream(pathSaveImg)
-		}, () => fs.unlinkSync(pathSaveImg));
+			attachment: pathSaveImg,
+			textFirst: true
+		});
+		setTimeout(() => fs.unlink(pathSaveImg).catch(() => {}), 20000);
+		return sent;
 
 	}
 };

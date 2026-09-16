@@ -15,6 +15,7 @@ const { Jimp } = require("jimp");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
+const { safeLoadImage, createCanvas } = require("../func/canvasHelper");
 
 const MAX_ATTACHMENT_BYTES = 35 * 1024 * 1024;
 
@@ -52,16 +53,41 @@ async function extractImageUrlFromEvent(event, args = [], api = null) {
 }
 
 async function downloadToBuffer(fileUrl) {
+  if (Buffer.isBuffer(fileUrl)) return fileUrl;
   const res = await axios.get(fileUrl, {
     responseType: "arraybuffer",
     timeout: 20000,
     maxContentLength: MAX_ATTACHMENT_BYTES,
     maxBodyLength: MAX_ATTACHMENT_BYTES,
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
     }
   });
-  return Buffer.from(res.data);
+  const buf = Buffer.from(res.data);
+  if (buf.length > 50 && (buf.subarray(0, 50).toString().toLowerCase().includes("<html") || buf.subarray(0, 50).toString().toLowerCase().includes("<!doctype"))) {
+    throw new Error("URL returned an HTML error response instead of image data");
+  }
+  return buf;
+}
+
+async function safeLoadJimp(source) {
+  const buf = Buffer.isBuffer(source) ? source : await downloadToBuffer(source);
+  try {
+    return await Jimp.read(buf);
+  } catch (err) {
+    // If WebP or unsupported format by Jimp, decode via Skia/canvas and convert to JPEG buffer
+    try {
+      const img = await safeLoadImage(buf);
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const jpegBuf = canvas.toBuffer("image/jpeg", { quality: 0.95 });
+      return await Jimp.read(jpegBuf);
+    } catch (innerErr) {
+      throw new Error(`Failed to decode image: ${err.message || innerErr.message}`);
+    }
+  }
 }
 
 module.exports = {
@@ -198,7 +224,7 @@ module.exports = {
         const actionArgs = prompt.split(/\s+/).slice(1);
 
         const sourceBuffer = await downloadToBuffer(imageUrl);
-        const jimg = await Jimp.read(sourceBuffer);
+        const jimg = await safeLoadJimp(sourceBuffer);
 
         if (action === "circle" || action === "rounded") {
           jimg.circle();
@@ -304,7 +330,7 @@ module.exports = {
               sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
             }
             if (sourceBuffer) {
-              const jimg = await Jimp.read(sourceBuffer);
+              const jimg = await safeLoadJimp(sourceBuffer);
               jimg.contrast(0.2);
               finalBuffer = await jimg.getBuffer("image/jpeg");
               appliedType = "Enhanced Edit";

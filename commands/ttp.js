@@ -1,6 +1,6 @@
 "use strict";
 
-const { createCanvas } = require("canvas");
+const { createCanvas } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 

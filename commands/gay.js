@@ -1,7 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
+const { createCanvas, loadAvatarOrFallback } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
@@ -35,7 +34,7 @@ module.exports = {
         target = { id: String(event.senderID) };
       }
       const targetID = target.id || event.senderID;
-      const profile = await resolveProfile([targetID], event, api);
+      const profile = await resolveProfile([targetID], null, api);
       name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!name || /^\d+$/.test(String(name).trim())) {
         name = "Pride";
@@ -45,40 +44,13 @@ module.exports = {
 
     let tempPath = null;
     try {
-      let avatar = null;
-      if (photoUrl && photoUrl.startsWith("http")) {
-        try {
-          const res = await axios.get(photoUrl, {
-            responseType: "arraybuffer",
-            timeout: 15000,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-            }
-          });
-          avatar = await loadImage(Buffer.from(res.data));
-        } catch (_) {}
-      }
-
       const size = 600;
+      const avatar = await loadAvatarOrFallback(photoUrl, name, size);
+
       const canvas = createCanvas(size, size);
       const ctx = canvas.getContext("2d");
 
-      if (avatar) {
-        ctx.drawImage(avatar, 0, 0, size, size);
-      } else {
-        const grad = ctx.createLinearGradient(0, 0, size, size);
-        grad.addColorStop(0, "#2c3e50");
-        grad.addColorStop(1, "#34495e");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, size, size);
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 120px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText((name[0] || "?").toUpperCase(), size / 2, size / 2);
-      }
+      ctx.drawImage(avatar, 0, 0, size, size);
 
       // Rainbow overlay with transparency
       const colors = ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#4b0082", "#9400d3"];

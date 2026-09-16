@@ -1,7 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
+const { createCanvas, loadAvatarOrFallback } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile } = require("../src/utils");
@@ -37,8 +36,8 @@ module.exports = {
     let tempPath = null;
     try {
       const [senderProfile, targetProfile] = await Promise.all([
-        resolveProfile([senderID], event, api).catch(() => null),
-        resolveProfile([targetID], event, api).catch(() => null)
+        resolveProfile([senderID], null, api).catch(() => null),
+        resolveProfile([targetID], null, api).catch(() => null)
       ]);
 
       let senderName = (senderProfile && (senderProfile.name || senderProfile.username)) || (usersData && usersData.getName ? await usersData.getName(senderID) : null);
@@ -46,26 +45,9 @@ module.exports = {
       let targetName = (targetProfile && (targetProfile.name || targetProfile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!targetName || /^\d+$/.test(String(targetName).trim())) targetName = "Crush";
 
-      const fetchAvatar = async (url) => {
-        if (!url) return null;
-        try {
-          const r = await axios.get(url, {
-            responseType: "arraybuffer",
-            timeout: 10000,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-            }
-          });
-          return await loadImage(Buffer.from(r.data));
-        } catch (_) {
-          return null;
-        }
-      };
-
       const [senderAvatar, targetAvatar] = await Promise.all([
-        fetchAvatar(senderProfile?.profilePicture),
-        fetchAvatar(targetProfile?.profilePicture)
+        loadAvatarOrFallback(senderProfile?.profilePicture, senderName, 150),
+        loadAvatarOrFallback(targetProfile?.profilePicture, targetName, 150)
       ]);
 
       const canvas = createCanvas(700, 420);

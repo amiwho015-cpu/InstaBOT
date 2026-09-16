@@ -57,11 +57,31 @@ const canvasAdapter = {
     };
   },
 
-  loadImage(src, opts) {
-    if (realNapi?.loadImage) {
-      return realNapi.loadImage(src, opts);
+  async loadImage(src, opts) {
+    try {
+      const canvasHelper = require("./canvasHelper");
+      return await canvasHelper.safeLoadImage(src, opts);
+    } catch (e) {
+      if (realNapi?.loadImage) {
+        return realNapi.loadImage(src, opts);
+      }
+      return Promise.resolve({ width: 100, height: 100 });
     }
-    return Promise.resolve({ width: 100, height: 100 });
+  },
+
+  safeLoadImage(src, opts) {
+    const canvasHelper = require("./canvasHelper");
+    return canvasHelper.safeLoadImage(src, opts);
+  },
+
+  loadAvatarOrFallback(urlOrBuffer, fallbackName, size) {
+    const canvasHelper = require("./canvasHelper");
+    return canvasHelper.loadAvatarOrFallback(urlOrBuffer, fallbackName, size);
+  },
+
+  createDefaultAvatar(name, size) {
+    const canvasHelper = require("./canvasHelper");
+    return canvasHelper.createDefaultAvatar(name, size);
   },
 
   registerFont(fontPath, options) {

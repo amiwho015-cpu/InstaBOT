@@ -13,9 +13,9 @@
   "nickNameBot": "InstaBOT",
   "prefix": "*",
   "noPrefix": true,
-  "defaultOff": true,
+  "defaultOff": false,
   "adminOnly": {
-    "enable": true,
+    "enable": false,
     "ignoreCommand": []
   },
   "adminBot": [

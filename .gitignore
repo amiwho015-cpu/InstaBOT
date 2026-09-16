@@ -41,5 +41,7 @@ bot/neokex-ica/dist
 .aider*
 
 tmp/
+temp/
+bin/
 data/
 

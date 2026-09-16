@@ -2091,6 +2091,40 @@ async function main() {
 		});
 	});
 
+	await test("unsend: admin reacts with hand emoji to unsend a message", async () => {
+		const command = registry.resolve("unsend");
+		const calls = [];
+		const api = {
+			unsendMessage: (id, threadID, cb) => { calls.push({ id, threadID }); cb && cb(null, true); }
+		};
+		await command.onReaction({
+			api,
+			event: { threadID: "t1", messageID: "target123", reaction: "✋", userID: "admin1", isGroup: true },
+			role: 1,
+			isBotAdmin: () => false,
+			config: { adminBot: [] }
+		});
+		assert.strictEqual(calls.length, 1);
+		assert.strictEqual(calls[0].id, "target123");
+		assert.strictEqual(calls[0].threadID, "t1");
+	});
+
+	await test("unsend: non-admin emoji reaction does not unsend in group", async () => {
+		const command = registry.resolve("unsend");
+		let called = false;
+		const api = {
+			unsendMessage: () => { called = true; }
+		};
+		await command.onReaction({
+			api,
+			event: { threadID: "t1", messageID: "target123", reaction: "✋", userID: "user1", isGroup: true },
+			role: 0,
+			isBotAdmin: () => false,
+			config: { adminBot: [] }
+		});
+		assert.strictEqual(called, false, "non-admin must not trigger reaction unsend in a group");
+	});
+
 	/* ── adduser / removeuser ── */
 	await test("adduser: registered with the Neoaz author", () => {
 		const command = registry.resolve("adduser");
@@ -2523,6 +2557,34 @@ async function main() {
 		const db = makeDatabase();
 		await runCommand("-adduser 555", { api, db, config: makeConfig(), extraEvent: { isGroup: undefined } });
 		assert.ok(api.calls.some(c => c.method === "addUserToThread" && c.uid === "555"), "should treat the resolved group correctly");
+	});
+
+	await test("dispatcher: resolves thread admins and allows gc admin to run admin commands", async () => {
+		const api = fakeApi({
+			getThreadInfo: (id, cb) => cb(null, {
+				threadID: id,
+				isGroup: true,
+				adminIDs: ["gc_admin_1"],
+				userInfo: [{ id: "gc_admin_1", name: "Admin 1", isAdmin: true }]
+			})
+		});
+		const db = makeDatabase();
+		db.threads.ensure("gc_thread_1", { threadID: "gc_thread_1", isGroup: true, adminIDs: [] });
+		const dispatcher = createDispatcher({ api, config: makeConfig(), registry, database: db });
+
+		await dispatcher.handle({
+			type: "message",
+			threadID: "gc_thread_1",
+			messageID: "m1",
+			senderID: "gc_admin_1",
+			body: "hello",
+			isGroup: true
+		});
+
+		const threadDataAfter = db.threads.get("gc_thread_1");
+		assert.ok(threadDataAfter.adminIDs.includes("gc_admin_1"), "threadData should have cached gc_admin_1 as admin");
+		const role = dispatcher.roleOf({ senderID: "gc_admin_1" }, threadDataAfter);
+		assert.strictEqual(role, dispatcher.ROLE_ADMIN_BOX, "gc_admin_1 must have ROLE_ADMIN_BOX");
 	});
 
 	await test("welcome event: greets only the added member, never the actor", async () => {

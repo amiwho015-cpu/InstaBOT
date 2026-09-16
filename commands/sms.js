@@ -1,7 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
+const { createCanvas, loadAvatarOrFallback } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
 const { resolveUserTarget, resolveProfile } = require("../src/utils");
@@ -33,18 +32,12 @@ module.exports = {
 
     let tempPath = null;
     try {
-      const profile = await resolveProfile([targetID], event, api);
+      const profile = await resolveProfile([targetID], null, api);
       let name = (profile && (profile.name || profile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!name || /^\d+$/.test(String(name).trim())) name = "Friend";
       const photoUrl = profile && profile.profilePicture;
 
-      let avatar = null;
-      if (photoUrl && photoUrl.startsWith("http")) {
-        try {
-          const res = await axios.get(photoUrl, { responseType: "arraybuffer", timeout: 10000 });
-          avatar = await loadImage(Buffer.from(res.data));
-        } catch (_) {}
-      }
+      const avatar = await loadAvatarOrFallback(photoUrl, name, 100);
 
       const width = 600;
       const height = 350;
@@ -64,16 +57,7 @@ module.exports = {
       ctx.beginPath();
       ctx.arc(300, 35, 25, 0, Math.PI * 2);
       ctx.clip();
-      if (avatar) {
-        ctx.drawImage(avatar, 275, 10, 50, 50);
-      } else {
-        ctx.fillStyle = "#8e8e93";
-        ctx.fillRect(275, 10, 50, 50);
-        ctx.fillStyle = "#fff";
-        ctx.font = "bold 24px -apple-system, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText((name[0] || "?").toUpperCase(), 300, 44);
-      }
+      ctx.drawImage(avatar, 275, 10, 50, 50);
       ctx.restore();
 
       // Contact name

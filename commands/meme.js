@@ -1,6 +1,6 @@
 "use strict";
 
-const { createCanvas, loadImage } = require("canvas");
+const { createCanvas, safeLoadImage } = require("../func/canvasHelper");
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
@@ -63,8 +63,16 @@ module.exports = {
       const [topText, bottomText] = fullText.includes("|") ? fullText.split("|").map(s => s.trim()) : [fullText, ""];
 
       const targetUrl = imageUrl || "https://i.imgflip.com/1g8my4.jpg"; // Two buttons fallback
-      const imgRes = await axios.get(targetUrl, { responseType: "arraybuffer", timeout: 20000 });
-      const img = await loadImage(Buffer.from(imgRes.data));
+      let img;
+      try {
+        img = await safeLoadImage(targetUrl);
+      } catch (loadErr) {
+        if (targetUrl !== "https://i.imgflip.com/1g8my4.jpg") {
+          img = await safeLoadImage("https://i.imgflip.com/1g8my4.jpg");
+        } else {
+          throw loadErr;
+        }
+      }
 
       const canvas = createCanvas(img.width, img.height);
       const ctx = canvas.getContext("2d");

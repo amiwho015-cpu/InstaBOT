@@ -30,7 +30,7 @@ async function react(message, emoji) {
 	catch (_) { }
 }
 
-async function requestJSON(url, timeout = 45000) {
+async function requestJSON(url, timeout = 12000) {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeout);
 	try {
@@ -56,19 +56,37 @@ async function searchVideos(query) {
 }
 
 async function resolveVideo(url) {
-	const payload = await requestJSON(`${API_BASE}/alldl?url=${encodeURIComponent(url)}`);
-	const data = (payload && (payload.metadata && payload.metadata.data)) || (payload && payload.data) || payload;
-	const downloads = (data && data.downloads) || [];
-	const notAudio = item => !String(item && item.label).toLowerCase().includes("audio");
-	const download =
-		downloads.find(item => item && item.url && item.ext === "mp4" && notAudio(item)) ||
-		downloads.find(item => item && item.url && notAudio(item));
-	if (!data || !data.title || !download)
-		throw new Error("The media service did not return a usable video.");
-	return { title: data.title, url: download.url, ext: String(download.ext || "mp4").toLowerCase() };
+	try {
+		const payload = await requestJSON(`${API_BASE}/alldl?url=${encodeURIComponent(url)}`, 12000);
+		const data = (payload && (payload.metadata && payload.metadata.data)) || (payload && payload.data) || payload;
+		const downloads = (data && data.downloads) || [];
+		const notAudio = item => !String(item && item.label).toLowerCase().includes("audio");
+		const download =
+			downloads.find(item => item && item.url && item.ext === "mp4" && notAudio(item)) ||
+			downloads.find(item => item && item.url && notAudio(item));
+		if (data && data.title && download && download.url) {
+			return { title: data.title, url: download.url, ext: String(download.ext || "mp4").toLowerCase() };
+		}
+	}
+	catch (_) { }
+
+	// Fast fallback to TikWM if alldl failed or timed out
+	try {
+		const tw = await requestJSON(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, 8000);
+		if (tw && tw.data && (tw.data.play || tw.data.wmplay)) {
+			return {
+				title: tw.data.title || "Anime Video",
+				url: tw.data.play || tw.data.wmplay,
+				ext: "mp4"
+			};
+		}
+	}
+	catch (_) { }
+
+	throw new Error("The media service did not return a usable video.");
 }
 
-async function fetchVideoBuffer(url, timeout = 60000) {
+async function fetchVideoBuffer(url, timeout = 15000) {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeout);
 	try {

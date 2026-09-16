@@ -1,8 +1,9 @@
 "use strict";
 
-const { createCanvas } = require("canvas");
+const { createCanvas } = require("../func/canvasHelper");
 const fs = require("fs-extra");
 const path = require("path");
+const { resolveProfile } = require("../src/utils");
 
 const DEFAULT_QUOTES = [
   { quote: "The secret of getting ahead is getting started.", author: "Mark Twain" },

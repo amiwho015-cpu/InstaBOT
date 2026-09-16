@@ -51,6 +51,12 @@ function createDispatcher({ api, config, registry, database }) {
 	function isBotAdmin(id) {
 		const uid = String(id || "").trim();
 		if (!uid) return false;
+		if (api && typeof api.getCurrentUserID === "function") {
+			try {
+				const botID = String(api.getCurrentUserID() || "").trim();
+				if (botID && uid === botID) return true;
+			} catch (_) {}
+		}
 		const adminList = [
 			...(Array.isArray(config.adminBot) ? config.adminBot : []),
 			...(Array.isArray(config.ADMIN_BOT) ? config.ADMIN_BOT : []),
@@ -172,22 +178,20 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const role = roleOf(event, threadData);
 
-		// 1. Thread Admin-Only / Bot OFF check (Floppa standard)
+		// 1. Thread Admin-Only / Bot OFF check
 		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
 		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
 			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
 			if (!name || !ignored.includes(name)) {
-				// Silently ignore non-admins when bot is OFF in this thread (Floppa standard: zero response)
 				return;
 			}
 		}
 
-		// 2. Global Admin-Only / Default-OFF check (Floppa standard)
+		// 2. Global Bot Admin-Only / Default-OFF check
 		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
 		if (isGlobalAdminOnly && !isBotAdmin(senderID)) {
 			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
 			if (!name || !ignored.includes(name)) {
-				// Silently ignore non-admins when global admin-only is on: zero response
 				return;
 			}
 		}
@@ -204,6 +208,12 @@ function createDispatcher({ api, config, registry, database }) {
 		}
 
 		const commandName = command.config.name.toLowerCase();
+
+		if (userData && userData.banned && userData.banned.status) {
+			if (!config.hideNotiMessage.userBanned)
+				return message.reply(t(config.language, "userBanned", config.botName, userData.banned.reason || "—"));
+			return;
+		}
 
 		if (userData && userData.banned && userData.banned.status) {
 			if (!config.hideNotiMessage.userBanned)
@@ -296,14 +306,6 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	async function runReplyHandlers(event, message, threadData, userData) {
-		const senderID = senderIDOf(event);
-		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
-		if (isGlobalAdminOnly && !isBotAdmin(senderID)) return false;
-
-		const role = roleOf(event, threadData);
-		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
-		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) return false;
-
 		const repliedID = event.messageReply && event.messageReply.messageID;
 		if (!repliedID) return false;
 		const entry = onReply.get(String(repliedID));
@@ -372,14 +374,6 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	async function runReactionHandlers(event, message, threadData, userData) {
-		const senderID = senderIDOf(event);
-		const isGlobalAdminOnly = Boolean(config.adminOnly?.enable || config.ADMIN_ONLY_ENABLE || config.defaultOff);
-		if (isGlobalAdminOnly && !isBotAdmin(senderID)) return false;
-
-		const role = roleOf(event, threadData);
-		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
-		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) return false;
-
 		const entry = onReaction.get(String(event.messageID));
 		if (!entry) return false;
 		if (userData && userData.banned && userData.banned.status) return true;
@@ -482,47 +476,89 @@ function createDispatcher({ api, config, registry, database }) {
 			if (Array.isArray(list)) for (const id of list) if (id != null && String(id)) members.add(String(id));
 		}
 		const looksGroup = event.isGroup === true || members.size > 1;
-		const hasAdmins = Array.isArray(threadData.adminIDs) && threadData.adminIDs.length > 0;
 
-		if (event.isGroup === false) return { isGroup: false, known: true };
-		if (threadData.groupKnown && threadData.isGroup === false) return { isGroup: false, known: true };
-		if (threadData.groupKnown && hasAdmins) return { isGroup: threadData.isGroup === true, known: true };
+		if (event.isGroup === false && !looksGroup) return { isGroup: false, known: true };
 
-		try {
-			const info = await new Promise((resolve, reject) =>
-				api.getThreadInfo(event.threadID, (error, result) => error ? reject(error) : resolve(result)));
-			const isGroup = !!(info && (info.isGroup === true || Number(info.threadType) === 2 ||
-				(Array.isArray(info.participantIDs) && info.participantIDs.length > 2) ||
-				(Array.isArray(info.participants) && info.participants.length > 2) ||
-				(Array.isArray(info.userInfo) && info.userInfo.length > 2) ||
-				looksGroup));
+		const isGroup = event.isGroup === true || looksGroup || (threadData.groupKnown ? threadData.isGroup === true : false);
+		if (!isGroup && threadData.groupKnown && threadData.isGroup === false) {
+			return { isGroup: false, known: true };
+		}
 
-			const rawAdmins = info?.adminIDs || info?.adminIds || info?.admin_ids || info?.admin_user_ids || [];
-			const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
-				.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
-				.filter(Boolean)
-				.map(String);
+		const shouldFetchThreadInfo = (!threadData.groupKnown && event.isGroup == null) ||
+			(isGroup && (!Array.isArray(threadData.adminIDs) || threadData.adminIDs.length === 0 || !threadData._adminFetchedAt || (Date.now() - (threadData._adminFetchedAt || 0) > 10 * 60 * 1000)));
 
-			if (Array.isArray(info?.userInfo)) {
-				for (const u of info.userInfo) {
-					if (u && (u.isAdmin || u.is_admin) && (u.userID || u.userId || u.id || u.pk)) {
-						adminList.push(String(u.userID || u.userId || u.id || u.pk));
+		if (shouldFetchThreadInfo && api && typeof api.getThreadInfo === "function") {
+			try {
+				const info = await new Promise((resolve, reject) => {
+					let done = false;
+					const timer = setTimeout(() => {
+						if (!done) { done = true; resolve(null); }
+					}, 3500);
+					api.getThreadInfo(event.threadID, (error, result) => {
+						if (!done) {
+							done = true;
+							clearTimeout(timer);
+							error ? reject(error) : resolve(result);
+						}
+					});
+				});
+
+				if (info) {
+					const determinedIsGroup = !!(info.isGroup === true || Number(info.threadType) === 2 ||
+						(Array.isArray(info.participantIDs) && info.participantIDs.length > 2) ||
+						(Array.isArray(info.participants) && info.participants.length > 2) ||
+						(Array.isArray(info.userInfo) && info.userInfo.length > 2) ||
+						looksGroup);
+
+					const rawAdmins = info.adminIDs || info.adminIds || info.admin_ids || info.admin_user_ids || info.thread_admin_ids || [];
+					const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
+						.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
+						.filter(Boolean)
+						.map(String);
+
+					if (Array.isArray(info.userInfo)) {
+						for (const u of info.userInfo) {
+							if (u && (u.isAdmin || u.is_admin) && (u.userID || u.userId || u.id || u.pk)) {
+								adminList.push(String(u.userID || u.userId || u.id || u.pk));
+							}
+						}
 					}
+
+					if (Array.isArray(info.participants)) {
+						for (const p of info.participants) {
+							if (p && (p.isAdmin || p.is_admin) && (p.userID || p.userId || p.id || p.pk)) {
+								adminList.push(String(p.userID || p.userId || p.id || p.pk));
+							}
+						}
+					}
+
+					if (info.inviter) {
+						const inviterId = typeof info.inviter === "object" ? (info.inviter.userID || info.inviter.userId || info.inviter.id || info.inviter.pk) : info.inviter;
+						if (inviterId) adminList.push(String(inviterId));
+					}
+
+					const uniqueAdmins = Array.from(new Set(adminList));
+					const updates = { isGroup: determinedIsGroup, groupKnown: true, _adminFetchedAt: Date.now() };
+					if (info.name || info.threadName) updates.name = info.name || info.threadName;
+					if (uniqueAdmins.length > 0) {
+						updates.adminIDs = uniqueAdmins;
+						threadData.adminIDs = uniqueAdmins;
+					}
+					database.threads.update(event.threadID, updates);
+					return { isGroup: determinedIsGroup, known: true };
 				}
 			}
+			catch (_) { }
+		}
 
-			const uniqueAdmins = Array.from(new Set(adminList));
-			const updates = { isGroup, groupKnown: true, name: info && info.name || undefined };
-			if (uniqueAdmins.length > 0) {
-				updates.adminIDs = uniqueAdmins;
-				threadData.adminIDs = uniqueAdmins;
+		if (isGroup) {
+			if (!threadData.groupKnown || !threadData.isGroup) {
+				database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
 			}
-			database.threads.update(event.threadID, updates);
-			return { isGroup, known: true };
+			return { isGroup: true, known: true };
 		}
-		catch (_) {
-			return { isGroup: looksGroup || (threadData.groupKnown ? threadData.isGroup === true : false), known: threadData.groupKnown };
-		}
+		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
+		return { isGroup: false, known: false };
 	}
 
 	async function handle(event) {
@@ -559,13 +595,40 @@ function createDispatcher({ api, config, registry, database }) {
 				await runEventScripts(event, message, threadData, userData);
 				await runReactionHandlers(event, message, threadData, userData);
 
+				// Broadcast to commands exporting onReaction (e.g. unsend)
+				for (const cmd of registry.commands.values()) {
+					if (typeof cmd.onReaction === "function") {
+						try {
+							await cmd.onReaction({
+								api,
+								event,
+								message,
+								role: roleOf(event, threadData),
+								isBotAdmin,
+								usersData: database.users,
+								threadsData: database.threads,
+								userData,
+								threadData,
+								config
+							});
+						} catch (err) {
+							log.error("REACTION", `Error running onReaction for ${cmd.config?.name}:`, err);
+						}
+					}
+				}
+
 				// Tap-to-replay & reaction unsend feature (Floppa compatible)
 				const targetMsgID = event.targetMessageID || event.messageID;
 				if (targetMsgID && event.reaction && event.reactionStatus !== "deleted") {
-					const UNSEND_EMOJIS = ["😠", "😡", "❌", "🗑️", "👎"];
+					const UNSEND_EMOJIS = [
+						"✋", "🖐️", "🖐", "🤚", "👋", "👌", "👍", "👎",
+						"✍️", "🤝", "🖕", "👊", "🤛", "🤜", "🤞", "🫰",
+						"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
+						"👏", "🙌", "👐", "🤲", "🙏", "😠", "😡", "❌", "🗑️"
+					];
 					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
-					if (UNSEND_EMOJIS.includes(event.reaction)) {
+					if (UNSEND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h)) {
 						const role = roleOf(event, threadData);
 						const isDM = !event.isGroup;
 						if (role >= ROLE_ADMIN_BOX || isDM) {

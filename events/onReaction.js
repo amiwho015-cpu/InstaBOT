@@ -23,11 +23,16 @@ module.exports = {
 		const targetID = event.targetMessageID || event.messageID;
 		if (!targetID) return;
 
-		const UNSEND_EMOJIS = ["😡", "😠", "❌", "🗑️", "👎"];
-		if (!UNSEND_EMOJIS.includes(event.reaction)) return;
+		const HAND_EMOJIS = [
+			"✋", "🖐️", "🖐", "🤚", "👋", "👌", "👍", "👎",
+			"✍️", "🤝", "🖕", "👊", "🤛", "🤜", "🤞", "🫰",
+			"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
+			"👏", "🙌", "👐", "🤲", "🙏", "😡", "😠", "❌", "🗑️"
+		];
+		if (!HAND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h)) return;
 		if (event.reactionStatus === "deleted") return;
 
-		const isBotAdmin = (config && (
+		const isBotAdmin = (api && typeof api.getCurrentUserID === "function" && String(api.getCurrentUserID() || "").trim() === senderID) || (config && (
 			(Array.isArray(config.adminBot) && config.adminBot.map(String).includes(senderID)) ||
 			(Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(senderID)) ||
 			(Array.isArray(config.devUsers) && config.devUsers.map(String).includes(senderID)) ||

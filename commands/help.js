@@ -63,8 +63,7 @@ module.exports = {
 				`➥ Aliases: ${c.aliases && c.aliases.length ? c.aliases.join(", ") : "None"}`,
 				`➥ Usage: ${usage}`,
 				`➥ Permission: ${c.role || 0}`,
-				`➥ Author: ${c.author || "Farhan (frnAlt)"}`,
-				`➥ Developer: Farhan (frnAlt)`,
+				`➥ Author: ${c.author || "—"}`,
 				`➥ Version: ${version}`
 			].join("\n");
 
@@ -95,7 +94,7 @@ module.exports = {
 			(byCategory[category] = byCategory[category] || []).push(c.name);
 		}
 
-		const lines = [`━━━☠️ ${String((config && (config.botName || config.BOT_NAME)) || "INSTABOT").toUpperCase()} MENU ☠️━━━`];
+		const lines = [`━━━☠️ ${String((config && (config.botName || config.BOT_NAME)) || "InstaBOT").toUpperCase()} ☠️━━━`];
 		for (const category of Object.keys(byCategory).sort()) {
 			lines.push(`\n╭──『 ${category.toUpperCase()} 』`);
 			const names = byCategory[category].sort();

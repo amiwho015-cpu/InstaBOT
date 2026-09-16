@@ -84,9 +84,22 @@ function createAPIWrapper(rawClient, config = {}) {
 						return await ig.sendMessage(text, threadID);
 					}
 					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
-						return await (replyToMessageID && typeof ig.sendMessage.reply === "function"
-							? ig.sendMessage.reply(threadID, text, replyToMessageID)
-							: ig.sendMessage.toThread(threadID, replyToMessageID ? { body: text, replyTo: replyToMessageID } : text));
+						if (replyToMessageID && typeof ig.sendMessage.reply === "function") {
+							try {
+								return await ig.sendMessage.reply(threadID, text, replyToMessageID);
+							} catch (replyErr) {
+								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
+								return await ig.sendMessage.toThread(threadID, text);
+							}
+						}
+						try {
+							return await ig.sendMessage.toThread(threadID, replyToMessageID ? { body: text, replyTo: replyToMessageID } : text);
+						} catch (threadErr) {
+							if (replyToMessageID) {
+								return await ig.sendMessage.toThread(threadID, text);
+							}
+							throw threadErr;
+						}
 					}
 					if (typeof ig.sendDirectMessage === "function") {
 						return await ig.sendDirectMessage(threadID, text);
@@ -267,7 +280,12 @@ function createAPIWrapper(rawClient, config = {}) {
 			const promise = (async () => {
 				if (!userID) return {};
 				if (ig && typeof ig.getUserInfo === "function") {
-					return await ig.getUserInfo(userID);
+					const res = await ig.getUserInfo(userID);
+					if (res && typeof res === "object") {
+						const uid = String(res.userID || res.userId || res.id || userID);
+						return { [uid]: res, ...res };
+					}
+					return res || {};
 				}
 				return {};
 			})();
