@@ -362,16 +362,18 @@ class Dispatcher {
 		const cfg = command.config || command.meta || {};
 
 		// 1. Thread Admin-Only Check
-		const isThreadAdminOnly = threadData?.settings?.adminOnly === true || threadData?.settings?.botOff === true;
-		const isGlobalAdminOnly = this.config.ADMIN_ONLY_ENABLE === true;
+		const isThreadAdminOnly = threadData?.settings?.adminOnly === true || threadData?.settings?.botOff === true || threadData?.adminOnly === true;
+		const isGlobalAdminOnly = this.config.ADMIN_ONLY_ENABLE === true || this.config.adminOnly?.enable === true;
 
 		const userRole = this.permissions.getUserRole(event.senderID, event.threadID, threadData);
+		const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || ["bot"]).map(s => s.toLowerCase());
 
-		if ((isThreadAdminOnly || isGlobalAdminOnly) && userRole < 2) {
-			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => s.toLowerCase());
-			if (!ignored.includes(commandName.toLowerCase())) {
-				return; // Silently ignore non-admins when admin-only is on
-			}
+		if (isGlobalAdminOnly && userRole < 2 && !ignored.includes(commandName.toLowerCase())) {
+			return; // Silently ignore non-admins when global admin-only is on
+		}
+
+		if (isThreadAdminOnly && userRole < 1 && !ignored.includes(commandName.toLowerCase())) {
+			return; // Silently ignore non-admins when thread admin-only is on
 		}
 
 		// 2. Role Check

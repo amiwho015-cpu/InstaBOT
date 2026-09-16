@@ -120,6 +120,7 @@ function makeDatabase() {
 			ensure(id, patch) { if (!threads.has(id)) threads.set(id, Object.assign({ threadID: id, adminIDs: [], members: [], settings: {}, data: {} }, patch)); return threads.get(id); },
 			get: id => threads.get(id) || null,
 			update(id, patch) { const t = threads.get(id); if (t) Object.assign(t, patch); return t; },
+			set(id, patch) { threads.set(id, patch); return patch; },
 			count: () => threads.size,
 			flush() { }
 		}
@@ -447,6 +448,42 @@ async function main() {
 		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m", senderID: "5", body: "-ping", isGroup: false });
 		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
 		assert.ok(/admin/i.test(replies), "expected an admin-only notice");
+	});
+
+	await test("bot: off turns bot off for non-admins, but admins can use commands", async () => {
+		const api = fakeApi();
+		const config = makeConfig();
+		const db = makeDatabase();
+		const tData = { threadID: "t", adminIDs: ["admin1"], settings: {} };
+		db.threads.set("t", tData);
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		// Admin turns bot off
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m1", senderID: "admin1", body: "-bot off", isGroup: true });
+		assert.strictEqual(tData.adminOnly, true);
+
+		// Non-admin tries ping
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m2", senderID: "user1", body: "-ping", isGroup: true });
+		const blockedReplies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(/turned OFF/i.test(blockedReplies), "expected blocked notice for non-admin");
+
+		// Admin uses ping
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m3", senderID: "admin1", body: "-ping", isGroup: true });
+		const adminReplies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(/pong|ping/i.test(adminReplies), "admin should be able to use commands by default");
+
+		// Admin turns bot back on
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m4", senderID: "admin1", body: "-bot on", isGroup: true });
+		assert.strictEqual(tData.adminOnly, false);
+
+		// Non-admin can use ping now
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m5", senderID: "user1", body: "-ping", isGroup: true });
+		const publicReplies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.ok(/pong|ping/i.test(publicReplies), "non-admin should be able to use commands when bot is ON");
 	});
 
 	await test("dispatcher: reply handler is invoked", async () => {

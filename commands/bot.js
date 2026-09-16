@@ -1,0 +1,142 @@
+"use strict";
+
+/**
+ * bot.js — Control bot ON/OFF status and admin-only mode
+ *
+ * Authors: frnAlt & Floppa Team
+ */
+
+module.exports = {
+	config: {
+		name: "bot",
+		aliases: ["botcontrol", "botmode", "togglebot"],
+		version: "2.0.0",
+		author: "frnAlt & Floppa Team",
+		cooldown: 0,
+		role: 0,
+		category: "config",
+		description: { en: "Turn bot ON/OFF or toggle admin-only mode for this chat or globally" },
+		usage: { en: "{p}bot [on | off | status | autotalk on/off | global on/off]" }
+	},
+
+	onStart: async function ({ message, event, args, config, role, threadData, threadsData, database, PermissionManager, bot, api }) {
+		const threadID = event.threadId || event.threadID;
+		const uid = String(event.senderID || event.userID || "");
+		const tData = threadData || (database && typeof database.getThreadData === "function" ? database.getThreadData(threadID) : null) || {};
+		if (!tData.settings) tData.settings = {};
+
+		const isBotAdmin = (role != null && role >= 2) ||
+			(config && Array.isArray(config.adminBot) && config.adminBot.map(String).includes(uid)) ||
+			(config && Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(uid)) ||
+			(config && Array.isArray(config.DEV_USERS) && config.DEV_USERS.map(String).includes(uid)) ||
+			(PermissionManager && typeof PermissionManager.getUserRole === "function" && PermissionManager.getUserRole(uid, threadID, tData) >= 2);
+
+		const isThreadAdmin = isBotAdmin || (role != null && role >= 1) ||
+			(event.isGroup === false) ||
+			(Array.isArray(tData.adminIDs) && tData.adminIDs.map(a => String(a.id || a.userID || a)).includes(uid)) ||
+			(PermissionManager && typeof PermissionManager.getUserRole === "function" && PermissionManager.getUserRole(uid, threadID, tData) >= 1);
+
+		function saveThreadData() {
+			if (threadsData && typeof threadsData.set === "function") {
+				threadsData.set(threadID, tData);
+			}
+			if (database && typeof database.setThreadData === "function") {
+				database.setThreadData(threadID, tData);
+			}
+			if (database && typeof database.save === "function") {
+				database.save();
+			}
+		}
+
+		const subCmd = args[0] ? args[0].toLowerCase() : "status";
+		const p = (config && (config.prefix || config.PREFIX)) || "-";
+
+		// 1. Global toggle (Bot Admin only)
+		if (subCmd === "global") {
+			if (!isBotAdmin) {
+				return message.reply("🔒 Only Bot Admins can toggle global bot status.");
+			}
+			const gMode = args[1] ? args[1].toLowerCase() : null;
+			if (gMode === "off" || gMode === "disable" || gMode === "admin") {
+				if (config.adminOnly) config.adminOnly.enable = true;
+				config.ADMIN_ONLY_ENABLE = true;
+				try { require("../src/config").saveConfig(config); } catch (_) {}
+				return message.reply("🔒 Global Bot Status: DISABLED for non-admins (Admin-Only mode activated globally).");
+			}
+			if (gMode === "on" || gMode === "enable" || gMode === "public") {
+				if (config.adminOnly) config.adminOnly.enable = false;
+				config.ADMIN_ONLY_ENABLE = false;
+				try { require("../src/config").saveConfig(config); } catch (_) {}
+				return message.reply("✅ Global Bot Status: ENABLED globally for all users.");
+			}
+			const isGlobalOn = (config.adminOnly && config.adminOnly.enable) || config.ADMIN_ONLY_ENABLE;
+			return message.reply(`🌐 Global Bot Mode: ${isGlobalOn ? "ADMIN-ONLY 🔒" : "PUBLIC ✅"}\nUsage: ${p}bot global [on | off]`);
+		}
+
+		// 2. Turn Bot OFF for non-admins (Admins can still use all commands)
+		if (subCmd === "off" || subCmd === "disable" || subCmd === "admin" || subCmd === "adminonly") {
+			if (!isThreadAdmin) {
+				return message.reply("❌ Access Denied! Only Chat or Bot Admins can turn the bot OFF.");
+			}
+			tData.adminOnly = true;
+			tData.settings.adminOnly = true;
+			tData.settings.botOff = true;
+			saveThreadData();
+			return message.reply("🔒 Bot has been turned OFF for non-admins in this chat!\nAdmins can still use all commands.");
+		}
+
+		// 3. Turn Bot ON for everyone in this chat
+		if (subCmd === "on" || subCmd === "enable" || subCmd === "public") {
+			if (!isThreadAdmin) {
+				return message.reply("❌ Access Denied! Only Chat or Bot Admins can turn the bot ON.");
+			}
+			tData.adminOnly = false;
+			tData.settings.adminOnly = false;
+			tData.settings.botOff = false;
+			saveThreadData();
+			return message.reply("✅ Bot has been turned ON for all users in this chat!");
+		}
+
+		// 4. Toggle Auto-Talk
+		if (subCmd === "autotalk" || subCmd === "talk" || subCmd === "atalk") {
+			const mode = args[1] ? args[1].toLowerCase() : null;
+			if (mode === "on" || mode === "enable") {
+				if (!isThreadAdmin) return message.reply("❌ Only Admins can enable auto-talk.");
+				tData.autotalk = true;
+				tData.settings.autotalk = true;
+				saveThreadData();
+				return message.reply("🗣️ Auto-Talk Chatbot has been ENABLED for this chat!");
+			}
+			if (mode === "off" || mode === "disable") {
+				if (!isThreadAdmin) return message.reply("❌ Only Admins can disable auto-talk.");
+				tData.autotalk = false;
+				tData.settings.autotalk = false;
+				saveThreadData();
+				return message.reply("🔇 Auto-Talk Chatbot has been DISABLED for this chat.");
+			}
+			const atState = tData.autotalk === true || tData.settings.autotalk === true;
+			return message.reply(`🗣️ Auto-Talk Status: ${atState ? "ENABLED ✅" : "DISABLED ❌"}\nUsage: ${p}bot autotalk [on | off]`);
+		}
+
+		// 5. Show Bot Status panel
+		const isBotOff = tData.adminOnly === true || tData.settings.adminOnly === true || tData.settings.botOff === true;
+		const isGlobalOff = (config.adminOnly && config.adminOnly.enable === true) || config.ADMIN_ONLY_ENABLE === true;
+		const autoTalkState = tData.autotalk === true || tData.settings.autotalk === true;
+
+		let statusMsg = "🤖 Bot Status Control Panel\n\n";
+		statusMsg += `📍 Chat Status: ${isBotOff ? "OFF 🔒 (Admin Only)" : "ON ✅ (Public)"}\n`;
+		statusMsg += `🌐 Global Status: ${isGlobalOff ? "ADMIN ONLY 🔒" : "ACTIVE ✅"}\n`;
+		statusMsg += `🗣️ Auto-Talk AI: ${autoTalkState ? "ON ✅" : "OFF ❌"}\n\n`;
+		statusMsg += "🛠️ Admin Usage:\n";
+		statusMsg += `• ${p}bot off — Turn bot OFF for non-admins (Admin Only)\n`;
+		statusMsg += `• ${p}bot on — Turn bot ON for everyone\n`;
+		statusMsg += `• ${p}bot autotalk [on|off] — Toggle AI chatbot auto-talk\n`;
+		statusMsg += `• ${p}bot global [on|off] — Global bot toggle (Bot Admin)`;
+
+		return message.reply(statusMsg);
+	},
+
+	run: async function (params) {
+		return module.exports.onStart(params);
+	}
+};

@@ -181,6 +181,17 @@ function createDispatcher({ api, config, registry, database }) {
 		}
 
 		const role = roleOf(event, threadData);
+
+		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
+		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
+			const ignored = (config.adminOnly?.ignoreCommands || ["bot"]).map(s => s.toLowerCase());
+			if (!ignored.includes(commandName)) {
+				if (!config.hideNotiMessage?.adminOnly)
+					return message.reply("🔒 Bot is turned OFF for non-admins in this chat. Only Admins can use commands.");
+				return;
+			}
+		}
+
 		const needRole = requiredRole(command, threadData);
 		if (needRole > role) {
 			if (!config.hideNotiMessage.needRoleToUseCommand) {
