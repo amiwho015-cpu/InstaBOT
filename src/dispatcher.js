@@ -49,14 +49,27 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	function isBotAdmin(id) {
-		return config.adminBot.includes(String(id));
+		const uid = String(id || "").trim();
+		if (!uid) return false;
+		const adminList = [
+			...(Array.isArray(config.adminBot) ? config.adminBot : []),
+			...(Array.isArray(config.ADMIN_BOT) ? config.ADMIN_BOT : []),
+			...(Array.isArray(config.devUsers) ? config.devUsers : []),
+			...(Array.isArray(config.DEV_USERS) ? config.DEV_USERS : [])
+		].map(String).map(s => s.trim()).filter(Boolean);
+		return adminList.includes(uid);
 	}
 
 	function roleOf(event, threadData) {
 		const senderID = senderIDOf(event);
 		if (isBotAdmin(senderID)) return ROLE_ADMIN_BOT;
-		const admins = (threadData && threadData.adminIDs) || [];
-		if (admins.map(String).includes(senderID)) return ROLE_ADMIN_BOX;
+		const rawAdmins = (threadData && (threadData.adminIDs || threadData.adminIds || threadData.admin_ids)) || [];
+		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
+			if (!a) return "";
+			if (typeof a === "object") return String(a.id || a.userID || a.pk || a.uid || "").trim();
+			return String(a).trim();
+		}).filter(Boolean);
+		if (adminIDs.includes(senderID)) return ROLE_ADMIN_BOX;
 		return ROLE_USER;
 	}
 
@@ -184,16 +197,18 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const isThreadAdminOnly = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
 		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
-			const ignored = (config.adminOnly?.ignoreCommands || ["bot"]).map(s => s.toLowerCase());
-			if (!ignored.includes(commandName)) {
-				if (!config.hideNotiMessage?.adminOnly)
-					return message.reply("🔒 Bot is turned OFF for non-admins in this chat. Only Admins can use commands.");
-				return;
-			}
+			// Silently ignore non-admins when bot is OFF in this thread (Floppa standard)
+			return;
 		}
 
 		const needRole = requiredRole(command, threadData);
 		if (needRole > role) {
+			// By default, non-admins cannot use admin base commands (bot, admin, etc.)
+			// Do not send them any output; bot does not respond to them like Floppa
+			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot"];
+			if (adminBaseCmds.includes(commandName)) {
+				return;
+			}
 			if (!config.hideNotiMessage.needRoleToUseCommand) {
 				const key = needRole === ROLE_ADMIN_BOT ? "onlyAdminBot" : "onlyAdmin";
 				return message.reply(t(config.language, key, commandName));
@@ -429,25 +444,51 @@ function createDispatcher({ api, config, registry, database }) {
 	 * list, then a cached value, and finally ask the API once per thread.
 	 */
 	async function resolveThreadGroup(event, threadData) {
-		if (event.isGroup === true) return { isGroup: true, known: true };
-		if (event.isGroup === false) return { isGroup: false, known: true };
 		const members = new Set();
 		for (const list of [event.participantIDs, event.userIDs]) {
 			if (Array.isArray(list)) for (const id of list) if (id != null && String(id)) members.add(String(id));
 		}
-		if (members.size > 1) return { isGroup: true, known: true };
-		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
+		const looksGroup = event.isGroup === true || members.size > 1;
+		const hasAdmins = Array.isArray(threadData.adminIDs) && threadData.adminIDs.length > 0;
+
+		if (event.isGroup === false) return { isGroup: false, known: true };
+		if (threadData.groupKnown && threadData.isGroup === false) return { isGroup: false, known: true };
+		if (threadData.groupKnown && hasAdmins) return { isGroup: threadData.isGroup === true, known: true };
+
 		try {
 			const info = await new Promise((resolve, reject) =>
 				api.getThreadInfo(event.threadID, (error, result) => error ? reject(error) : resolve(result)));
 			const isGroup = !!(info && (info.isGroup === true || Number(info.threadType) === 2 ||
-				(Array.isArray(info.participantIDs) && info.participantIDs.length > 2)));
-			database.threads.update(event.threadID, { isGroup, groupKnown: true, name: info && info.name || undefined });
+				(Array.isArray(info.participantIDs) && info.participantIDs.length > 2) ||
+				(Array.isArray(info.participants) && info.participants.length > 2) ||
+				(Array.isArray(info.userInfo) && info.userInfo.length > 2) ||
+				looksGroup));
+
+			const rawAdmins = info?.adminIDs || info?.adminIds || info?.admin_ids || info?.admin_user_ids || [];
+			const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
+				.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
+				.filter(Boolean)
+				.map(String);
+
+			if (Array.isArray(info?.userInfo)) {
+				for (const u of info.userInfo) {
+					if (u && (u.isAdmin || u.is_admin) && (u.userID || u.userId || u.id || u.pk)) {
+						adminList.push(String(u.userID || u.userId || u.id || u.pk));
+					}
+				}
+			}
+
+			const uniqueAdmins = Array.from(new Set(adminList));
+			const updates = { isGroup, groupKnown: true, name: info && info.name || undefined };
+			if (uniqueAdmins.length > 0) {
+				updates.adminIDs = uniqueAdmins;
+				threadData.adminIDs = uniqueAdmins;
+			}
+			database.threads.update(event.threadID, updates);
 			return { isGroup, known: true };
 		}
 		catch (_) {
-			// Could not confirm: do not cache a guess, and treat as unknown.
-			return { isGroup: false, known: false };
+			return { isGroup: looksGroup || (threadData.groupKnown ? threadData.isGroup === true : false), known: threadData.groupKnown };
 		}
 	}
 
@@ -492,11 +533,15 @@ function createDispatcher({ api, config, registry, database }) {
 					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
 					if (UNSEND_EMOJIS.includes(event.reaction)) {
-						try {
-							if (typeof api.unsendMessage === "function") {
-								await api.unsendMessage(targetMsgID, event.threadID).catch(() => {});
-							}
-						} catch (_) {}
+						const role = roleOf(event, threadData);
+						const isDM = !event.isGroup;
+						if (role >= ROLE_ADMIN_BOX || isDM) {
+							try {
+								if (typeof api.unsendMessage === "function") {
+									await api.unsendMessage(targetMsgID, event.threadID, () => {}).catch(() => {});
+								}
+							} catch (_) {}
+						}
 					} else if (REPLAY_EMOJIS.includes(event.reaction)) {
 						try {
 							const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;

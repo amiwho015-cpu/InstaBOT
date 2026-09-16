@@ -51,6 +51,15 @@ class FormatUtils {
       folder: thread.folder || '',
       hasMore: thread.has_older === true,
       cursor: thread.oldest_cursor || null,
+      adminIDs: Array.from(new Set([
+        ...(thread.admin_user_ids || thread.adminIDs || thread.adminIds || thread.admin_ids || [])
+          .map(a => (typeof a === 'object' ? (a.id || a.userID || a.pk || a.uid) : a)?.toString())
+          .filter(Boolean),
+        ...(thread.users || [])
+          .filter(u => u.is_admin === true || u.isAdmin === true)
+          .map(u => (u.pk || u.pk_id || u.id)?.toString())
+          .filter(Boolean)
+      ])),
       lastMessage: thread.items?.[0] ? this.formatMessage(thread.items[0], thread.thread_id) : null
     };
   }

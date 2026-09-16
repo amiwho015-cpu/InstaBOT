@@ -466,7 +466,7 @@ async function main() {
 		api.calls.length = 0;
 		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m2", senderID: "user1", body: "-ping", isGroup: true });
 		const blockedReplies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
-		assert.ok(/turned OFF/i.test(blockedReplies), "expected blocked notice for non-admin");
+		assert.strictEqual(blockedReplies, "", "expected no response for non-admin when bot is turned off");
 
 		// Admin uses ping
 		api.calls.length = 0;
@@ -484,6 +484,55 @@ async function main() {
 		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m5", senderID: "user1", body: "-ping", isGroup: true });
 		const publicReplies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
 		assert.ok(/pong|ping/i.test(publicReplies), "non-admin should be able to use commands when bot is ON");
+	});
+
+	await test("bot: non-admin gets no response for bot command", async () => {
+		const api = fakeApi();
+		const config = makeConfig();
+		const db = makeDatabase();
+		const tData = { threadID: "t", adminIDs: ["admin1"], settings: {} };
+		db.threads.set("t", tData);
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m1", senderID: "user1", body: "-bot", isGroup: true });
+		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.strictEqual(replies, "", "non-admin must receive no response for bot command");
+	});
+
+	await test("admin: non-admin gets no response for admin command", async () => {
+		const api = fakeApi();
+		const config = makeConfig();
+		const db = makeDatabase();
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		api.calls.length = 0;
+		await dispatcher.handle({ type: "message", threadID: "t", messageID: "m1", senderID: "user1", body: "-admin list", isGroup: false });
+		const replies = api.calls.filter(c => c.method === "sendMessage").map(c => c.form.body).join(" ");
+		assert.strictEqual(replies, "", "non-admin must receive no response for admin command");
+	});
+
+	await test("onReaction: unsend emoji removes target message for admin and DM", async () => {
+		const api = fakeApi();
+		const config = makeConfig();
+		const db = makeDatabase();
+		const tData = { threadID: "t", adminIDs: ["admin1"], settings: {} };
+		db.threads.set("t", tData);
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+
+		api.calls.length = 0;
+		await dispatcher.handle({
+			type: "message_reaction",
+			threadID: "t",
+			messageID: "reaction1",
+			targetMessageID: "bot_msg_to_unsend",
+			senderID: "admin1",
+			reaction: "😡",
+			isGroup: true
+		});
+
+		const unsendCalls = api.calls.filter(c => c.method === "unsendMessage");
+		assert.ok(unsendCalls.some(c => c.id === "bot_msg_to_unsend" && c.threadID === "t"), "expected target message to be unsent on angry reaction");
 	});
 
 	await test("dispatcher: reply handler is invoked", async () => {

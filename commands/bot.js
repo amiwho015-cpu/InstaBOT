@@ -10,31 +10,43 @@ module.exports = {
 	config: {
 		name: "bot",
 		aliases: ["botcontrol", "botmode", "togglebot"],
-		version: "2.0.0",
+		version: "2.1.0",
 		author: "frnAlt & Floppa Team",
 		cooldown: 0,
-		role: 0,
+		role: 1,
 		category: "config",
 		description: { en: "Turn bot ON/OFF or toggle admin-only mode for this chat or globally" },
 		usage: { en: "{p}bot [on | off | status | autotalk on/off | global on/off]" }
 	},
 
 	onStart: async function ({ message, event, args, config, role, threadData, threadsData, database, PermissionManager, bot, api }) {
-		const threadID = event.threadId || event.threadID;
-		const uid = String(event.senderID || event.userID || "");
-		const tData = threadData || (database && typeof database.getThreadData === "function" ? database.getThreadData(threadID) : null) || {};
+		const threadID = String(event.threadId || event.threadID || "");
+		const uid = String(event.senderID || event.userID || "").trim();
+		const tData = threadData || (database && typeof database.getThreadData === "function" ? database.getThreadData(threadID) : null) || (database && database.threads && typeof database.threads.get === "function" ? database.threads.get(threadID) : null) || {};
 		if (!tData.settings) tData.settings = {};
 
 		const isBotAdmin = (role != null && role >= 2) ||
 			(config && Array.isArray(config.adminBot) && config.adminBot.map(String).includes(uid)) ||
 			(config && Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(uid)) ||
+			(config && Array.isArray(config.devUsers) && config.devUsers.map(String).includes(uid)) ||
 			(config && Array.isArray(config.DEV_USERS) && config.DEV_USERS.map(String).includes(uid)) ||
 			(PermissionManager && typeof PermissionManager.getUserRole === "function" && PermissionManager.getUserRole(uid, threadID, tData) >= 2);
 
+		const rawAdmins = (tData.adminIDs || tData.adminIds || tData.admin_ids || []).map(a => {
+			if (!a) return "";
+			if (typeof a === "object") return String(a.id || a.userID || a.pk || a.uid || "").trim();
+			return String(a).trim();
+		}).filter(Boolean);
+
 		const isThreadAdmin = isBotAdmin || (role != null && role >= 1) ||
 			(event.isGroup === false) ||
-			(Array.isArray(tData.adminIDs) && tData.adminIDs.map(a => String(a.id || a.userID || a)).includes(uid)) ||
+			rawAdmins.includes(uid) ||
 			(PermissionManager && typeof PermissionManager.getUserRole === "function" && PermissionManager.getUserRole(uid, threadID, tData) >= 1);
+
+		// Non-admins cannot use bot command by default, do not send any output (Floppa standard)
+		if (!isThreadAdmin) {
+			return;
+		}
 
 		function saveThreadData() {
 			if (threadsData && typeof threadsData.set === "function") {
@@ -43,8 +55,20 @@ module.exports = {
 			if (database && typeof database.setThreadData === "function") {
 				database.setThreadData(threadID, tData);
 			}
+			if (database && database.threads && typeof database.threads.set === "function") {
+				database.threads.set(threadID, tData);
+			}
+			if (database && database.threads && typeof database.threads.update === "function") {
+				database.threads.update(threadID, tData);
+			}
 			if (database && typeof database.save === "function") {
 				database.save();
+			}
+			if (database && typeof database.flush === "function") {
+				database.flush();
+			}
+			if (database && database.threads && typeof database.threads.flush === "function") {
+				database.threads.flush();
 			}
 		}
 
@@ -54,7 +78,7 @@ module.exports = {
 		// 1. Global toggle (Bot Admin only)
 		if (subCmd === "global") {
 			if (!isBotAdmin) {
-				return message.reply("🔒 Only Bot Admins can toggle global bot status.");
+				return;
 			}
 			const gMode = args[1] ? args[1].toLowerCase() : null;
 			if (gMode === "off" || gMode === "disable" || gMode === "admin") {
@@ -75,9 +99,7 @@ module.exports = {
 
 		// 2. Turn Bot OFF for non-admins (Admins can still use all commands)
 		if (subCmd === "off" || subCmd === "disable" || subCmd === "admin" || subCmd === "adminonly") {
-			if (!isThreadAdmin) {
-				return message.reply("❌ Access Denied! Only Chat or Bot Admins can turn the bot OFF.");
-			}
+			if (!isThreadAdmin) return;
 			tData.adminOnly = true;
 			tData.settings.adminOnly = true;
 			tData.settings.botOff = true;
@@ -87,9 +109,7 @@ module.exports = {
 
 		// 3. Turn Bot ON for everyone in this chat
 		if (subCmd === "on" || subCmd === "enable" || subCmd === "public") {
-			if (!isThreadAdmin) {
-				return message.reply("❌ Access Denied! Only Chat or Bot Admins can turn the bot ON.");
-			}
+			if (!isThreadAdmin) return;
 			tData.adminOnly = false;
 			tData.settings.adminOnly = false;
 			tData.settings.botOff = false;
@@ -101,14 +121,14 @@ module.exports = {
 		if (subCmd === "autotalk" || subCmd === "talk" || subCmd === "atalk") {
 			const mode = args[1] ? args[1].toLowerCase() : null;
 			if (mode === "on" || mode === "enable") {
-				if (!isThreadAdmin) return message.reply("❌ Only Admins can enable auto-talk.");
+				if (!isThreadAdmin) return;
 				tData.autotalk = true;
 				tData.settings.autotalk = true;
 				saveThreadData();
 				return message.reply("🗣️ Auto-Talk Chatbot has been ENABLED for this chat!");
 			}
 			if (mode === "off" || mode === "disable") {
-				if (!isThreadAdmin) return message.reply("❌ Only Admins can disable auto-talk.");
+				if (!isThreadAdmin) return;
 				tData.autotalk = false;
 				tData.settings.autotalk = false;
 				saveThreadData();

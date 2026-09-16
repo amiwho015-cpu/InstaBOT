@@ -32,7 +32,7 @@ module.exports = {
         text = replyText;
         voiceOrText = "random";
       } else {
-        return message.reply("🎙️ 𝗩𝗼𝗶𝗰𝗲 𝗦𝗽𝗲𝗲𝗰𝗵 (𝗧𝗧𝗦)\n\n📌 Usage:\n• {p}say <text>\n• {p}say <character> <text>\n• Reply to any message with {p}say [character]\n\nCharacters: goku, naruto, luffy, trump, biden, obama, anime");
+        return message.reply("Usage: {p}say <text> | {p}say <voice> <text>");
       }
     } else if (args.join(" ").includes("|")) {
       const splitArgs = args.join(" ").split("|").map(arg => arg.trim());
@@ -105,16 +105,25 @@ module.exports = {
 
       let sent;
       try {
-        const sendPromise = message.reply({
-          body: `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"`,
-          attachment: { path: tempPath, type: "audio" },
-          textFirst: true
-        });
-        const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Voice delivery timed out")), 25000));
-        sent = await Promise.race([sendPromise, sendTimer]);
+        if (typeof api.sendVoice === "function") {
+          sent = await api.sendVoice(event.threadID, tempPath, { replyToMessageID: event.messageID });
+        } else if (typeof message.reply === "function") {
+          sent = await message.reply({
+            attachment: { path: tempPath, type: "audio" }
+          });
+        } else {
+          sent = await message.send({
+            attachment: { path: tempPath, type: "audio" }
+          });
+        }
       } catch (_) {
-        const fallbackMsg = `🎙️ Voice [${voiceOrText.toUpperCase()}]:\n"${text}"\n\n🔗 Audio Link: ${audioUrl}`;
-        sent = await (message.reply ? message.reply(fallbackMsg) : message.send(fallbackMsg));
+        try {
+          sent = await message.reply({
+            attachment: { path: tempPath, type: "audio" }
+          });
+        } catch (e) {
+          sent = null;
+        }
       }
 
       setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);

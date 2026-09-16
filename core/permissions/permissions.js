@@ -11,14 +11,21 @@
  */
 
 class Permissions {
-	constructor(config) {
+	constructor(config = {}) {
 		this.config = config;
-		this.adminBot = (config.ADMIN_BOT || []).map(String);
-		this.devUsers = (config.DEV_USERS || []).map(String);
+		this.adminBot = [
+			...(Array.isArray(config.ADMIN_BOT) ? config.ADMIN_BOT : []),
+			...(Array.isArray(config.adminBot) ? config.adminBot : [])
+		].map(String).map(s => s.trim()).filter(Boolean);
+
+		this.devUsers = [
+			...(Array.isArray(config.DEV_USERS) ? config.DEV_USERS : []),
+			...(Array.isArray(config.devUsers) ? config.devUsers : [])
+		].map(String).map(s => s.trim()).filter(Boolean);
 	}
 
 	getUserRole(userID, threadID, threadData = null) {
-		const uid = String(userID || "");
+		const uid = String(userID || "").trim();
 		if (!uid) return 0;
 
 		// 1. Bot Owner / Developer
@@ -33,7 +40,12 @@ class Permissions {
 
 		// 3. Thread Admin / Group Moderator
 		if (threadData) {
-			const adminIDs = (threadData.adminIDs || threadData.adminIds || []).map(a => String(a.id || a.userID || a));
+			const rawAdmins = threadData.adminIDs || threadData.adminIds || threadData.admin_ids || [];
+			const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
+				if (!a) return "";
+				if (typeof a === "object") return String(a.id || a.userID || a.pk || a.uid || "").trim();
+				return String(a).trim();
+			}).filter(Boolean);
 			if (adminIDs.includes(uid)) {
 				return 1;
 			}

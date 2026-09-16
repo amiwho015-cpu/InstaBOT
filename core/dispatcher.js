@@ -347,6 +347,22 @@ class Dispatcher {
 		if (this.bot.eventLoader) {
 			await this.bot.eventLoader.handleEvent("message_reaction", event, { bot: this.bot }).catch(() => {});
 		}
+
+		// Direct reaction unsend handler
+		const UNSEND_EMOJIS = ["😡", "😠", "❌", "🗑️", "👎"];
+		if (UNSEND_EMOJIS.includes(event.reaction) && event.reactionStatus !== "deleted") {
+			const database = global.db || require("../utils/database");
+			const threadData = database.getThreadData ? database.getThreadData(event.threadID) : null;
+			const userRole = this.permissions.getUserRole(event.senderID, event.threadID, threadData);
+			const isDM = !event.isGroup;
+			if (userRole >= 1 || isDM) {
+				try {
+					if (typeof this.bot.api?.unsendMessage === "function") {
+						await this.bot.api.unsendMessage(targetID, event.threadID).catch(() => {});
+					}
+				} catch (_) {}
+			}
+		}
 	}
 
 	async handleGroupEvent(event) {
@@ -366,19 +382,23 @@ class Dispatcher {
 		const isGlobalAdminOnly = this.config.ADMIN_ONLY_ENABLE === true || this.config.adminOnly?.enable === true;
 
 		const userRole = this.permissions.getUserRole(event.senderID, event.threadID, threadData);
-		const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || ["bot"]).map(s => s.toLowerCase());
+		const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
 
 		if (isGlobalAdminOnly && userRole < 2 && !ignored.includes(commandName.toLowerCase())) {
 			return; // Silently ignore non-admins when global admin-only is on
 		}
 
 		if (isThreadAdminOnly && userRole < 1 && !ignored.includes(commandName.toLowerCase())) {
-			return; // Silently ignore non-admins when thread admin-only is on
+			return; // Silently ignore non-admins when thread admin-only is on (Floppa standard)
 		}
 
 		// 2. Role Check
 		const requiredRole = Number(cfg.role) || 0;
 		if (userRole < requiredRole) {
+			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot"];
+			if (adminBaseCmds.includes(commandName.toLowerCase())) {
+				return; // Silently ignore non-admins for admin base commands like Floppa
+			}
 			if (!this.config.HIDE_NOTI?.needRoleToUseCmd) {
 				const roleName = this.permissions.getRoleName(requiredRole);
 				await this.bot.api.sendMessage(

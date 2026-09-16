@@ -16,7 +16,16 @@ module.exports = {
 		usage: { en: "{p}admin add|remove|list [userID]" }
 	},
 
-	onStart: async function ({ message, args, event, config }) {
+	onStart: async function ({ message, args, event, config, role }) {
+		const uid = String(event.senderID || event.userID || "").trim();
+		const isBotAdmin = (role != null && role >= 2) || (
+			(config && Array.isArray(config.adminBot) && config.adminBot.map(String).includes(uid)) ||
+			(config && Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(uid)) ||
+			(config && Array.isArray(config.devUsers) && config.devUsers.map(String).includes(uid)) ||
+			(config && Array.isArray(config.DEV_USERS) && config.DEV_USERS.map(String).includes(uid))
+		);
+		if (!isBotAdmin) return;
+
 		const lang = config.language;
 		const action = (args.shift() || "list").toLowerCase();
 		let target = args[0];
@@ -33,17 +42,23 @@ module.exports = {
 			return message.reply("Provide a numeric Instagram user id (or reply to a user's message).");
 
 		if (action === "add") {
-			if (config.adminBot.includes(target))
+			if (config.adminBot.map(String).includes(target))
 				return message.reply(`${target} is already a bot admin.`);
 			config.adminBot.push(target);
+			if (Array.isArray(config.ADMIN_BOT) && !config.ADMIN_BOT.map(String).includes(target)) {
+				config.ADMIN_BOT.push(target);
+			}
 			saveConfig(config);
 			return message.reply(t(lang, "adminAddedUser", target));
 		}
 
 		if (action === "remove") {
-			if (!config.adminBot.includes(target))
+			if (!config.adminBot.map(String).includes(target))
 				return message.reply(`${target} is not a bot admin.`);
-			config.adminBot = config.adminBot.filter(id => id !== target);
+			config.adminBot = config.adminBot.filter(id => String(id) !== target);
+			if (Array.isArray(config.ADMIN_BOT)) {
+				config.ADMIN_BOT = config.ADMIN_BOT.filter(id => String(id) !== target);
+			}
 			saveConfig(config);
 			return message.reply(t(lang, "adminRemovedUser", target));
 		}

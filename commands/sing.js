@@ -306,16 +306,36 @@ module.exports = {
 			`Full songs for "${query}"\n${lines.join("\n")}\n\nReply with sing <number> to send one.`
 		);
 
-		if (typeof setReplyHandler === "function" && sent && sent.messageID) {
-			setReplyHandler(async ({ message: replyMessage, event: replyEvent }) => {
-				const pick = String(replyEvent.body || "").trim().split(/\s+/).pop();
-				if (!/^\d+$/.test(pick)) return;
-				const chosen = top[Number(pick) - 1];
-				if (!chosen) return replyMessage.reply(`Pick a number between 1 and ${top.length}.`);
-				await sendSong(replyMessage, chosen, api, replyEvent);
-			}, sent.messageID);
+		if (sent && sent.messageID) {
+			if (typeof setReplyHandler === "function") {
+				setReplyHandler(async ({ message: replyMessage, event: replyEvent }) => {
+					const pick = String(replyEvent.body || "").trim().split(/\s+/).pop();
+					if (!/^\d+$/.test(pick)) return;
+					const chosen = top[Number(pick) - 1];
+					if (!chosen) return replyMessage.reply(`Pick a number between 1 and ${top.length}.`);
+					await sendSong(replyMessage, chosen, api, replyEvent);
+				}, sent.messageID);
+			}
+			if (global.GoatBot && global.GoatBot.onReply) {
+				global.GoatBot.onReply.set(String(sent.messageID), {
+					commandName: "sing",
+					author: event.senderID,
+					tracks: top
+				});
+			}
 		}
 		return sent;
+	},
+
+	onReply: async function ({ message, event, Reply, args, api }) {
+		if (Reply.author && String(event.senderID) !== String(Reply.author)) return;
+		const pick = String(event.body || "").trim().split(/\s+/).pop();
+		if (!/^\d+$/.test(pick)) return;
+		const tracks = Reply.tracks || Reply.results || [];
+		const index = Number(pick) - 1;
+		const chosen = tracks[index];
+		if (!chosen) return message.reply(`Pick a number between 1 and ${tracks.length}.`);
+		await sendSong(message, chosen, api, event);
 	},
 
 	run: async function (params) {
