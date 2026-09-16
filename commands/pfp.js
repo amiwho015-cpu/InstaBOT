@@ -34,6 +34,32 @@ module.exports = {
 		}
 
 		const name = (profile && (profile.name || profile.username)) || target.id;
-		await message.reply({ attachment: picture, body: name, textFirst: true });
+		try {
+			await message.reply({ attachment: picture, body: name, textFirst: true });
+		} catch (sendErr) {
+			// If sending remote picture URL directly fails, download locally with browser headers and retry
+			const fs = require("fs-extra");
+			const path = require("path");
+			const axios = require("axios");
+			const tempDir = path.join(process.cwd(), "temp");
+			await fs.ensureDir(tempDir);
+			const tempPath = path.join(tempDir, `pfp_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
+			try {
+				const res = await axios.get(picture, {
+					responseType: "arraybuffer",
+					timeout: 15000,
+					headers: {
+						"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+						"Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+					}
+				});
+				await fs.writeFile(tempPath, Buffer.from(res.data));
+				await message.reply({ attachment: tempPath, body: name, textFirst: true });
+				setTimeout(() => fs.unlink(tempPath).catch(() => {}), 20000);
+			} catch (_) {
+				if (fs.existsSync(tempPath)) fs.unlink(tempPath).catch(() => {});
+				throw sendErr;
+			}
+		}
 	}
 };

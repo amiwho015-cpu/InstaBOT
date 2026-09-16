@@ -13,7 +13,7 @@ interactive multi-turn conversations (`onReply`, `onReaction`), roles, cooldowns
 
 [![MIT License](https://img.shields.io/badge/license-MIT-c13584?style=for-the-badge)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-3ddc84?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-179%20passing%20(100%25)-3ddc84?style=for-the-badge)](test/run.js)
+[![Tests](https://img.shields.io/badge/tests-182%20passing%20(100%25)-3ddc84?style=for-the-badge)](test/run.js)
 [![Commands](https://img.shields.io/badge/commands-196%20Loaded-blueviolet?style=for-the-badge)](#-complete-commands-catalog)
 [![Architecture](https://img.shields.io/badge/architecture-Dual--Mode%20ICA-ff007f?style=for-the-badge)](#-transport-modes-direct-ica-vs-remote-server)
 

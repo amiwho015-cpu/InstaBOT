@@ -129,9 +129,93 @@ async function renderJailEffect(imageSource) {
   return canvas.toBuffer("image/png");
 }
 
+function createDefaultAvatar(name = "User", size = 500) {
+  if (!isCanvasAvailable || typeof createCanvas !== "function") return null;
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext("2d");
+
+  // Modern vibrant gradient palettes
+  const palettes = [
+    ["#4158D0", "#C850C0", "#FFCC70"],
+    ["#FA8BFF", "#2BD2FF", "#2BFF88"],
+    ["#FBAB7E", "#F7CE68"],
+    ["#85FFBD", "#FFFB7D"],
+    ["#8EC5FC", "#E0C3FC"],
+    ["#FF9A8B", "#FF6A88", "#FF99AC"],
+    ["#1e3c72", "#2a5298"]
+  ];
+  const charCode = (name && name[0] ? name.charCodeAt(0) : 65);
+  const selectedPalette = palettes[charCode % palettes.length];
+
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  selectedPalette.forEach((c, idx) => {
+    grad.addColorStop(idx / (selectedPalette.length - 1 || 1), c);
+  });
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  // Subtle circular inner glow
+  ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Initial letter
+  const initial = (name ? String(name).trim()[0] : "?").toUpperCase();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${Math.round(size * 0.45)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = Math.round(size * 0.05);
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = Math.round(size * 0.02);
+  ctx.fillText(initial, size / 2, size / 2 + Math.round(size * 0.02));
+
+  return canvas;
+}
+
+async function loadAvatarOrFallback(urlOrBuffer, fallbackName = "User", size = 500) {
+  if (!isCanvasAvailable || typeof loadImage !== "function") return null;
+
+  if (urlOrBuffer && typeof urlOrBuffer === "string" && /^https?:\/\//i.test(urlOrBuffer)) {
+    try {
+      const axios = require("axios");
+      const res = await axios.get(urlOrBuffer, {
+        responseType: "arraybuffer",
+        timeout: 12000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+        }
+      });
+      if (res.data && res.data.length > 0) {
+        return await loadImage(Buffer.from(res.data));
+      }
+    } catch (_) {}
+  } else if (Buffer.isBuffer(urlOrBuffer) && urlOrBuffer.length > 0) {
+    try {
+      return await loadImage(urlOrBuffer);
+    } catch (_) {}
+  }
+
+  // Fallback to beautiful generated avatar
+  const fallbackCanvas = createDefaultAvatar(fallbackName, size);
+  if (fallbackCanvas) {
+    try {
+      return await loadImage(fallbackCanvas.toBuffer("image/png"));
+    } catch (_) {
+      return fallbackCanvas;
+    }
+  }
+  return null;
+}
+
 module.exports = {
   createCanvas,
   loadImage,
   isCanvasAvailable,
-  renderJailEffect
+  renderJailEffect,
+  createDefaultAvatar,
+  loadAvatarOrFallback
 };

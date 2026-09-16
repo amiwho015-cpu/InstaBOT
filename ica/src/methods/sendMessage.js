@@ -160,6 +160,26 @@ class SendMessage {
   async _sendAttachmentItem(threadID, attachment, options = {}) {
     if (!this.sendMedia) throw new Error('sendMedia not wired — cannot send attachments');
 
+    // Handle Buffer directly
+    if (Buffer.isBuffer(attachment) || (attachment && attachment.buffer && Buffer.isBuffer(attachment.buffer))) {
+      return this.sendMedia.photo(threadID, attachment, options);
+    }
+
+    // Handle Streams directly
+    if (attachment && (typeof attachment.pipe === 'function' || (attachment.stream && typeof attachment.stream.pipe === 'function'))) {
+      return this.sendMedia.photo(threadID, attachment, options);
+    }
+
+    // Handle media object with { path } or { url }
+    if (attachment && typeof attachment === 'object') {
+      if (attachment.url && isRemoteUrl(attachment.url)) {
+        return this._sendAttachmentItem(threadID, attachment.url, options);
+      }
+      if (attachment.path) {
+        return this._sendAttachmentItem(threadID, attachment.path, options);
+      }
+    }
+
     if (isRemoteUrl(attachment)) {
       const type = detectMediaType(attachment);
       if (type === 'image')  return this.sendMedia.photoFromUrl(threadID, attachment, options);
@@ -177,7 +197,8 @@ class SendMessage {
     if (type === 'video') return this.sendMedia.video(threadID, safePath, options);
     if (type === 'audio') return this.sendMedia.voice(threadID, safePath, options);
     if (type === 'gif')   return this.sendMedia.photo(threadID, safePath, options); // upload GIF as photo fallback
-    throw new Error(`Cannot detect media type for attachment: ${safePath}`);
+    // Unknown extension — fallback to photo instead of throwing
+    return this.sendMedia.photo(threadID, safePath, options);
   }
 
   // Normalise the caller's message argument into a consistent object

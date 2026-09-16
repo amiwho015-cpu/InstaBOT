@@ -15,6 +15,40 @@ const axios = require('axios');
 const CryptoUtils = require('../utils/crypto');
 const ValidationUtils = require('../utils/validation');
 
+async function _resolveBufferAndMime(input, defaultMime = 'image/jpeg') {
+  if (Buffer.isBuffer(input)) {
+    return { buffer: input, mimeType: defaultMime };
+  }
+  if (input && input.buffer && Buffer.isBuffer(input.buffer)) {
+    return { buffer: input.buffer, mimeType: input.mimeType || input.mimetype || defaultMime };
+  }
+  if (input && typeof input.pipe === 'function') {
+    const buffer = await new Promise((resolve, reject) => {
+      const chunks = [];
+      input.on('data', chunk => chunks.push(chunk));
+      input.on('end', () => resolve(Buffer.concat(chunks)));
+      input.on('error', reject);
+    });
+    return { buffer, mimeType: input.mimeType || input.mimetype || defaultMime };
+  }
+  if (input && typeof input === 'object' && input.stream && typeof input.stream.pipe === 'function') {
+    const buffer = await new Promise((resolve, reject) => {
+      const chunks = [];
+      input.stream.on('data', chunk => chunks.push(chunk));
+      input.stream.on('end', () => resolve(Buffer.concat(chunks)));
+      input.stream.on('error', reject);
+    });
+    return { buffer, mimeType: input.mimeType || input.mimetype || defaultMime };
+  }
+  if (input && typeof input === 'object' && typeof input.path === 'string') {
+    return { buffer: fs.readFileSync(input.path), mimeType: input.mimeType || defaultMime, filePath: input.path };
+  }
+  if (typeof input === 'string') {
+    return { buffer: fs.readFileSync(input), mimeType: defaultMime, filePath: input };
+  }
+  throw new Error('Invalid media input: expected file path, URL, Buffer, or Stream');
+}
+
 /**
  * Stat a local media file and reject early if it exceeds the per-kind limit
  * defined in ValidationUtils.validateMediaFileSize. Throws a descriptive
@@ -27,13 +61,21 @@ function _assertMediaSize(filePath, kind) {
   } else if (filePath && typeof filePath === 'object' && filePath.buffer && Buffer.isBuffer(filePath.buffer)) {
     size = filePath.buffer.length;
   } else if (typeof filePath === 'string') {
+    if (/^https?:\/\//i.test(filePath)) return 1;
     try {
       size = fs.statSync(filePath).size;
     } catch (err) {
       throw new Error(`Cannot stat media file ${filePath}: ${err.message}`);
     }
+  } else if (filePath && typeof filePath === 'object' && typeof filePath.path === 'string') {
+    try {
+      size = fs.statSync(filePath.path).size;
+    } catch (err) {
+      throw new Error(`Cannot stat media file ${filePath.path}: ${err.message}`);
+    }
   } else {
-    size = 0;
+    // Stream or dynamic object - size checked after reading
+    size = 1;
   }
   const check = ValidationUtils.validateMediaFileSize(size, kind);
   if (!check.valid) throw new Error(check.error);
@@ -55,11 +97,21 @@ class SendMedia {
 
     const uid = this.http.getCookieValue('ds_user_id');
     const clientContext = CryptoUtils.generateUUID();
+    const isRecipientUsers = form.recipientType === 'recipient_users' || form.recipientUsers;
+    const recipientField = isRecipientUsers ? 'recipient_users' : 'thread_ids';
+    const recipientValue = isRecipientUsers
+      ? JSON.stringify(form.recipientUsers || [[String(threadID)]])
+      : JSON.stringify(Array.isArray(threadID) ? threadID.map(String) : [String(threadID)]);
+
+    const cleanForm = { ...form };
+    delete cleanForm.recipientType;
+    delete cleanForm.recipientUsers;
+
     return {
       form: {
         action: 'send_item',
         send_attribution: 'direct_thread',
-        thread_ids: JSON.stringify([threadID]),
+        [recipientField]: recipientValue,
         client_context: clientContext,
         mutation_token: clientContext,
         offline_threading_id: clientContext,
@@ -67,7 +119,7 @@ class SendMedia {
         _csrftoken: csrfToken,
         _uuid: this.uuid,
         _uid: uid,
-        ...form
+        ...cleanForm
       },
       clientContext
     };
@@ -188,24 +240,33 @@ class SendMedia {
     }
 
     try {
-      const uploadId = Date.now().toString();
+      if (typeof imagePath === 'string' && /^https?:\/\//i.test(imagePath)) {
+        return this.photoFromUrl(threadID, imagePath, options, callback);
+      }
+
       _assertMediaSize(imagePath, 'image');
-      const imageBuffer = Buffer.isBuffer(imagePath)
-        ? imagePath
-        : (imagePath && imagePath.buffer && Buffer.isBuffer(imagePath.buffer) ? imagePath.buffer : fs.readFileSync(imagePath));
-      const mimeType = (typeof imagePath === 'string')
-        ? this._getMimeType(imagePath, 'image/jpeg')
-        : (options.mimeType || options.mimetype || 'image/jpeg');
+      const resolved = await _resolveBufferAndMime(imagePath, 'image/jpeg');
+      const imageBuffer = resolved.buffer;
+      const uploadId = Date.now().toString();
+      const mimeType = resolved.filePath
+        ? this._getMimeType(resolved.filePath, 'image/jpeg')
+        : (options.mimeType || options.mimetype || resolved.mimeType || 'image/jpeg');
+
+      // Re-assert media size on the slurped buffer
+      const check = ValidationUtils.validateMediaFileSize(imageBuffer.length, 'image');
+      if (!check.valid) throw new Error(check.error);
 
       const uploadResponse = await this.uploadPhotoBuffer(imageBuffer, uploadId, mimeType);
 
-      if (uploadResponse.status !== 'ok') {
-        throw new Error('Failed to upload photo');
+      if (uploadResponse && uploadResponse.status !== 'ok') {
+        throw new Error(uploadResponse.message || 'Failed to upload photo');
       }
 
       const { form: messageData, clientContext } = this.buildBroadcastForm(threadID, {
         allow_full_aspect_ratio: options.allowFullAspect !== false,
-        view_mode: options.viewMode || options.view_mode || 'permanent'
+        view_mode: options.viewMode || options.view_mode || 'permanent',
+        recipientType: options.recipientType,
+        recipientUsers: options.recipientUsers
       });
 
       const captionText = options.text || options.caption;
@@ -226,14 +287,14 @@ class SendMedia {
         messageData
       );
 
-      if (response.status === 'ok') {
+      if (response && response.status === 'ok') {
         const info = this.extractInfo(response, threadID, uploadId, clientContext);
         
         if (callback) return callback(null, info);
         return info;
       }
 
-      throw new Error(response.message || 'Failed to send photo');
+      throw new Error((response && response.message) || 'Failed to send photo');
     } catch (error) {
       if (callback) return callback(error);
       throw error;
@@ -286,22 +347,30 @@ class SendMedia {
     }
 
     try {
-      const uploadId = Date.now().toString();
+      if (typeof audioPath === 'string' && /^https?:\/\//i.test(audioPath)) {
+        return this.voiceFromUrl(threadID, audioPath, options, callback);
+      }
+
       _assertMediaSize(audioPath, 'audio');
-      const audioBuffer = Buffer.isBuffer(audioPath)
-        ? audioPath
-        : (audioPath && audioPath.buffer && Buffer.isBuffer(audioPath.buffer) ? audioPath.buffer : fs.readFileSync(audioPath));
+      const resolved = await _resolveBufferAndMime(audioPath, 'audio/mp4');
+      const audioBuffer = resolved.buffer;
+      const uploadId = Date.now().toString();
+
+      // Re-assert media size on the slurped buffer
+      const check = ValidationUtils.validateMediaFileSize(audioBuffer.length, 'audio');
+      if (!check.valid) throw new Error(check.error);
+
       let durationMs = 1000;
-      if (typeof audioPath === 'string') {
-        durationMs = this._getAudioDurationMs(audioPath, audioBuffer);
+      if (resolved.filePath) {
+        durationMs = this._getAudioDurationMs(resolved.filePath, audioBuffer);
       } else {
         durationMs = this._getMediaDurationMs(audioPath, audioBuffer);
       }
 
       // Step 1: upload to rupload_igdirect
       const uploadResponse = await this.uploadAudioBuffer(audioBuffer, uploadId, durationMs);
-      if (uploadResponse.status !== 'ok') {
-        throw new Error('Failed to upload audio');
+      if (uploadResponse && uploadResponse.status !== 'ok') {
+        throw new Error(uploadResponse.message || 'Failed to upload audio');
       }
 
       // Step 2: broadcast as voice_media
@@ -366,15 +435,25 @@ class SendMedia {
     }
 
     try {
-      const uploadId = Date.now().toString();
+      if (typeof videoPath === 'string' && /^https?:\/\//i.test(videoPath)) {
+        return this.videoFromUrl(threadID, videoPath, options, callback);
+      }
+
       _assertMediaSize(videoPath, 'video');
-      const videoBuffer = Buffer.isBuffer(videoPath)
-        ? videoPath
-        : (videoPath && videoPath.buffer && Buffer.isBuffer(videoPath.buffer) ? videoPath.buffer : fs.readFileSync(videoPath));
-      const mimeType = (typeof videoPath === 'string')
-        ? this._getMimeType(videoPath, 'video/mp4')
-        : (options.mimeType || options.mimetype || 'video/mp4');
-      const durationMs = this._getMediaDurationMs(videoPath, videoBuffer);
+      const resolved = await _resolveBufferAndMime(videoPath, 'video/mp4');
+      const videoBuffer = resolved.buffer;
+      const uploadId = Date.now().toString();
+
+      // Re-assert media size on the slurped buffer
+      const check = ValidationUtils.validateMediaFileSize(videoBuffer.length, 'video');
+      if (!check.valid) throw new Error(check.error);
+
+      const mimeType = resolved.filePath
+        ? this._getMimeType(resolved.filePath, 'video/mp4')
+        : (options.mimeType || options.mimetype || resolved.mimeType || 'video/mp4');
+      const durationMs = resolved.filePath
+        ? this._getMediaDurationMs(resolved.filePath, videoBuffer)
+        : this._getMediaDurationMs(videoPath, videoBuffer);
 
       const uploadResponse = await this.uploadVideoBuffer(videoBuffer, uploadId, mimeType, {
         retry_context: JSON.stringify({
@@ -388,8 +467,8 @@ class SendMedia {
         direct_v2: '1'
       });
 
-      if (uploadResponse.status !== 'ok') {
-        throw new Error('Failed to upload video');
+      if (uploadResponse && uploadResponse.status !== 'ok') {
+        throw new Error(uploadResponse.message || 'Failed to upload video');
       }
 
       // upload_finish is needed for posts/stories; for DMs it's non-fatal

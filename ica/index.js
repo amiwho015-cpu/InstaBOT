@@ -23,6 +23,51 @@ const { setOptions } = require('./src/utils/setOptions');
 // Build the api object from an authenticated client
 // ─────────────────────────────────────────────────────────────────────────────
 
+function resolveMediaArgs(a, b, c, d, defaultKind = 'photo') {
+  let threadID, source, opts = {}, cb;
+  const isMediaLike = (val) => {
+    if (!val) return false;
+    if (Buffer.isBuffer(val) || (val && val.buffer && Buffer.isBuffer(val.buffer))) return true;
+    if (typeof val === 'object' && (val.path || val.url || typeof val.pipe === 'function' || val.stream)) return true;
+    if (typeof val === 'string') {
+      if (/^https?:\/\//i.test(val)) return true;
+      if (val.includes('/') || val.includes('\\') || /\.(jpe?g|png|webp|gif|bmp|heic|avif|mp4|mov|webm|m4a|mp3|wav|ogg|aac|flac|opus)(\?|$)/i.test(val)) return true;
+    }
+    return false;
+  };
+
+  if (isMediaLike(a) && !isMediaLike(b)) {
+    // Calling style: (source, threadID, [caption/opts], [cb/replyTarget])
+    source = a;
+    threadID = String(b);
+    if (typeof c === 'function') {
+      cb = c;
+      opts = typeof d === 'object' && d !== null ? d : { replyToMessageID: d };
+    } else {
+      cb = typeof d === 'function' ? d : undefined;
+      opts = typeof c === 'object' && c !== null ? c : { caption: typeof c === 'string' ? c : '', replyToMessageID: typeof d === 'string' || typeof d === 'number' ? d : undefined };
+    }
+  } else {
+    // Calling style: (threadID, source, [opts/caption], [cb])
+    threadID = String(a);
+    source = b;
+    if (typeof c === 'function') {
+      cb = c;
+      opts = {};
+    } else if (typeof c === 'object' && c !== null) {
+      opts = c;
+      cb = typeof d === 'function' ? d : undefined;
+    } else if (typeof c === 'string') {
+      opts = { caption: c, replyToMessageID: typeof d === 'string' || typeof d === 'number' ? d : undefined };
+      cb = typeof d === 'function' ? d : undefined;
+    } else {
+      cb = typeof d === 'function' ? d : undefined;
+    }
+  }
+
+  return { threadID, source, opts, cb };
+}
+
 function buildApi(client) {
   return {
     // Identity
@@ -56,51 +101,19 @@ function buildApi(client) {
 
     // Media
     sendPhoto:        (a, b, c, d) => {
-      let threadID, source, opts = {}, cb;
-      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
-        threadID = a; source = b;
-        opts = typeof c === "object" ? c : {};
-        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
-      } else {
-        source = a; threadID = b;
-        cb = typeof c === "function" ? c : undefined;
-        opts = { caption: typeof c === "string" ? c : "", replyToMessageID: d };
-      }
+      const { threadID, source, opts, cb } = resolveMediaArgs(a, b, c, d, 'photo');
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendPhotoFromUrl(threadID, source, opts, cb);
       return client.sendPhoto(threadID, source, opts, cb);
     },
     sendVideo:        (a, b, c, d) => {
-      let threadID, source, opts = {}, cb;
-      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
-        threadID = a; source = b;
-        opts = typeof c === "object" ? c : {};
-        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
-      } else {
-        source = a; threadID = b;
-        if (typeof c === "string") {
-          opts = { caption: c, replyToMessageID: d };
-          cb = typeof d === "function" ? d : undefined;
-        } else {
-          cb = typeof c === "function" ? c : undefined;
-          opts = typeof d === "object" ? d : { replyToMessageID: d };
-        }
-      }
+      const { threadID, source, opts, cb } = resolveMediaArgs(a, b, c, d, 'video');
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendVideoFromUrl(threadID, source, opts, cb);
       return client.sendVideo(threadID, source, opts, cb);
     },
     sendVoice:        (a, b, c, d) => {
-      let threadID, source, opts = {}, cb;
-      if (typeof a === "string" && !a.startsWith("http") && !a.includes("/") && !a.includes("\\") && /^\d+$/.test(a)) {
-        threadID = a; source = b;
-        opts = typeof c === "object" ? c : {};
-        cb = typeof c === "function" ? c : (typeof d === "function" ? d : undefined);
-      } else {
-        source = a; threadID = b;
-        cb = typeof c === "function" ? c : undefined;
-        opts = typeof d === "object" ? d : { replyToMessageID: d };
-      }
+      const { threadID, source, opts, cb } = resolveMediaArgs(a, b, c, d, 'voice');
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendVoiceFromUrl(threadID, source, opts, cb);
       return client.sendVoice(threadID, source, opts, cb);
@@ -316,9 +329,11 @@ function login(credentials, options, callback) {
 }
 
 // Everything a bot could need is attached directly to login
-login.CookieUtils  = CookieUtils;
-login.setOptions   = setOptions;
-login.createClient = (opts) => new InstagramChatAPI(opts);
+login.CookieUtils      = CookieUtils;
+login.setOptions       = setOptions;
+login.createClient     = (opts) => new InstagramChatAPI(opts);
+login.buildApi         = buildApi;
+login.resolveMediaArgs = resolveMediaArgs;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Exports

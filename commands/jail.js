@@ -48,7 +48,14 @@ module.exports = {
       let avatar = null;
       if (photoUrl && photoUrl.startsWith("http")) {
         try {
-          const res = await axios.get(photoUrl, { responseType: "arraybuffer", timeout: 15000 });
+          const res = await axios.get(photoUrl, {
+            responseType: "arraybuffer",
+            timeout: 15000,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+            }
+          });
           avatar = await loadImage(Buffer.from(res.data));
         } catch (_) {}
       }
@@ -61,12 +68,22 @@ module.exports = {
       if (avatar) {
         ctx.drawImage(avatar, 0, 0, width, height);
       } else {
-        ctx.fillStyle = "#1e293b";
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, "#1e293b");
+        grad.addColorStop(1, "#0f172a");
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2 - 20, 120, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 100px sans-serif";
+        ctx.font = "bold 110px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText((name[0] || "?").toUpperCase(), width / 2, height / 2 + 35);
+        ctx.textBaseline = "middle";
+        ctx.fillText((name[0] || "?").toUpperCase(), width / 2, height / 2 - 15);
       }
 
       // Draw thick jail bars

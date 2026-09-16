@@ -46,9 +46,26 @@ module.exports = {
       let targetName = (targetProfile && (targetProfile.name || targetProfile.username)) || (usersData && usersData.getName ? await usersData.getName(targetID) : null);
       if (!targetName || /^\d+$/.test(String(targetName).trim())) targetName = "Friend";
 
+      const fetchAvatar = async (url) => {
+        if (!url) return null;
+        try {
+          const r = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 10000,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+            }
+          });
+          return await loadImage(Buffer.from(r.data));
+        } catch (_) {
+          return null;
+        }
+      };
+
       const [senderAvatar, targetAvatar] = await Promise.all([
-        senderProfile?.profilePicture ? axios.get(senderProfile.profilePicture, { responseType: "arraybuffer", timeout: 10000 }).then(r => loadImage(Buffer.from(r.data))).catch(() => null) : null,
-        targetProfile?.profilePicture ? axios.get(targetProfile.profilePicture, { responseType: "arraybuffer", timeout: 10000 }).then(r => loadImage(Buffer.from(r.data))).catch(() => null) : null
+        fetchAvatar(senderProfile?.profilePicture),
+        fetchAvatar(targetProfile?.profilePicture)
       ]);
 
       const canvas = createCanvas(700, 420);

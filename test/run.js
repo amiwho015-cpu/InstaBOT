@@ -2795,9 +2795,89 @@ async function main() {
 		await command.onStart({
 			message, args: ["@arobrifat"], api,
 			event: { threadID: "t", senderID: "1", isGroup: false },
-			config: makeConfig()
 		});
 		assert.ok(/rate-limiting/i.test(sent[0]), "expected a rate-limit reply, got: " + sent[0]);
+	});
+
+	await test("canvasHelper: generate and load default avatar fallback", async () => {
+		const canvasHelper = require("../func/canvasHelper");
+		assert.strictEqual(canvasHelper.isCanvasAvailable, true, "canvas must be available");
+		const avatar = canvasHelper.createDefaultAvatar("Neoaz", 300);
+		assert.ok(avatar, "createDefaultAvatar must return canvas");
+		const buf = avatar.toBuffer("image/jpeg");
+		assert.ok(buf.length > 0, "avatar must produce jpeg buffer");
+
+		const loaded = await canvasHelper.loadAvatarOrFallback(null, "Alice", 200);
+		assert.ok(loaded, "loadAvatarOrFallback must return fallback when image url is null");
+	});
+
+	await test("ica: sendPhoto argument resolution with buffers, numbers, and paths", async () => {
+		const ica = require("../ica");
+		const calls = [];
+		const fakeClient = {
+			sendPhoto: (tid, src, opts, cb) => {
+				calls.push({ tid, src, opts });
+				if (typeof cb === "function") cb(null, { messageID: "mid1" });
+				return Promise.resolve({ messageID: "mid1" });
+			},
+			sendPhotoFromUrl: (tid, url, opts, cb) => {
+				calls.push({ tid, url, opts });
+				if (typeof cb === "function") cb(null, { messageID: "mid2" });
+				return Promise.resolve({ messageID: "mid2" });
+			}
+		};
+
+		const api = ica.buildApi(fakeClient);
+
+		// Test 1: Standard signature: (threadID numeric, path)
+		await api.sendPhoto(123456789, "/tmp/test.jpg");
+		assert.strictEqual(calls[0].tid, "123456789");
+		assert.strictEqual(calls[0].src, "/tmp/test.jpg");
+
+		// Test 2: Inverted signature: (path, threadID numeric, caption)
+		await api.sendPhoto("/tmp/test2.jpg", "987654321", "cool photo");
+		assert.strictEqual(calls[1].tid, "987654321");
+		assert.strictEqual(calls[1].src, "/tmp/test2.jpg");
+		assert.strictEqual(calls[1].opts.caption, "cool photo");
+
+		// Test 3: Buffer source
+		const testBuf = Buffer.from("fake-img");
+		await api.sendPhoto(55555, testBuf);
+		assert.strictEqual(calls[2].tid, "55555");
+		assert.strictEqual(calls[2].src, testBuf);
+
+		// Test 4: URL source
+		await api.sendPhoto("https://example.com/pic.png", 11111);
+		assert.strictEqual(calls[3].tid, "11111");
+		assert.strictEqual(calls[3].url, "https://example.com/pic.png");
+	});
+
+	await test("sendMessage: _sendAttachmentItem with Buffer and unknown media fallback", async () => {
+		const SendMessage = require("../ica/src/methods/sendMessage");
+		const fakeHttp = {
+			getCsrfToken: () => "csrf",
+			getCookieValue: () => "uid",
+			rememberMessageThread: () => {}
+		};
+		const sm = new SendMessage(fakeHttp, { deviceId: "dev", uuid: "uuid" });
+		const photoCalls = [];
+		sm.sendMedia = {
+			photo: async (tid, pathOrBuf, opts) => {
+				photoCalls.push({ tid, pathOrBuf, opts });
+				return { messageID: "photo1", threadID: tid };
+			}
+		};
+
+		// 1. Buffer attachment directly handled as photo
+		const buf = Buffer.from("image data");
+		const res1 = await sm._sendAttachmentItem("thread1", buf);
+		assert.strictEqual(photoCalls[0].tid, "thread1");
+		assert.strictEqual(photoCalls[0].pathOrBuf, buf);
+
+		// 2. Object with buffer
+		const res2 = await sm._sendAttachmentItem("thread2", { buffer: buf });
+		assert.strictEqual(photoCalls[1].tid, "thread2");
+		assert.strictEqual(photoCalls[1].pathOrBuf.buffer, buf);
 	});
 
 	/* ── summary ── */

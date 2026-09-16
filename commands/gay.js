@@ -48,7 +48,14 @@ module.exports = {
       let avatar = null;
       if (photoUrl && photoUrl.startsWith("http")) {
         try {
-          const res = await axios.get(photoUrl, { responseType: "arraybuffer", timeout: 15000 });
+          const res = await axios.get(photoUrl, {
+            responseType: "arraybuffer",
+            timeout: 15000,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+            }
+          });
           avatar = await loadImage(Buffer.from(res.data));
         } catch (_) {}
       }
@@ -60,12 +67,17 @@ module.exports = {
       if (avatar) {
         ctx.drawImage(avatar, 0, 0, size, size);
       } else {
-        ctx.fillStyle = "#333333";
+        const grad = ctx.createLinearGradient(0, 0, size, size);
+        grad.addColorStop(0, "#2c3e50");
+        grad.addColorStop(1, "#34495e");
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, size);
+
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 120px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText((name[0] || "?").toUpperCase(), size / 2, size / 2 + 40);
+        ctx.textBaseline = "middle";
+        ctx.fillText((name[0] || "?").toUpperCase(), size / 2, size / 2);
       }
 
       // Rainbow overlay with transparency
