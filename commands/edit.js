@@ -331,10 +331,6 @@ module.exports = {
         api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
 
-      const caption = targetName
-        ? `✨ [${appliedType}] Edited profile picture of ${targetName}:\nPrompt: "${prompt}"`
-        : `✨ [${appliedType}] Result:\nPrompt: "${prompt}"`;
-
       let deliveryError = null;
       let sent = null;
 
@@ -343,9 +339,7 @@ module.exports = {
         try {
           sent = await Promise.race([
             message.reply({
-              body: caption,
-              attachment: tempFilePath,
-              textFirst: true
+              attachment: tempFilePath
             }),
             new Promise((_, reject) => setTimeout(() => reject(new Error("Image delivery timeout after 20s")), 20000))
           ]);
@@ -359,7 +353,7 @@ module.exports = {
       // If media attachment timed out or failed, fall back to direct URL message so user gets output immediately
       if (deliveryError) {
         if (generatedUrl) {
-          sent = await message.reply(`${caption}\n\n🔗 View / Download Image:\n${generatedUrl}`);
+          sent = await message.reply(`🔗 View / Download Image:\n${generatedUrl}`);
         } else {
           throw deliveryError;
         }
