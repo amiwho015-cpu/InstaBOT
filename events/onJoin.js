@@ -43,6 +43,11 @@ module.exports = {
 		if (Array.isArray(settings.threadIDs) && settings.threadIDs.length &&
 			!settings.threadIDs.map(String).includes(String(threadID))) return;
 
+		const thread = (threadsData && typeof threadsData.get === "function" ? threadsData.get(threadID) : null) || {};
+		const isBotOff = thread.adminOnly === true || thread.settings?.adminOnly === true || thread.settings?.botOff === true;
+		const isEventsOff = thread.eventsOff === true || thread.settings?.eventsOff === true || thread.settings?.welcome === false;
+		if (isBotOff || isEventsOff) return;
+
 		// Instagram's action_log carries the affected member as an @handle in
 		// `usernames`; some payloads also carry numeric ids. Greet by USERNAME,
 		// not the numeric id, so the welcome reads "@someone" rather than a long
@@ -59,7 +64,6 @@ module.exports = {
 
 		if (!usernames.length && !ids.length) return;
 
-		const thread = threadsData.get(threadID) || {};
 		let threadName = thread.name;
 		if (!threadName) {
 			try {

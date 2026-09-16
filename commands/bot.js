@@ -138,18 +138,42 @@ module.exports = {
 			return message.reply(`🗣️ Auto-Talk Status: ${atState ? "ENABLED ✅" : "DISABLED ❌"}\nUsage: ${p}bot autotalk [on | off]`);
 		}
 
-		// 5. Show Bot Status panel
+		// 5. Toggle Events (Welcome/Leave notifications)
+		if (subCmd === "event" || subCmd === "events") {
+			const mode = args[1] ? args[1].toLowerCase() : null;
+			if (mode === "off" || mode === "disable") {
+				if (!isThreadAdmin) return;
+				tData.eventsOff = true;
+				tData.settings.eventsOff = true;
+				saveThreadData();
+				return message.reply("🔇 Event notifications (welcome/leave) have been DISABLED for this chat.");
+			}
+			if (mode === "on" || mode === "enable") {
+				if (!isThreadAdmin) return;
+				tData.eventsOff = false;
+				tData.settings.eventsOff = false;
+				saveThreadData();
+				return message.reply("🔔 Event notifications (welcome/leave) have been ENABLED for this chat.");
+			}
+			const evState = !(tData.eventsOff === true || tData.settings.eventsOff === true);
+			return message.reply(`🔔 Events Status: ${evState ? "ENABLED ✅" : "DISABLED ❌"}\nUsage: ${p}bot events [on | off]`);
+		}
+
+		// 6. Show Bot Status panel
 		const isBotOff = tData.adminOnly === true || tData.settings.adminOnly === true || tData.settings.botOff === true;
 		const isGlobalOff = (config.adminOnly && config.adminOnly.enable === true) || config.ADMIN_ONLY_ENABLE === true;
 		const autoTalkState = tData.autotalk === true || tData.settings.autotalk === true;
+		const eventsState = !(tData.eventsOff === true || tData.settings.eventsOff === true);
 
 		let statusMsg = "🤖 Bot Status Control Panel\n\n";
 		statusMsg += `📍 Chat Status: ${isBotOff ? "OFF 🔒 (Admin Only)" : "ON ✅ (Public)"}\n`;
 		statusMsg += `🌐 Global Status: ${isGlobalOff ? "ADMIN ONLY 🔒" : "ACTIVE ✅"}\n`;
-		statusMsg += `🗣️ Auto-Talk AI: ${autoTalkState ? "ON ✅" : "OFF ❌"}\n\n`;
+		statusMsg += `🗣️ Auto-Talk AI: ${autoTalkState ? "ON ✅" : "OFF ❌"}\n`;
+		statusMsg += `🔔 Events/Alerts: ${eventsState ? "ON ✅" : "OFF ❌"}\n\n`;
 		statusMsg += "🛠️ Admin Usage:\n";
 		statusMsg += `• ${p}bot off — Turn bot OFF for non-admins (Admin Only)\n`;
 		statusMsg += `• ${p}bot on — Turn bot ON for everyone\n`;
+		statusMsg += `• ${p}bot events [on|off] — Toggle welcome/leave events\n`;
 		statusMsg += `• ${p}bot autotalk [on|off] — Toggle AI chatbot auto-talk\n`;
 		statusMsg += `• ${p}bot global [on|off] — Global bot toggle (Bot Admin)`;
 

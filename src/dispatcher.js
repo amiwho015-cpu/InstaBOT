@@ -203,9 +203,9 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const needRole = requiredRole(command, threadData);
 		if (needRole > role) {
-			// By default, non-admins cannot use admin base commands (bot, admin, etc.)
+			// By default, non-admins cannot use admin base commands (bot, admin, cmd, event, etc.)
 			// Do not send them any output; bot does not respond to them like Floppa
-			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot"];
+			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot", "cmd", "command", "event", "events", "eventcmd"];
 			if (adminBaseCmds.includes(commandName)) {
 				return;
 			}
@@ -408,7 +408,14 @@ function createDispatcher({ api, config, registry, database }) {
 	}
 
 	async function runEventScripts(event, message, threadData, userData) {
+		const isBotOff = threadData && (threadData.adminOnly === true || threadData.settings?.adminOnly === true || threadData.settings?.botOff === true);
+		const isEventsOff = threadData && (threadData.eventsOff === true || threadData.settings?.eventsOff === true);
 		for (const script of registry.events) {
+			const isChatFacingEvent = script.config?.name === "onJoin" || script.config?.name === "onLeave" ||
+				(Array.isArray(script.config?.eventType) ? script.config.eventType.some(t => ["join", "leave"].includes(t)) : ["join", "leave"].includes(script.config?.eventType));
+			if ((isBotOff || isEventsOff) && isChatFacingEvent) {
+				continue;
+			}
 			// eventType may be a single type or an array of them (e.g. onMessage
 			// listens to both "message" and "message_reply").
 			const wanted = script.config.eventType;

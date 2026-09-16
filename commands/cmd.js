@@ -160,7 +160,16 @@ module.exports = {
 		usage: { en: "{p}cmd <load|loadall|unload|uninstall|reload|remove|list|install> [args]\n{p}cmd install <url> [name.js]  or  {p}cmd install <name.js> <url>" }
 	},
 
-	onStart: async function ({ message, args, config, registry, event, setReactionHandler }) {
+	onStart: async function ({ message, args, config, registry, event, setReactionHandler, role }) {
+		const uid = String(event.senderID || event.userID || "").trim();
+		const isBotAdmin = (role != null && role >= 2) || (
+			(config && Array.isArray(config.adminBot) && config.adminBot.map(String).includes(uid)) ||
+			(config && Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(uid)) ||
+			(config && Array.isArray(config.devUsers) && config.devUsers.map(String).includes(uid)) ||
+			(config && Array.isArray(config.DEV_USERS) && config.DEV_USERS.map(String).includes(uid))
+		);
+		if (!isBotAdmin) return;
+
 		const action = (args.shift() || "list").toLowerCase();
 		const isEventFlag = args.includes("--event");
 		const rest = args.filter(a => a !== "--event");

@@ -395,7 +395,7 @@ class Dispatcher {
 		// 2. Role Check
 		const requiredRole = Number(cfg.role) || 0;
 		if (userRole < requiredRole) {
-			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot"];
+			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot", "cmd", "command", "event", "events", "eventcmd"];
 			if (adminBaseCmds.includes(commandName.toLowerCase())) {
 				return; // Silently ignore non-admins for admin base commands like Floppa
 			}

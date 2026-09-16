@@ -785,7 +785,37 @@ async function main() {
 		const api = fakeApi();
 		const db = makeDatabase();
 		const out = await runCommand("-cmd list", { api, db, config: makeConfig(), senderID: "5" });
-		assert.ok(/admin/i.test(out), "expected an admin-only notice");
+		assert.strictEqual(out, "", "expected silent ignore for non-admins");
+	});
+
+	await test("event: only bot admins may use it", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const out = await runCommand("-event list", { api, db, config: makeConfig(), senderID: "5" });
+		assert.strictEqual(out, "", "expected silent ignore for non-admins");
+	});
+
+	await test("events: silently ignores non-admins", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const out = await runCommand("-events off", { api, db, config: makeConfig(), senderID: "5" });
+		assert.strictEqual(out, "", "expected silent ignore for non-admins");
+	});
+
+	await test("event: lists loaded events for a bot admin", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const out = await runCommand("-event list", { api, db, config: makeConfig() });
+		assert.ok(/Loaded events/.test(out));
+	});
+
+	await test("event: on/off toggles thread events", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		let out = await runCommand("-event off", { api, db, config: makeConfig() });
+		assert.ok(/DISABLED/.test(out));
+		out = await runCommand("-event on", { api, db, config: makeConfig() });
+		assert.ok(/ENABLED/.test(out));
 	});
 
 	await test("cmd: lists loaded commands for a bot admin", async () => {
@@ -1614,6 +1644,26 @@ async function main() {
 		const config = makeConfig({ welcome: { enable: false, message: "Welcome %1", threadIDs: [] } });
 		const dispatcher = createDispatcher({ api, config, registry, database: db });
 		await dispatcher.handle({ type: "join", threadID: "t", participantID: "5", userIDs: ["5"] });
+		assert.strictEqual(api.calls.filter(c => c.method === "sendMessage").length, 0);
+	});
+
+	await test("join: sends nothing when bot is off in the thread", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		db.threads.set("t", { threadID: "t", isGroup: true, adminOnly: true, settings: { botOff: true } });
+		const config = makeConfig({ welcome: { enable: true, message: "Welcome %1 to %2!", threadIDs: [] } });
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+		await dispatcher.handle({ type: "join", threadID: "t", participantID: "555", userIDs: ["555"], usernames: ["newbie"] });
+		assert.strictEqual(api.calls.filter(c => c.method === "sendMessage").length, 0);
+	});
+
+	await test("leave: sends nothing when bot is off in the thread", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		db.threads.set("t", { threadID: "t", isGroup: true, adminOnly: true, settings: { botOff: true } });
+		const config = makeConfig({ leave: { enable: true, message: "%1 left %2.", threadIDs: [] } });
+		const dispatcher = createDispatcher({ api, config, registry, database: db });
+		await dispatcher.handle({ type: "leave", threadID: "t", usernames: ["leaver"], userIDs: [] });
 		assert.strictEqual(api.calls.filter(c => c.method === "sendMessage").length, 0);
 	});
 
