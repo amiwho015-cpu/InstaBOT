@@ -98,7 +98,17 @@ function splitCallback(args) {
 			return { index: i, args: rest };
 		}
 	}
-	return { index: -1, args };
+	const cleaned = args.slice();
+	while (cleaned.length > 0 && cleaned[cleaned.length - 1] === undefined) {
+		cleaned.pop();
+	}
+	if (cleaned.length === 4 && cleaned[2] === undefined) {
+		cleaned.splice(2, 1);
+	}
+	if (cleaned.length === 5 && (cleaned[3] === undefined || cleaned[3] === null)) {
+		cleaned.splice(3, 1);
+	}
+	return { index: -1, args: cleaned };
 }
 
 function createError(payload) {
@@ -353,6 +363,38 @@ function login(options, callback) {
 
 	const api = {};
 	for (const method of METHODS) api[method] = makeMethod(settings, method);
+
+	const originalSendMessage = api.sendMessage;
+	api.sendMessage = function (...args) {
+		if (args.length === 4 && args[2] === undefined) {
+			args.splice(2, 1);
+		}
+		return originalSendMessage.apply(this, args);
+	};
+
+	const originalSendImage = api.sendImage;
+	api.sendImage = function (...args) {
+		if (args.length === 5 && (args[3] === undefined || args[3] === null)) {
+			args.splice(3, 1);
+		}
+		return originalSendImage.apply(this, args);
+	};
+
+	api.sendPhoto = function (threadID, pathOrUrl, opts = {}, callback) {
+		if (typeof opts === "function") {
+			callback = opts;
+			opts = {};
+		}
+		const caption = opts.caption || opts.text || "";
+		const replyTo = opts.replyToMessageID || opts.replyTo || undefined;
+		if (typeof callback === "function") {
+			return api.sendImage(pathOrUrl, threadID, caption, callback, replyTo);
+		}
+		if (replyTo) {
+			return api.sendImage(pathOrUrl, threadID, caption, undefined, replyTo);
+		}
+		return api.sendImage(pathOrUrl, threadID, caption);
+	};
 
 	api.sendTypingIndicator = function (threadID, callback) {
 		const promise = encodeArgs([threadID]).then(encoded => request(settings, "sendTypingIndicator", encoded));

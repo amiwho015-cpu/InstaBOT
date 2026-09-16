@@ -145,6 +145,9 @@ function splitCallback(args) {
 	if (cleaned.length === 4 && cleaned[2] === undefined) {
 		cleaned.splice(2, 1);
 	}
+	if (cleaned.length === 5 && (cleaned[3] === undefined || cleaned[3] === null)) {
+		cleaned.splice(3, 1);
+	}
 	return { index: -1, args: cleaned };
 }
 
@@ -499,6 +502,33 @@ function login(options, callback) {
 			args.splice(2, 1);
 		}
 		return originalSendMessage.apply(this, args);
+	};
+
+	const originalSendImage = api.sendImage;
+	api.sendImage = function (...args) {
+		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
+			api._lastThreadID = String(args[1]);
+		}
+		if (args.length === 5 && (args[3] === undefined || args[3] === null)) {
+			args.splice(3, 1);
+		}
+		return originalSendImage.apply(this, args);
+	};
+
+	api.sendPhoto = function (threadID, pathOrUrl, opts = {}, callback) {
+		if (typeof opts === "function") {
+			callback = opts;
+			opts = {};
+		}
+		const caption = opts.caption || opts.text || "";
+		const replyTo = opts.replyToMessageID || opts.replyTo || undefined;
+		if (typeof callback === "function") {
+			return api.sendImage(pathOrUrl, threadID, caption, callback, replyTo);
+		}
+		if (replyTo) {
+			return api.sendImage(pathOrUrl, threadID, caption, undefined, replyTo);
+		}
+		return api.sendImage(pathOrUrl, threadID, caption);
 	};
 
 	// `sendTypingIndicator(threadID, cb)` returns a local stop function that

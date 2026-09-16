@@ -1,8 +1,6 @@
 name: InstaBOT Engine Runner
 
 on:
-  push:
-    branches: [ "main", "master" ]
   workflow_dispatch:
     inputs:
       node_version:
@@ -26,8 +24,6 @@ on:
         required: false
         type: string
         default: ''
-  schedule:
-    - cron: "0 */6 * * *"
 
 jobs:
   run-bot:

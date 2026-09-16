@@ -116,11 +116,19 @@ function buildApi(client) {
         cb = caption;
         caption = "";
       }
+      if (typeof cb !== "function" && reply === undefined && (typeof cb === "string" || typeof cb === "number")) {
+        reply = cb;
+        cb = undefined;
+      }
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendPhotoFromUrl(threadID, source, { caption, replyToMessageID: reply }, cb);
       return client.sendPhoto(threadID, source, { caption, replyToMessageID: reply }, cb);
     },
     sendAudio:        (source, threadID, cb, reply) => {
+      if (typeof cb !== "function" && reply === undefined && (typeof cb === "string" || typeof cb === "number")) {
+        reply = cb;
+        cb = undefined;
+      }
       const isUrl = typeof source === "string" && /^https?:\/\//i.test(source);
       if (isUrl) return client.sendVoiceFromUrl(threadID, source, { replyToMessageID: reply }, cb);
       return client.sendVoice(threadID, source, { replyToMessageID: reply }, cb);

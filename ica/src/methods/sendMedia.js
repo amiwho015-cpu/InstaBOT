@@ -183,6 +183,9 @@ class SendMedia {
       callback = options;
       options = {};
     }
+    if (typeof callback !== 'function') {
+      callback = null;
+    }
 
     try {
       const uploadId = Date.now().toString();
@@ -278,6 +281,9 @@ class SendMedia {
       callback = options;
       options = {};
     }
+    if (typeof callback !== 'function') {
+      callback = null;
+    }
 
     try {
       const uploadId = Date.now().toString();
@@ -354,6 +360,9 @@ class SendMedia {
     if (typeof options === 'function') {
       callback = options;
       options = {};
+    }
+    if (typeof callback !== 'function') {
+      callback = null;
     }
 
     try {
@@ -500,6 +509,9 @@ class SendMedia {
       callback = options;
       options = {};
     }
+    if (typeof callback !== 'function') {
+      callback = null;
+    }
 
     try {
       const giphyId = this._extractGiphyId(gifUrl);
@@ -563,6 +575,9 @@ class SendMedia {
       callback = options;
       options = {};
     }
+    if (typeof callback !== 'function') {
+      callback = null;
+    }
 
     const ext = (imageUrl.match(/\.(jpe?g|png|webp|gif|bmp|heic|avif)/i) || [])[1] || 'jpg';
     const tempPath = path.join(os.tmpdir(), `ig_photo_${Date.now()}.${ext}`);
@@ -595,6 +610,9 @@ class SendMedia {
     if (typeof options === 'function') {
       callback = options;
       options = {};
+    }
+    if (typeof callback !== 'function') {
+      callback = null;
     }
 
     // Try to detect extension from URL path first, then fall back to Content-Type sniffing
@@ -684,6 +702,9 @@ class SendMedia {
     if (typeof options === 'function') {
       callback = options;
       options = {};
+    }
+    if (typeof callback !== 'function') {
+      callback = null;
     }
 
     const ext = (videoUrl.match(/\.(mp4|mov|webm)/i) || [])[1] || 'mp4';

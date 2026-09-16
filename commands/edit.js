@@ -54,7 +54,7 @@ async function extractImageUrlFromEvent(event, args = [], api = null) {
 async function downloadToBuffer(fileUrl) {
   const res = await axios.get(fileUrl, {
     responseType: "arraybuffer",
-    timeout: 45000,
+    timeout: 20000,
     maxContentLength: MAX_ATTACHMENT_BYTES,
     maxBodyLength: MAX_ATTACHMENT_BYTES,
     headers: {
@@ -233,64 +233,97 @@ module.exports = {
       }
 
       // 2. Primary AI Edit API
+      let generatedUrl = null;
+
       if (!finalBuffer) {
         let sourceBuffer = null;
-        try {
-          sourceBuffer = await downloadToBuffer(imageUrl);
-        } catch (_) {}
-
         let targetUrl = imageUrl;
-        if (sourceBuffer) {
+
+        // If targetUrl is already a public HTTP(S) URL (like Instagram CDN), try Toshiro directly first
+        if (/^https?:\/\//i.test(targetUrl)) {
           try {
-            const FormData = require("form-data");
-            const form = new FormData();
-            form.append("reqtype", "fileupload");
-            form.append("fileToUpload", sourceBuffer, { filename: "edit.jpg" });
-            const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
-              headers: form.getHeaders(),
-              timeout: 20000
-            });
-            if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
-              targetUrl = cbRes.data.trim();
+            const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
+            const editRes = await axios.get(editApiUrl, { timeout: 18000 });
+            if (editRes.data?.success && editRes.data?.url) {
+              generatedUrl = editRes.data.url;
+              try {
+                finalBuffer = await downloadToBuffer(generatedUrl);
+                appliedType = "AI Edit";
+              } catch (_) {}
             }
           } catch (_) {}
         }
 
-        try {
-          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-          const editRes = await axios.get(editApiUrl, { timeout: 35000 });
-          if (editRes.data?.success && editRes.data?.url) {
-            finalBuffer = await downloadToBuffer(editRes.data.url);
-            appliedType = "AI Edit";
-          }
-        } catch (_) {}
+        // If Toshiro direct URL failed or wasn't public, try Catbox upload fallback with a short timeout
+        if (!finalBuffer && !generatedUrl && !targetUrl.includes("catbox.moe")) {
+          try {
+            if (!sourceBuffer) {
+              sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
+            }
+            if (sourceBuffer) {
+              const FormData = require("form-data");
+              const form = new FormData();
+              form.append("reqtype", "fileupload");
+              form.append("fileToUpload", sourceBuffer, { filename: "edit.jpg" });
+              const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
+                headers: form.getHeaders(),
+                timeout: 8000
+              });
+              if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
+                targetUrl = cbRes.data.trim();
+                const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
+                const editRes = await axios.get(editApiUrl, { timeout: 18000 });
+                if (editRes.data?.success && editRes.data?.url) {
+                  generatedUrl = editRes.data.url;
+                  try {
+                    finalBuffer = await downloadToBuffer(generatedUrl);
+                    appliedType = "AI Edit";
+                  } catch (_) {}
+                }
+              }
+            }
+          } catch (_) {}
+        }
 
         // 3. Fallback: Pollinations Image-to-Image / Variation
         if (!finalBuffer) {
           try {
             const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?image=${encodeURIComponent(targetUrl)}&width=768&height=768&model=turbo&nologo=true`;
-            finalBuffer = await downloadToBuffer(turboUrl);
+            generatedUrl = turboUrl;
             appliedType = "AI Turbo Edit";
-          } catch (_) {
+            try {
+              finalBuffer = await downloadToBuffer(turboUrl);
+            } catch (_) {}
+          } catch (_) {}
+        }
+
+        // 4. Final Fallback: Jimp Image Adjustment on original image
+        if (!finalBuffer) {
+          try {
+            if (!sourceBuffer) {
+              sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
+            }
             if (sourceBuffer) {
               const jimg = await Jimp.read(sourceBuffer);
               jimg.contrast(0.2);
               finalBuffer = await jimg.getBuffer("image/jpeg");
               appliedType = "Enhanced Edit";
             }
-          }
+          } catch (_) {}
         }
       }
 
-      if (!finalBuffer || !Buffer.isBuffer(finalBuffer)) {
-        throw new Error("Could not produce edited image buffer.");
+      if (!finalBuffer && !generatedUrl) {
+        throw new Error("Could not produce edited image.");
       }
 
-      // Write to clean temp JPEG file for Instagram transport
-      const tempDir = path.join(process.cwd(), "temp");
-      await fs.ensureDir(tempDir);
-      tempFilePath = path.join(tempDir, `edit_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
-      await fs.writeFile(tempFilePath, finalBuffer);
+      if (finalBuffer && Buffer.isBuffer(finalBuffer)) {
+        // Write to clean temp JPEG file for Instagram transport
+        const tempDir = path.join(process.cwd(), "temp");
+        await fs.ensureDir(tempDir);
+        tempFilePath = path.join(tempDir, `edit_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
+        await fs.writeFile(tempFilePath, finalBuffer);
+      }
 
       if (message && typeof message.react === "function") {
         message.react("✅").catch(() => {});
@@ -302,16 +335,42 @@ module.exports = {
         ? `✨ [${appliedType}] Edited profile picture of ${targetName}:\nPrompt: "${prompt}"`
         : `✨ [${appliedType}] Result:\nPrompt: "${prompt}"`;
 
-      const sent = await message.reply({
-        body: caption,
-        attachment: tempFilePath,
-        textFirst: true
-      });
+      let deliveryError = null;
+      let sent = null;
+
+      // Attempt media attachment delivery with 20s race timeout
+      if (tempFilePath) {
+        try {
+          sent = await Promise.race([
+            message.reply({
+              body: caption,
+              attachment: tempFilePath,
+              textFirst: true
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Image delivery timeout after 20s")), 20000))
+          ]);
+        } catch (err) {
+          deliveryError = err;
+        }
+      } else {
+        deliveryError = new Error("No local file available for attachment delivery");
+      }
+
+      // If media attachment timed out or failed, fall back to direct URL message so user gets output immediately
+      if (deliveryError) {
+        if (generatedUrl) {
+          sent = await message.reply(`${caption}\n\n🔗 View / Download Image:\n${generatedUrl}`);
+        } else {
+          throw deliveryError;
+        }
+      }
 
       // Cleanup temp file safely after short delay
-      setTimeout(() => {
-        if (tempFilePath) fs.unlink(tempFilePath).catch(() => {});
-      }, 15000);
+      if (tempFilePath) {
+        setTimeout(() => {
+          fs.unlink(tempFilePath).catch(() => {});
+        }, 20000);
+      }
 
       return sent;
     } catch (err) {
