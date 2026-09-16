@@ -29,6 +29,48 @@ function createAPIWrapper(rawClient, config = {}) {
 		return promise;
 	}
 
+	function isLikelyMedia(val) {
+		if (!val) return false;
+		if (Buffer.isBuffer(val) || (val && val.buffer && Buffer.isBuffer(val.buffer))) return true;
+		if (typeof val === "object" && (val.path || val.url || val.stream || typeof val.pipe === "function")) return true;
+		if (typeof val === "string") {
+			if (/^https?:\/\//i.test(val)) return true;
+			if (val.includes("/") || val.includes("\\") || /\.(jpe?g|png|webp|gif|bmp|mp4|mov|webm|mp3|wav|ogg|m4a)(\?|$)/i.test(val)) return true;
+		}
+		return false;
+	}
+
+	function normalizeMediaCall(a, b, c, d) {
+		let threadID, pathOrUrl, opts = {}, callback;
+		if (isLikelyMedia(a) && !isLikelyMedia(b)) {
+			pathOrUrl = a;
+			threadID = String(b);
+			if (typeof c === "function") {
+				callback = c;
+				opts = typeof d === "object" && d !== null ? d : { replyToMessageID: d };
+			} else {
+				callback = typeof d === "function" ? d : undefined;
+				opts = typeof c === "object" && c !== null ? c : { caption: typeof c === "string" ? c : "", replyToMessageID: d };
+			}
+		} else {
+			threadID = String(a);
+			pathOrUrl = b;
+			if (typeof c === "function") {
+				callback = c;
+				opts = {};
+			} else if (typeof c === "object" && c !== null) {
+				opts = c;
+				callback = typeof d === "function" ? d : undefined;
+			} else if (typeof c === "string") {
+				opts = { caption: c, replyToMessageID: d };
+				callback = typeof d === "function" ? d : undefined;
+			} else {
+				callback = typeof d === "function" ? d : undefined;
+			}
+		}
+		return { threadID, pathOrUrl, opts, callback };
+	}
+
 	const wrapper = {
 		_raw: ig,
 
@@ -124,11 +166,8 @@ function createAPIWrapper(rawClient, config = {}) {
 			return wrapCallback(promise, callback);
 		},
 
-		sendPhoto: async (threadID, pathOrUrl, opts = {}, callback) => {
-			if (typeof opts === "function") {
-				callback = opts;
-				opts = {};
-			}
+		sendPhoto: async (arg1, arg2, arg3, arg4) => {
+			const { threadID, pathOrUrl, opts, callback } = normalizeMediaCall(arg1, arg2, arg3, arg4);
 			const promise = (async () => {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendPhoto === "function") {
@@ -165,11 +204,8 @@ function createAPIWrapper(rawClient, config = {}) {
 			return wrapper.sendPhoto(threadID, source, { caption, replyToMessageID }, callback);
 		},
 
-		sendVideo: async (threadID, pathOrUrl, opts = {}, callback) => {
-			if (typeof opts === "function") {
-				callback = opts;
-				opts = {};
-			}
+		sendVideo: async (arg1, arg2, arg3, arg4) => {
+			const { threadID, pathOrUrl, opts, callback } = normalizeMediaCall(arg1, arg2, arg3, arg4);
 			const promise = (async () => {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVideo === "function") {
@@ -188,11 +224,8 @@ function createAPIWrapper(rawClient, config = {}) {
 			return wrapCallback(promise, callback);
 		},
 
-		sendVoice: async (threadID, pathOrUrl, opts = {}, callback) => {
-			if (typeof opts === "function") {
-				callback = opts;
-				opts = {};
-			}
+		sendVoice: async (arg1, arg2, arg3, arg4) => {
+			const { threadID, pathOrUrl, opts, callback } = normalizeMediaCall(arg1, arg2, arg3, arg4);
 			const promise = (async () => {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVoice === "function") {

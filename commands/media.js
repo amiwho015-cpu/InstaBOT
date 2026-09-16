@@ -43,6 +43,8 @@ function extractUrl(event, args) {
   return null;
 }
 
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
 async function resolveMediaUrl(targetUrl, isAudio = false) {
   let downloadUrl = null;
   let title = "Media Content";
@@ -51,28 +53,43 @@ async function resolveMediaUrl(targetUrl, isAudio = false) {
   // 1. TikTok fast endpoint
   if (/tiktok\.com/i.test(targetUrl)) {
     try {
-      const res = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, { timeout: 12000 });
+      const res = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, {
+        headers: { "User-Agent": USER_AGENT, "Accept": "application/json, text/plain, */*" },
+        timeout: 8000
+      });
       const d = res.data?.data;
       if (d) {
-        downloadUrl = isAudio ? (d.music || d.play) : (d.play || d.wmplay);
+        downloadUrl = isAudio ? (d.music || d.play) : (d.play || d.hdplay || d.wmplay);
         title = d.title || "TikTok Video";
         author = d.author?.nickname || d.author?.unique_id || "";
-        return { downloadUrl, title, author };
+        if (downloadUrl) {
+          if (!downloadUrl.startsWith("http")) downloadUrl = `https://www.tikwm.com${downloadUrl}`;
+          return { downloadUrl, title, author };
+        }
       }
     } catch (_) {}
   }
 
-  // 2. Siputzx All-in-One API
+  // 2. NeoKEX AllDL Universal Media API
   try {
-    const res = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${encodeURIComponent(targetUrl)}`, { timeout: 15000 });
-    const d = res.data?.data || res.data?.result;
-    if (d) {
-      downloadUrl = isAudio
-        ? (d.audio || d.music || d.url || d.video)
-        : (d.video || d.hd || d.sd || d.url || d.audio);
-      title = d.title || title;
-      author = d.author || author;
-      if (downloadUrl) return { downloadUrl, title, author };
+    const res = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(targetUrl)}`, {
+      headers: { "User-Agent": USER_AGENT },
+      timeout: 12000
+    });
+    const d = res.data?.metadata?.data || res.data?.data;
+    if (d && Array.isArray(d.downloads) && d.downloads.length > 0) {
+      const notAudio = item => !String(item?.label).toLowerCase().includes("audio");
+      const isAud = item => String(item?.label).toLowerCase().includes("audio");
+      const pick = isAudio
+        ? (d.downloads.find(isAud) || d.downloads[0])
+        : (d.downloads.find(notAudio) || d.downloads[0]);
+      if (pick?.url) {
+        return {
+          downloadUrl: pick.url,
+          title: d.title || title,
+          author: d.author?.nickname || d.author || author
+        };
+      }
     }
   } catch (_) {}
 
@@ -83,7 +100,7 @@ async function resolveMediaUrl(targetUrl, isAudio = false) {
       downloadMode: isAudio ? "audio" : "auto"
     }, {
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      timeout: 15000
+      timeout: 12000
     });
     if (res.data?.url) {
       downloadUrl = res.data.url;

@@ -7,6 +7,103 @@ const path = require("path");
 const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 25 * 1024 * 1024);
 const MAX_ATTEMPTS = 3;
 
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+async function resolveTikTokVideo(url, isAudio = false) {
+  // 1. Try TikWM with full browser headers
+  try {
+    const res = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9"
+      },
+      timeout: 8000
+    });
+    const d = res.data?.data;
+    if (d && (d.play || d.wmplay || d.music)) {
+      const urls = isAudio
+        ? [d.music, d.play].filter(Boolean)
+        : [d.play, d.hdplay, d.wmplay].filter(Boolean);
+      if (urls.length > 0) {
+        return {
+          title: d.title || "TikTok Video",
+          author: d.author?.nickname || d.author?.unique_id || "TikTok Creator",
+          downloadUrls: urls
+        };
+      }
+    }
+  } catch (_) {}
+
+  // 2. Fallback to NeoKEX AllDL API
+  try {
+    const res = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(url)}`, {
+      headers: { "User-Agent": USER_AGENT },
+      timeout: 10000
+    });
+    const data = res.data?.metadata?.data || res.data?.data;
+    const downloads = data?.downloads || [];
+    const notAudio = item => !String(item?.label).toLowerCase().includes("audio");
+    const isAud = item => String(item?.label).toLowerCase().includes("audio");
+    const urls = (isAudio ? downloads.filter(isAud) : downloads.filter(notAudio))
+      .map(d => d.url)
+      .filter(Boolean);
+    if (urls.length > 0) {
+      return {
+        title: data?.title || "TikTok Video",
+        author: data?.author?.nickname || "TikTok Creator",
+        downloadUrls: urls
+      };
+    }
+  } catch (_) {}
+
+  throw new Error("Could not resolve TikTok download URL from any media provider.");
+}
+
+async function fetchMediaBuffer(urls) {
+  for (const rawUrl of urls) {
+    const fullUrl = rawUrl.startsWith("http") ? rawUrl : `https://www.tikwm.com${rawUrl}`;
+
+    // Attempt 1: With TikTok referer
+    try {
+      const res = await axios.get(fullUrl, {
+        responseType: "arraybuffer",
+        timeout: 18000,
+        maxContentLength: MAX_BYTES,
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Referer": "https://www.tiktok.com/"
+        }
+      });
+      if (res.status === 200 && res.data && res.data.length > 0) {
+        return Buffer.from(res.data);
+      }
+    } catch (err) {
+      // If 403 or blocked, try without referer
+      if (err.response?.status !== 403 && !/403/i.test(err.message)) {
+        // continue to next attempt
+      }
+    }
+
+    // Attempt 2: Without referer (solves hotlink blocks on many CDNs)
+    try {
+      const res = await axios.get(fullUrl, {
+        responseType: "arraybuffer",
+        timeout: 18000,
+        maxContentLength: MAX_BYTES,
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Accept": "*/*"
+        }
+      });
+      if (res.status === 200 && res.data && res.data.length > 0) {
+        return Buffer.from(res.data);
+      }
+    } catch (_) {}
+  }
+  throw new Error("Failed to download video bytes (received 403 or network error from CDN).");
+}
+
 module.exports = {
   config: {
     name: "tiktok",
@@ -61,7 +158,7 @@ module.exports = {
       // Search query using tik-sr
       try {
         const srRes = await axios.get(`https://alldl.neokex.xyz/api/tik-sr?q=${encodeURIComponent(input)}`, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+          headers: { "User-Agent": USER_AGENT },
           timeout: 15000
         });
         const results = srRes.data?.results || [];
@@ -93,38 +190,17 @@ module.exports = {
 
     for (const candidate of candidates.slice(0, MAX_ATTEMPTS)) {
       try {
-        // 1. Resolve media URL via TikWM API
-        const res = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(candidate.url)}`, {
-          timeout: 18000
-        });
-        const data = res.data?.data;
-        if (!data) throw new Error("Could not parse TikTok video data from TikWM");
+        const meta = await resolveTikTokVideo(candidate.url, isAudio);
+        const buf = await fetchMediaBuffer(meta.downloadUrls);
 
-        const downloadUrl = isAudio ? (data.music || data.play) : (data.play || data.wmplay);
-        if (!downloadUrl) throw new Error("No download URL returned for this video");
-
-        const title = data.title || candidate.title || "TikTok Video";
-        const author = data.author?.nickname || candidate.author || "TikTok Creator";
+        if (buf.length > MAX_BYTES) {
+          throw new Error(`Media is ${Math.round(buf.length / (1024 * 1024))} MB, exceeding send limit.`);
+        }
 
         const ext = isAudio ? "mp3" : "mp4";
         const tempDir = path.join(process.cwd(), "temp");
         await fs.ensureDir(tempDir);
         tempPath = path.join(tempDir, `tiktok_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
-
-        const mediaRes = await axios.get(downloadUrl, {
-          responseType: "arraybuffer",
-          timeout: 45000,
-          maxContentLength: MAX_BYTES,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.tiktok.com/"
-          }
-        });
-
-        const buf = Buffer.from(mediaRes.data);
-        if (buf.length > MAX_BYTES) {
-          throw new Error(`Media is ${Math.round(buf.length / (1024 * 1024))} MB, exceeding send limit.`);
-        }
         await fs.writeFile(tempPath, buf);
 
         if (message && typeof message.react === "function") {
@@ -133,7 +209,10 @@ module.exports = {
           api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
         }
 
+        const title = meta.title || candidate.title || "TikTok Video";
+        const author = meta.author || candidate.author || "TikTok Creator";
         const caption = `📱 𝗧𝗶𝗸𝗧𝗼𝗸 [${isAudio ? "AUDIO" : "VIDEO"}]\n👤 ${author}\n📝 ${title.slice(0, 100)}`;
+
         const sent = await message.reply({
           body: caption,
           attachment: { path: tempPath, type: isAudio ? "audio" : "video" },

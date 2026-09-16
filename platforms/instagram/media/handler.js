@@ -28,13 +28,17 @@ function detectMediaKind(source) {
 	if (typeof source === "string") {
 		str = source.toLowerCase();
 	} else if (typeof source === "object") {
-		str = (source.path || source.filename || source.name || source.url || source.mimeType || source.contentType || "").toLowerCase();
+		const type = (source.type || source.kind || "").toLowerCase();
+		if (type === "video" || type === "audio" || type === "photo" || type === "image" || type === "gif") {
+			return type === "image" ? "photo" : type;
+		}
+		str = (source.path || source.filename || source.fileName || source.name || source.url || source.mimeType || source.contentType || "").toLowerCase();
 	}
 
-	if (/\.(mp4|mov|mkv|webm|avi|m4v)(\?.*)?$/i.test(str) || str.startsWith("video/")) {
+	if (/\.(mp4|mov|mkv|webm|avi|m4v)(\?.*)?$/i.test(str) || str.startsWith("video/") || /mime_type=video/i.test(str)) {
 		return "video";
 	}
-	if (/\.(mp3|wav|m4a|ogg|aac|opus|flac)(\?.*)?$/i.test(str) || str.startsWith("audio/")) {
+	if (/\.(mp3|wav|m4a|ogg|aac|opus|flac)(\?.*)?$/i.test(str) || str.startsWith("audio/") || /mime_type=audio/i.test(str)) {
 		return "audio";
 	}
 	if (/\.gif(\?.*)?$/i.test(str) || str === "image/gif") {
@@ -49,9 +53,17 @@ async function prepareMediaSource(rawItem, tempFiles) {
 		item = item.url || item.path || item.photo || item.video || item.audio || item.voice || item.image || item.stream || item.buffer || item;
 	}
 
+	const kind = detectMediaKind(rawItem);
+
 	// 1. URL string
 	if (typeof item === "string" && /^https?:\/\//i.test(item)) {
-		const ext = utils.getExtFromUrl(item) || "jpg";
+		let ext = utils.getExtFromUrl(item);
+		if (!ext || ext === "bin") {
+			if (kind === "video") ext = "mp4";
+			else if (kind === "audio") ext = "mp3";
+			else if (kind === "gif") ext = "gif";
+			else ext = "jpg";
+		}
 		const tempPath = path.join(process.cwd(), "temp", `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
 		await fs.ensureDir(path.dirname(tempPath));
 
@@ -75,12 +87,22 @@ async function prepareMediaSource(rawItem, tempFiles) {
 	if (Buffer.isBuffer(item) || isReadableStream(item)) {
 		let ext = ".jpg";
 		if (rawItem && typeof rawItem === "object") {
-			const candidateName = rawItem.filename || rawItem.name || rawItem.path;
+			const candidateName = rawItem.filename || rawItem.fileName || rawItem.name || rawItem.path;
 			if (candidateName) ext = path.extname(candidateName) || ext;
 			else if (rawItem.contentType || rawItem.mimeType) {
 				const fromMime = utils.getExtFromMimeType(rawItem.contentType || rawItem.mimeType);
 				if (fromMime) ext = `.${fromMime}`;
+			} else if (kind === "video") {
+				ext = ".mp4";
+			} else if (kind === "audio") {
+				ext = ".mp3";
+			} else if (kind === "gif") {
+				ext = ".gif";
 			}
+		} else if (kind === "video") {
+			ext = ".mp4";
+		} else if (kind === "audio") {
+			ext = ".mp3";
 		}
 
 		const tempPath = path.join(process.cwd(), "temp", `media_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);

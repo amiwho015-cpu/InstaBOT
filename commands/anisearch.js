@@ -56,8 +56,24 @@ async function searchVideos(query) {
 }
 
 async function resolveVideo(url) {
+	// 1. Fast TikWM attempt
 	try {
-		const payload = await requestJSON(`${API_BASE}/alldl?url=${encodeURIComponent(url)}`, 12000);
+		const tw = await requestJSON(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, 6000);
+		if (tw && tw.data && (tw.data.play || tw.data.wmplay)) {
+			const play = tw.data.play || tw.data.wmplay;
+			const fullUrl = play.startsWith("http") ? play : `https://www.tikwm.com${play}`;
+			return {
+				title: tw.data.title || "Anime Video",
+				url: fullUrl,
+				ext: "mp4"
+			};
+		}
+	}
+	catch (_) { }
+
+	// 2. NeoKEX alldl fallback
+	try {
+		const payload = await requestJSON(`${API_BASE}/alldl?url=${encodeURIComponent(url)}`, 10000);
 		const data = (payload && (payload.metadata && payload.metadata.data)) || (payload && payload.data) || payload;
 		const downloads = (data && data.downloads) || [];
 		const notAudio = item => !String(item && item.label).toLowerCase().includes("audio");
@@ -70,19 +86,6 @@ async function resolveVideo(url) {
 	}
 	catch (_) { }
 
-	// Fast fallback to TikWM if alldl failed or timed out
-	try {
-		const tw = await requestJSON(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, 8000);
-		if (tw && tw.data && (tw.data.play || tw.data.wmplay)) {
-			return {
-				title: tw.data.title || "Anime Video",
-				url: tw.data.play || tw.data.wmplay,
-				ext: "mp4"
-			};
-		}
-	}
-	catch (_) { }
-
 	throw new Error("The media service did not return a usable video.");
 }
 
@@ -90,7 +93,14 @@ async function fetchVideoBuffer(url, timeout = 15000) {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeout);
 	try {
-		const response = await fetch(url, { headers: headersFor(url), signal: controller.signal, redirect: "follow" });
+		let response = await fetch(url, { headers: headersFor(url), signal: controller.signal, redirect: "follow" }).catch(() => null);
+		if (!response || !response.ok || response.status === 403) {
+			response = await fetch(url, {
+				headers: { "User-Agent": USER_AGENT, "Accept": "*/*" },
+				signal: controller.signal,
+				redirect: "follow"
+			});
+		}
 		if (!response.ok) throw new Error(`Video download failed (HTTP ${response.status})`);
 		const declared = Number(response.headers.get("content-length")) || 0;
 		if (declared && declared > MAX_BYTES)
