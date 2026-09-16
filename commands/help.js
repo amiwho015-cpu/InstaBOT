@@ -20,7 +20,7 @@ module.exports = {
 	config: {
 		name: "help",
 		aliases: ["h", "menu", "commands"],
-		author: "Neoaz 🐊",
+		author: "Farhan (frnAlt)",
 		category: "info",
 		cooldown: 3,
 		role: 0,
@@ -34,7 +34,7 @@ module.exports = {
 
 		if (query) {
 			const command = registry.resolve(query);
-			if (!command) return message.send(`❌ Command "${query}" not found.`);
+			if (!command) return message.reply ? message.reply(`❌ Command "${query}" not found.`) : message.send(`❌ Command "${query}" not found.`);
 
 			const c = command.config;
 			const description = (c.description && (c.description[config.language] || c.description.en)) || "—";
@@ -52,15 +52,16 @@ module.exports = {
 				`➥ Aliases: ${c.aliases && c.aliases.length ? c.aliases.join(", ") : "None"}`,
 				`➥ Usage: ${usage}`,
 				`➥ Permission: ${c.role || 0}`,
-				`➥ Author: ${c.author || "—"}`,
+				`➥ Author: ${c.author || "Farhan (frnAlt)"}`,
+				`➥ Developer: Farhan (frnAlt)`,
 				`➥ Version: ${version}`
 			].join("\n");
 
 			try {
-				return await message.send({ body, effect: randomTextEffect() });
+				return await (message.reply ? message.reply({ body, effect: randomTextEffect() }) : message.send({ body, effect: randomTextEffect() }));
 			}
 			catch (_) {
-				return message.send(body);
+				return message.reply ? message.reply(body) : message.send(body);
 			}
 		}
 
@@ -79,13 +80,14 @@ module.exports = {
 			lines.push("╰────────────◊");
 		}
 		lines.push(`\n➥ Use: ${prefix}help [command] for details`);
+		lines.push(`👤 Dev: Farhan (frnAlt)`);
 
 		const body = lines.join("\n");
 		try {
-			return await message.send({ body, effect: randomTextEffect() });
+			return await (message.reply ? message.reply({ body, effect: randomTextEffect() }) : message.send({ body, effect: randomTextEffect() }));
 		}
 		catch (_) {
-			return message.send(body);
+			return message.reply ? message.reply(body) : message.send(body);
 		}
 	}
 };
