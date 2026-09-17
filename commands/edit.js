@@ -90,6 +90,49 @@ async function safeLoadJimp(source) {
   }
 }
 
+async function uploadImageToPublicHost(buffer) {
+  const FormData = require("form-data");
+  // 1. tmpfiles.org
+  try {
+    const form = new FormData();
+    form.append("file", buffer, { filename: "edit.jpg" });
+    const res = await axios.post("https://tmpfiles.org/api/v1/upload", form, {
+      headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0" },
+      timeout: 6000
+    });
+    const url = res.data?.data?.url;
+    if (url) return url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+  } catch (_) {}
+
+  // 2. uguu.se
+  try {
+    const form = new FormData();
+    form.append("files[]", buffer, { filename: "edit.jpg" });
+    const res = await axios.post("https://uguu.se/upload", form, {
+      headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0" },
+      timeout: 6000
+    });
+    const u = res.data?.files?.[0]?.url;
+    if (u) return u;
+  } catch (_) {}
+
+  // 3. catbox.moe fallback
+  try {
+    const form = new FormData();
+    form.append("reqtype", "fileupload");
+    form.append("fileToUpload", buffer, { filename: "edit.jpg" });
+    const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
+      headers: form.getHeaders(),
+      timeout: 6000
+    });
+    if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
+      return cbRes.data.trim();
+    }
+  } catch (_) {}
+
+  return null;
+}
+
 module.exports = {
   config: {
     name: "edit",
@@ -280,25 +323,18 @@ module.exports = {
           } catch (_) {}
         }
 
-        // If Toshiro direct URL failed or wasn't public, try Catbox upload fallback with a short timeout
-        if (!finalBuffer && !generatedUrl && !targetUrl.includes("catbox.moe")) {
+        // If direct URL failed or wasn't public, upload source buffer to public host
+        if (!finalBuffer && !generatedUrl) {
           try {
             if (!sourceBuffer) {
               sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
             }
             if (sourceBuffer) {
-              const FormData = require("form-data");
-              const form = new FormData();
-              form.append("reqtype", "fileupload");
-              form.append("fileToUpload", sourceBuffer, { filename: "edit.jpg" });
-              const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
-                headers: form.getHeaders(),
-                timeout: 8000
-              });
-              if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
-                targetUrl = cbRes.data.trim();
+              const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
+              if (uploadedUrl) {
+                targetUrl = uploadedUrl;
                 const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const editRes = await axios.get(editApiUrl, { timeout: 18000 });
+                const editRes = await axios.get(editApiUrl, { timeout: 15000 });
                 if (editRes.data?.success && editRes.data?.url) {
                   generatedUrl = editRes.data.url;
                   try {

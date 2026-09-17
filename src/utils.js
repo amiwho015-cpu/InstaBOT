@@ -522,10 +522,13 @@ function findImageInMessage(msg) {
 		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo;
 		if (u && typeof u === "string") return u;
 		if (u && typeof u === "object" && u.url) return u.url;
+		if (a.image_versions2?.candidates?.[0]?.url) return a.image_versions2.candidates[0].url;
+		if (a.media?.image_versions2?.candidates?.[0]?.url) return a.media.image_versions2.candidates[0].url;
+		if (a.video_versions?.[0]?.url) return a.video_versions[0].url;
 	}
 
 	// 2. Direct image or media fields
-	const m = msg.media || msg.visual_media?.media || msg.raven_media?.media || msg.clip?.clip || msg.media_share;
+	const m = msg.media || msg.visual_media?.media || msg.raven_media?.media || msg.clip?.clip || msg.media_share || msg.direct_story?.media;
 	if (m) {
 		const u = m.image_versions2?.candidates?.[0]?.url || m.video_versions?.[0]?.url || m.url;
 		if (u && typeof u === "string") return u;
@@ -557,6 +560,15 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 		if (u) return u;
 	}
 
+	// 1b. Fast in-memory cache lookup by replied message ID
+	const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
+	                (typeof event.replyTo === "string" ? event.replyTo : null);
+	if (replyID && global.recentMessages && global.recentMessages.has(String(replyID))) {
+		const cached = global.recentMessages.get(String(replyID));
+		const u = findImageInMessage(cached);
+		if (u) return u;
+	}
+
 	// 2. Current message attachments
 	const currUrl = findImageInMessage(event);
 	if (currUrl) return currUrl;
@@ -578,8 +590,6 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 	const threadID = event.threadID || event.threadId;
 	if (api && threadID && typeof api.getThreadHistory === "function") {
 		try {
-			const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
-			                (typeof event.replyTo === "string" ? event.replyTo : null);
 
 			const history = await new Promise((resolve) => {
 				const handler = (err, res) => {

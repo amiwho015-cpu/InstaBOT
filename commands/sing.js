@@ -269,7 +269,7 @@ async function sendSong(message, track, api, event) {
 			const sendPromise = message.reply({
 				body: caption,
 				attachment: { path: tempFile, type: "audio" },
-				textFirst: true
+				textFirst: false
 			});
 			const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Audio send timed out")), 25000));
 			await Promise.race([sendPromise, sendTimer]);
@@ -291,7 +291,7 @@ async function sendSong(message, track, api, event) {
 		const sendPromise = message.send({
 			body: `${track.title || "Unknown"} — ${track.artist || "Unknown"}${track.durationMs ? ` (${formatDuration(track.durationMs)})` : ""}`,
 			attachment: { url: track.url, type: "audio", mimetype: track.mimetype || "audio/mp4" },
-			textFirst: true
+			textFirst: false
 		});
 		const sendTimer = new Promise((_, reject) => setTimeout(() => reject(new Error("Audio send timed out")), 25000));
 		await Promise.race([sendPromise, sendTimer]);
@@ -306,7 +306,7 @@ async function sendSong(message, track, api, event) {
 			await message.reply({
 				body: caption,
 				attachment: { path: tempFile, type: "audio" },
-				textFirst: true
+				textFirst: false
 			});
 			if (message && typeof message.react === "function") message.react("✅").catch(() => {});
 			setTimeout(() => {
@@ -333,7 +333,7 @@ module.exports = {
 		usage: { en: "{p}sing <song name or artist> [--top] | {p}sing <number> to pick from the last search" }
 	},
 
-	onStart: async function ({ message, args, event, config, usersData, setReplyHandler, api }) {
+	onStart: async function ({ message, args, event, config, usersData, setReplyHandler, api, invokedAs }) {
 		const reply = event.messageReply || event.repliedMessage;
 		const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 		if (!query)
@@ -364,7 +364,8 @@ module.exports = {
 			usersData.update(event.senderID, { data: Object.assign({}, last.data, { lastSong: { query, tracks: top } }) });
 		}
 
-		if (top.length === 1 || args.includes("--top"))
+		const isDirect = top.length === 1 || args.includes("--top") || invokedAs === "song" || (!Array.isArray(api?.calls) && !args.includes("--list"));
+		if (isDirect && top.length > 0)
 			return sendSong(message, top[0], api, event);
 
 		const lines = top.map((track, index) =>

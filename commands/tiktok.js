@@ -214,9 +214,8 @@ module.exports = {
         const caption = `📱 𝗧𝗶𝗸𝗧𝗼𝗸 [${isAudio ? "AUDIO" : "VIDEO"}]\n👤 ${author}\n📝 ${title.slice(0, 100)}`;
 
         const sent = await message.reply({
-          body: caption,
           attachment: { path: tempPath, type: isAudio ? "audio" : "video" },
-          textFirst: true
+          textFirst: false
         });
 
         setTimeout(() => {

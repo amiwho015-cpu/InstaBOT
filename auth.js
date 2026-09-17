@@ -377,9 +377,22 @@ class EventStream {
 			res.setEncoding("utf8");
 			res.on("data", chunk => { this.lastChunkAt = Date.now(); this._onData(chunk); });
 			res.on("end", () => this._scheduleReconnect());
-			res.on("error", error => { if (!this.stopped) this.callback(error); this._scheduleReconnect(); });
+			res.on("error", error => {
+				const msg = String(error && (error.message || error) || "");
+				if (!/aborted|socket hang up|ECONNRESET|ETIMEDOUT/i.test(msg) && !this.stopped) {
+					this.callback(error);
+				}
+				this._scheduleReconnect();
+			});
 		});
-		this.req.on("error", error => { if (this.stopped) return; this.callback(error); this._scheduleReconnect(); });
+		this.req.on("error", error => {
+			if (this.stopped) return;
+			const msg = String(error && (error.message || error) || "");
+			if (!/aborted|socket hang up|ECONNRESET|ETIMEDOUT/i.test(msg)) {
+				this.callback(error);
+			}
+			this._scheduleReconnect();
+		});
 		this.req.end();
 	}
 
@@ -513,6 +526,42 @@ function login(options, callback) {
 			});
 		}
 		return originalSendImage.apply(this, args);
+	};
+
+	const originalSendAudio = api.sendAudio;
+	api.sendAudio = function (...args) {
+		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
+			api._lastThreadID = String(args[1]);
+		}
+		if (args.length === 4 && typeof args[2] !== "function" && args[3]) {
+			return new Promise((resolve, reject) => {
+				originalSendAudio(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), args[3]);
+			});
+		}
+		if (args.length === 3 && (typeof args[2] === "string" || typeof args[2] === "number")) {
+			return new Promise((resolve, reject) => {
+				originalSendAudio(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), String(args[2]));
+			});
+		}
+		return originalSendAudio.apply(this, args);
+	};
+
+	const originalSendVideo = api.sendVideo;
+	api.sendVideo = function (...args) {
+		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
+			api._lastThreadID = String(args[1]);
+		}
+		if (args.length === 4 && typeof args[2] !== "function" && args[3]) {
+			return new Promise((resolve, reject) => {
+				originalSendVideo(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), args[3]);
+			});
+		}
+		if (args.length === 3 && (typeof args[2] === "string" || typeof args[2] === "number")) {
+			return new Promise((resolve, reject) => {
+				originalSendVideo(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), String(args[2]));
+			});
+		}
+		return originalSendVideo.apply(this, args);
 	};
 
 	api.sendPhoto = function (threadID, pathOrUrl, opts = {}, callback) {

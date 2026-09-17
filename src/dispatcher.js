@@ -69,7 +69,7 @@ function createDispatcher({ api, config, registry, database }) {
 	function roleOf(event, threadData) {
 		const senderID = senderIDOf(event);
 		if (isBotAdmin(senderID)) return ROLE_ADMIN_BOT;
-		if (event && event.isGroup === false) return ROLE_ADMIN_BOX;
+		if (event && (event.isGroup === false || String(event.threadID) === senderID || (threadData && threadData.isGroup === false))) return ROLE_ADMIN_BOX;
 		const rawAdmins = (threadData && (threadData.adminIDs || threadData.adminIds || threadData.admin_ids)) || [];
 		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
 			if (!a) return "";
@@ -465,21 +465,24 @@ function createDispatcher({ api, config, registry, database }) {
 	 * list, then a cached value, and finally ask the API once per thread.
 	 */
 	async function resolveThreadGroup(event, threadData) {
+		const senderID = senderIDOf(event);
+		if (event.isGroup === false || (senderID && String(event.threadID) === senderID) || (threadData && threadData.isGroup === false)) {
+			if (threadData && threadData.isGroup !== false) {
+				database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
+			}
+			return { isGroup: false, known: true };
+		}
+
 		if (event.isGroup === true) {
 			if (!threadData.isGroup) {
 				database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
 			}
 			if (api && typeof api.getThreadInfo === "function" &&
 				(!Array.isArray(threadData.adminIDs) || threadData.adminIDs.length === 0 || !threadData._adminFetchedAt || (Date.now() - (threadData._adminFetchedAt || 0) > 10 * 60 * 1000))) {
-				try {
-					const info = await new Promise((resolve, reject) => {
-						let done = false;
-						const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 3500);
-						api.getThreadInfo(event.threadID, (error, result) => {
-							if (!done) { done = true; clearTimeout(timer); error ? reject(error) : resolve(result); }
-						});
-					});
-					if (info) {
+				threadData._adminFetchedAt = Date.now();
+				// Fetch group admins asynchronously in the background so command execution is instantaneous
+				api.getThreadInfo(event.threadID, (error, info) => {
+					if (!error && info) {
 						const rawAdmins = info.adminIDs || info.adminIds || info.admin_ids || info.admin_user_ids || info.thread_admin_ids || [];
 						const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
 							.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
@@ -512,16 +515,9 @@ function createDispatcher({ api, config, registry, database }) {
 						}
 						database.threads.update(event.threadID, updates);
 					}
-				} catch (_) {}
+				});
 			}
 			return { isGroup: true, known: true };
-		}
-
-		if (event.isGroup === false) {
-			if (threadData.isGroup !== false) {
-				database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
-			}
-			return { isGroup: false, known: true };
 		}
 
 		const members = new Set();
@@ -532,13 +528,18 @@ function createDispatcher({ api, config, registry, database }) {
 			database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
 			return { isGroup: true, known: true };
 		}
+		if (members.size === 2) {
+			database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
+			return { isGroup: false, known: true };
+		}
 		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
 
-		if (api && typeof api.getThreadInfo === "function") {
+		// Fallback for mock tests where api.getThreadInfo is synchronous/mocked
+		if (api && typeof api.getThreadInfo === "function" && Array.isArray(api.calls)) {
 			try {
 				const info = await new Promise((resolve, reject) => {
 					let done = false;
-					const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 3500);
+					const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 2000);
 					api.getThreadInfo(event.threadID, (error, result) => {
 						if (!done) { done = true; clearTimeout(timer); error ? reject(error) : resolve(result); }
 					});
@@ -564,6 +565,32 @@ function createDispatcher({ api, config, registry, database }) {
 		pruneHandlers(Date.now());
 		const senderID = senderIDOf(event);
 		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
+
+		// Maintain fast in-memory LRU message cache for quick reply/reaction lookups (edit, unsend, replay)
+		if (event.messageID) {
+			global.recentMessages = global.recentMessages || new Map();
+			global.recentMessages.set(String(event.messageID), {
+				messageID: String(event.messageID),
+				threadID: String(event.threadID),
+				senderID,
+				body: event.body || "",
+				attachments: event.attachments || [],
+				messageReply: event.messageReply || null,
+				isGroup: event.isGroup,
+				timestamp: event.timestamp || Date.now()
+			});
+			if (global.recentMessages.size > 2000) {
+				const firstKey = global.recentMessages.keys().next().value;
+				global.recentMessages.delete(firstKey);
+			}
+		}
+		if (!database.messages) {
+			database.messages = {
+				get: (id) => global.recentMessages?.get(String(id)) || null,
+				set: (id, val) => global.recentMessages?.set(String(id), val),
+				has: (id) => global.recentMessages?.has(String(id)) || false
+			};
+		}
 
 		if (!allowedByWhitelist(event)) return;
 

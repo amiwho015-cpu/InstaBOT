@@ -239,15 +239,26 @@ function createAPIWrapper(rawClient, config = {}) {
 			const promise = (async () => {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVideo === "function") {
-					if (replyTo) {
-						try {
-							return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, replyTo);
-						} catch (_) {
-							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
-							return await ig.sendVideo(threadID, pathOrUrl, fallbackOpts);
+					if (ig.sendVideoFromUrl || ig.sendMedia) {
+						if (replyTo) {
+							try {
+								return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, replyTo);
+							} catch (_) {
+								const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
+								return await ig.sendVideo(threadID, pathOrUrl, fallbackOpts);
+							}
 						}
+						return await ig.sendVideo(threadID, pathOrUrl, opts);
+					} else {
+						return await new Promise((resolve, reject) => {
+							const cb = (err, res) => err ? reject(err) : resolve(res);
+							if (replyTo) {
+								ig.sendVideo(pathOrUrl, threadID, cb, replyTo);
+							} else {
+								ig.sendVideo(pathOrUrl, threadID, cb);
+							}
+						});
 					}
-					return await ig.sendVideo(threadID, pathOrUrl, opts);
 				}
 				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
@@ -270,14 +281,18 @@ function createAPIWrapper(rawClient, config = {}) {
 					}
 				}
 				if (ig && typeof ig.sendAudio === "function") {
-					if (replyTo) {
-						try {
-							return await ig.sendAudio(pathOrUrl, threadID, undefined, replyTo);
-						} catch (_) {
-							return await ig.sendAudio(pathOrUrl, threadID);
+					return await new Promise((resolve, reject) => {
+						const cb = (err, res) => err ? reject(err) : resolve(res);
+						if (replyTo) {
+							try {
+								ig.sendAudio(pathOrUrl, threadID, cb, replyTo);
+							} catch (_) {
+								ig.sendAudio(pathOrUrl, threadID, cb);
+							}
+						} else {
+							ig.sendAudio(pathOrUrl, threadID, cb);
 						}
-					}
-					return await ig.sendAudio(pathOrUrl, threadID);
+					});
 				}
 				return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();

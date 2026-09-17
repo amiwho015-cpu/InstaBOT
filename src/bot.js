@@ -134,7 +134,11 @@ function normalizeEvent(event) {
 		const isMembership = normalized.type === "join" || normalized.type === "leave";
 		const looksGroup = Array.isArray(added) || Array.isArray(removed) ||
 			isMembership || legacyGroup || unique.size > 2;
-		if (looksGroup) normalized.isGroup = true;
+		if (looksGroup) {
+			normalized.isGroup = true;
+		} else if (unique.size === 2 || String(normalized.threadID) === String(normalized.senderID) || normalized.threadType === 1 || normalized.threadType === "1" || normalized.isGroup === false) {
+			normalized.isGroup = false;
+		}
 	}
 
 	return normalized;
@@ -219,7 +223,9 @@ function createBot(config) {
 				dispatcher = createDispatcher({ api: wrappedApi, config, registry, database });
 
 				try {
-					const info = await api.getUserInfo(state.botID);
+					const fetchInfo = api.getUserInfo(state.botID);
+					const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("getUserInfo timeout")), 3500));
+					const info = await Promise.race([fetchInfo, timeout]);
 					const profile = info && info[state.botID];
 					log.success("LOGIN", `Logged in as ${state.botID}${profile && profile.vanity ? ` (@${profile.vanity})` : ""}`);
 				}
@@ -302,7 +308,7 @@ function createBot(config) {
 
 	function handleListenerError(error) {
 		const message = String(error && (error.error || error.message) || error);
-		if (/connection closed|closed by user/i.test(message)) return;
+		if (/connection closed|closed by user|aborted|socket hang up|ECONNRESET|ETIMEDOUT/i.test(message)) return;
 		onlineStatus.writeLine({ event: "listener_error", error: message });
 		if (/not logged in|login_required|logged.?out/i.test(message)) {
 			log.error("LISTEN", "Session is no longer valid. Re-reading account.txt…", message);
