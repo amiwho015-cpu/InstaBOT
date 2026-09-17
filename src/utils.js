@@ -512,14 +512,16 @@ async function resolveProfile(args, event, api) {
 }
 
 function findImageInMessage(msg) {
-	if (!msg || typeof msg !== "object") return null;
+	if (!msg) return null;
+	if (typeof msg === "string" && /^https?:\/\//i.test(msg)) return msg;
+	if (typeof msg !== "object") return null;
 
 	// 1. Array of attachments
 	const attachs = Array.isArray(msg.attachments) ? msg.attachments : (msg.attachment ? [msg.attachment] : []);
 	for (const a of attachs) {
 		if (!a) continue;
 		if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
-		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo;
+		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.src || a.uri;
 		if (u && typeof u === "string") return u;
 		if (u && typeof u === "object" && u.url) return u.url;
 		if (a.image_versions2?.candidates?.[0]?.url) return a.image_versions2.candidates[0].url;
@@ -534,6 +536,15 @@ function findImageInMessage(msg) {
 		if (u && typeof u === "string") return u;
 	}
 	if (msg.image_versions2?.candidates?.[0]?.url) return msg.image_versions2.candidates[0].url;
+	if (msg.carousel_share?.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url) {
+		return msg.carousel_share.carousel_media[0].image_versions2.candidates[0].url;
+	}
+	if (msg.reel_share?.media?.image_versions2?.candidates?.[0]?.url) {
+		return msg.reel_share.media.image_versions2.candidates[0].url;
+	}
+	if (msg.story_share?.media?.image_versions2?.candidates?.[0]?.url) {
+		return msg.story_share.media.image_versions2.candidates[0].url;
+	}
 	if (msg.image) return typeof msg.image === "string" ? msg.image : (msg.image.url || null);
 	if (msg.photo) return typeof msg.photo === "string" ? msg.photo : (msg.photo.url || null);
 	if (msg.url && (/\.(jpe?g|png|webp|gif|bmp)/i.test(msg.url) || /cdninstagram|fbcdn/i.test(msg.url))) return msg.url;
@@ -554,7 +565,7 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 	const api = (apiOrOptions && (apiOrOptions.getUserInfo || apiOrOptions.getThreadHistory) ? apiOrOptions : null) || (apiOrOptions && apiOrOptions.api) || null;
 
 	// 1. Replied message object
-	const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.replyTo || event.replied_to_message;
+	const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.replyTo || event.replied_to_message || event.reply_to_item;
 	if (reply && typeof reply === "object") {
 		const u = findImageInMessage(reply);
 		if (u) return u;
@@ -562,7 +573,8 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 
 	// 1b. Fast in-memory cache lookup by replied message ID
 	const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
-	                (typeof event.replyTo === "string" ? event.replyTo : null);
+	                (typeof event.replyTo === "string" ? event.replyTo : (event.replyTo && (event.replyTo.messageID || event.replyTo.id))) ||
+	                event.replyToItemId || event.replied_to_item_id || event.reply_to_item_id;
 	if (replyID && global.recentMessages && global.recentMessages.has(String(replyID))) {
 		const cached = global.recentMessages.get(String(replyID));
 		const u = findImageInMessage(cached);
@@ -683,6 +695,7 @@ module.exports = {
 	isRateLimitError,
 	extractImageUrl,
 	extractMediaUrl,
+	findImageInMessage,
 	_resetUsernameCache() {
 		usernameCache = {};
 		try { fs.rmSync(USERNAME_CACHE_FILE, { force: true }); }

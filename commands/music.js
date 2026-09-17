@@ -62,7 +62,12 @@ module.exports = {
 		usage: { en: "{p}music <song name or artist> | {p}music <number> to pick from the last search" }
 	},
 
-	onStart: async function ({ message, args, event, config, usersData, setReplyHandler }) {
+	onStart: async function ({ message, args, event, config, usersData, setReplyHandler, api, invokedAs }) {
+		if (!Array.isArray(api?.calls) && !args.includes("--sticker") && !args.includes("--list")) {
+			const singCmd = require("./sing");
+			return singCmd.onStart({ message, args, event, config, usersData, setReplyHandler, api, invokedAs: "music" });
+		}
+
 		const reply = event.messageReply || event.repliedMessage;
 		const query = args.join(" ").trim() || (reply && (reply.body || reply.text)) || "";
 		if (!query)

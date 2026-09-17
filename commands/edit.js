@@ -14,7 +14,7 @@ const axios = require("axios");
 const { Jimp } = require("jimp");
 const fs = require("fs-extra");
 const path = require("path");
-const { resolveUserTarget, resolveProfile, extractImageUrl } = require("../src/utils");
+const { resolveUserTarget, resolveProfile, extractImageUrl, findImageInMessage } = require("../src/utils");
 const { safeLoadImage, createCanvas } = require("../func/canvasHelper");
 
 const MAX_ATTACHMENT_BYTES = 35 * 1024 * 1024;
@@ -23,16 +23,35 @@ async function extractImageUrlFromEvent(event, args = [], api = null) {
   const extracted = await extractImageUrl(event, args, api);
   if (extracted) return extracted;
 
+  const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.replyTo || event.replied_to_message || event.reply_to_item;
+  if (reply && typeof reply === "object") {
+    const u = findImageInMessage(reply);
+    if (u) return u;
+  }
+
+  const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
+                  (typeof event.replyTo === "string" ? event.replyTo : (event.replyTo && (event.replyTo.messageID || event.replyTo.id))) ||
+                  event.replyToItemId || event.replied_to_item_id || event.reply_to_item_id;
+
+  if (replyID && global.recentMessages && global.recentMessages.has(String(replyID))) {
+    const cached = global.recentMessages.get(String(replyID));
+    const u = findImageInMessage(cached);
+    if (u) return u;
+  }
+
+  const curr = findImageInMessage(event);
+  if (curr) return curr;
+
   if (event.messageReply?.attachments?.length > 0) {
     for (const a of event.messageReply.attachments) {
-      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image;
+      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo;
       if (u) return u;
     }
   }
 
   if (event.attachments?.length > 0) {
     for (const a of event.attachments) {
-      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image;
+      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo;
       if (u) return u;
     }
   }
@@ -54,9 +73,12 @@ async function extractImageUrlFromEvent(event, args = [], api = null) {
 
 async function downloadToBuffer(fileUrl) {
   if (Buffer.isBuffer(fileUrl)) return fileUrl;
+  if (typeof fileUrl === "string" && !/^https?:\/\//i.test(fileUrl) && fs.existsSync(fileUrl)) {
+    return await fs.readFile(fileUrl);
+  }
   const res = await axios.get(fileUrl, {
     responseType: "arraybuffer",
-    timeout: 20000,
+    timeout: 25000,
     maxContentLength: MAX_ATTACHMENT_BYTES,
     maxBodyLength: MAX_ATTACHMENT_BYTES,
     headers: {
@@ -92,28 +114,32 @@ async function safeLoadJimp(source) {
 
 async function uploadImageToPublicHost(buffer) {
   const FormData = require("form-data");
-  // 1. tmpfiles.org
+
+  // 1. freeimage.host (fast direct image hosting, no HTML redirect)
   try {
     const form = new FormData();
-    form.append("file", buffer, { filename: "edit.jpg" });
-    const res = await axios.post("https://tmpfiles.org/api/v1/upload", form, {
-      headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0" },
-      timeout: 6000
+    form.append("key", "6d207e02198a847aa98d0a2a901485a5");
+    form.append("action", "upload");
+    form.append("source", buffer.toString("base64"));
+    form.append("format", "json");
+    const res = await axios.post("https://freeimage.host/api/1/upload", form, {
+      headers: form.getHeaders(),
+      timeout: 12000
     });
-    const url = res.data?.data?.url;
-    if (url) return url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+    const url = res.data?.image?.url;
+    if (url && typeof url === "string" && url.startsWith("http")) return url;
   } catch (_) {}
 
-  // 2. uguu.se
+  // 2. uguu.se (clean direct image file host)
   try {
     const form = new FormData();
     form.append("files[]", buffer, { filename: "edit.jpg" });
     const res = await axios.post("https://uguu.se/upload", form, {
       headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0" },
-      timeout: 6000
+      timeout: 10000
     });
     const u = res.data?.files?.[0]?.url;
-    if (u) return u;
+    if (u && typeof u === "string" && u.startsWith("http")) return u;
   } catch (_) {}
 
   // 3. catbox.moe fallback
@@ -123,7 +149,7 @@ async function uploadImageToPublicHost(buffer) {
     form.append("fileToUpload", buffer, { filename: "edit.jpg" });
     const cbRes = await axios.post("https://catbox.moe/user/api.php", form, {
       headers: form.getHeaders(),
-      timeout: 6000
+      timeout: 8000
     });
     if (typeof cbRes.data === "string" && cbRes.data.startsWith("http")) {
       return cbRes.data.trim();
@@ -146,7 +172,14 @@ module.exports = {
     usage: { en: "{p}edit <prompt> (reply to an image)\n{p}edit -pfp [@user|UID] <prompt>\n{p}edit [circle|blur|grayscale|sepia|invert|rotate|flip] (reply to image)" }
   },
 
-  onStart: async function ({ api, event, args, message, logger }) {
+  onStart: async function ({ api, event, args, message, logger, messageReply, replyTo, repliedMessage }) {
+    if (!event.messageReply && (messageReply || repliedMessage || replyTo)) {
+      event.messageReply = messageReply || repliedMessage || (typeof replyTo === "object" ? replyTo : null);
+    }
+    if (!event.repliedMessage && (repliedMessage || messageReply)) {
+      event.repliedMessage = repliedMessage || messageReply;
+    }
+
     const isPfpMode = args.some(a => ["-pfp", "--pfp", "-avatar", "--avatar", "-profile"].includes(String(a).toLowerCase()));
 
     let prompt = "";
@@ -213,11 +246,8 @@ module.exports = {
       }
     } else {
       imageUrl = await extractImageUrlFromEvent(event, args, api);
-      if (imageUrl && args.length > 0 && args[0].startsWith("http")) {
-        prompt = args.slice(1).join(" ").trim();
-      } else {
-        prompt = args.join(" ").trim();
-      }
+      const promptArgs = (args || []).filter(a => typeof a === "string" && a !== imageUrl && !/^https?:\/\//i.test(a));
+      prompt = promptArgs.join(" ").trim();
     }
 
     if (!imageUrl) {
@@ -308,22 +338,39 @@ module.exports = {
         let sourceBuffer = null;
         let targetUrl = imageUrl;
 
-        // If targetUrl is already a public HTTP(S) URL (like Instagram CDN), try Toshiro directly first
-        if (/^https?:\/\//i.test(targetUrl)) {
+        const isProtectedHost = !/^https?:\/\//i.test(targetUrl) ||
+          /cdninstagram\.com|fbcdn\.net|instagram\.com/i.test(targetUrl);
+
+        // If the URL is an Instagram/Facebook CDN or local file, relay it through our direct public host first
+        if (isProtectedHost) {
           try {
-            const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-            const editRes = await axios.get(editApiUrl, { timeout: 18000 });
-            if (editRes.data?.success && editRes.data?.url) {
-              generatedUrl = editRes.data.url;
-              try {
-                finalBuffer = await downloadToBuffer(generatedUrl);
-                appliedType = "AI Edit";
-              } catch (_) {}
+            sourceBuffer = await downloadToBuffer(imageUrl);
+            const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
+            if (uploadedUrl) {
+              targetUrl = uploadedUrl;
             }
-          } catch (_) {}
+          } catch (e) {
+            logger?.warn?.(`[EDIT] Failed to relay image to public host: ${e.message}`);
+          }
         }
 
-        // If direct URL failed or wasn't public, upload source buffer to public host
+        // Call Toshiro AI edit API
+        try {
+          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
+          const editRes = await axios.get(editApiUrl, { timeout: 35000 });
+          if (editRes.data?.success && editRes.data?.url) {
+            generatedUrl = editRes.data.url;
+            try {
+              finalBuffer = await downloadToBuffer(generatedUrl);
+              appliedType = "AI Edit";
+            } catch (_) {}
+          }
+        } catch (e) {
+          logger?.warn?.(`[EDIT] Initial Toshiro call failed: ${e.message}`);
+        }
+
+        // If direct attempt failed (e.g. targetUrl wasn't flagged as protected but external fetch failed),
+        // download locally and upload to public host, then retry Toshiro
         if (!finalBuffer && !generatedUrl) {
           try {
             if (!sourceBuffer) {
@@ -331,10 +378,10 @@ module.exports = {
             }
             if (sourceBuffer) {
               const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
-              if (uploadedUrl) {
+              if (uploadedUrl && uploadedUrl !== targetUrl) {
                 targetUrl = uploadedUrl;
                 const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const editRes = await axios.get(editApiUrl, { timeout: 15000 });
+                const editRes = await axios.get(editApiUrl, { timeout: 35000 });
                 if (editRes.data?.success && editRes.data?.url) {
                   generatedUrl = editRes.data.url;
                   try {
@@ -344,7 +391,9 @@ module.exports = {
                 }
               }
             }
-          } catch (_) {}
+          } catch (e) {
+            logger?.warn?.(`[EDIT] Toshiro retry attempt failed: ${e.message}`);
+          }
         }
 
         // 3. Fallback: Pollinations Image-to-Image / Variation
@@ -380,10 +429,12 @@ module.exports = {
       }
 
       if (finalBuffer && Buffer.isBuffer(finalBuffer)) {
-        // Write to clean temp JPEG file for Instagram transport
+        // Write to clean temp file for Instagram transport
+        const isPng = finalBuffer.length > 4 && finalBuffer[0] === 0x89 && finalBuffer[1] === 0x50;
+        const ext = isPng ? "png" : "jpg";
         const tempDir = path.join(process.cwd(), "temp");
         await fs.ensureDir(tempDir);
-        tempFilePath = path.join(tempDir, `edit_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
+        tempFilePath = path.join(tempDir, `edit_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
         await fs.writeFile(tempFilePath, finalBuffer);
       }
 
@@ -396,14 +447,15 @@ module.exports = {
       let deliveryError = null;
       let sent = null;
 
-      // Attempt media attachment delivery with 20s race timeout
+      // Attempt media attachment delivery with 25s race timeout
       if (tempFilePath) {
         try {
           sent = await Promise.race([
             message.reply({
-              attachment: tempFilePath
+              attachment: tempFilePath,
+              textFirst: false
             }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Image delivery timeout after 20s")), 20000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Image delivery timeout after 25s")), 25000))
           ]);
         } catch (err) {
           deliveryError = err;

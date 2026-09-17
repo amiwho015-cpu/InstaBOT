@@ -3038,6 +3038,136 @@ async function main() {
 		assert(typeof instagram.createMessengerBot === "function");
 	});
 
+	/* ── edit command ── */
+	await test("edit: configuration and registration", () => {
+		const command = registry.resolve("edit");
+		assert.ok(command, "edit command should be registered");
+		assert.strictEqual(command.config.name, "edit");
+		assert.ok(command.config.aliases.includes("imgedit"));
+	});
+
+	await test("edit: image extraction from reply and args", async () => {
+		const command = registry.resolve("edit");
+		let replySent = null;
+		const message = {
+			reply: (msg) => { replySent = msg; return Promise.resolve({ messageID: "1" }); },
+			react: () => Promise.resolve({})
+		};
+
+		// 1. Missing image shows usage
+		await command.onStart({
+			api: {},
+			event: { threadID: "t1", messageID: "m1", body: "*edit" },
+			args: [],
+			message
+		});
+		assert.ok(String(replySent).includes("Usage:"), "shows usage when no image");
+
+		// 2. Missing prompt when image provided
+		replySent = null;
+		await command.onStart({
+			api: {},
+			event: {
+				threadID: "t1",
+				messageID: "m2",
+				messageReply: {
+					messageID: "img_msg",
+					attachments: [{ url: "https://example.com/photo.jpg", type: "photo" }]
+				}
+			},
+			args: [],
+			message
+		});
+		assert.ok(String(replySent).includes("Please provide an edit prompt"), "asks for prompt when image provided without prompt");
+	});
+
+	await test("edit: active Toshiro API URL called with targetUrl and prompt", async () => {
+		const command = registry.resolve("edit");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		const originalPost = axios.post;
+
+		let toshiroCalled = false;
+		let targetUrlPassed = null;
+		let promptPassed = null;
+		let deliverySent = null;
+		const reactions = [];
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("toshiro-api-editz6t9.vercel.app")) {
+					toshiroCalled = true;
+					const parsed = new URL(url);
+					targetUrlPassed = parsed.searchParams.get("url");
+					promptPassed = parsed.searchParams.get("prompt");
+					return {
+						data: {
+							success: true,
+							url: "https://example.com/result.jpg"
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/result.jpg")) {
+					return {
+						data: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12, 0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0x7F, 0x00, 0xFF, 0xD9])
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { deliverySent = m; return Promise.resolve({ messageID: "sent1" }); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: {
+					threadID: "t1",
+					messageID: "m2",
+					messageReply: {
+						messageID: "orig_photo",
+						attachments: [{ url: "https://i.imgur.com/direct.jpg", type: "photo" }]
+					}
+				},
+				args: ["cyberpunk", "portrait"],
+				message
+			});
+
+			assert.strictEqual(toshiroCalled, true, "Toshiro API endpoint must be called");
+			assert.strictEqual(targetUrlPassed, "https://i.imgur.com/direct.jpg");
+			assert.strictEqual(promptPassed, "cyberpunk portrait");
+			assert.ok(deliverySent && deliverySent.attachment, "attachment must be delivered");
+			assert.strictEqual(deliverySent.textFirst, false, "textFirst must be false to avoid separate caption");
+			assert.deepStrictEqual(reactions, ["⏳", "✅"], "loading and success emoji reactions");
+		}
+		finally {
+			axios.get = originalGet;
+			axios.post = originalPost;
+		}
+	});
+
+	await test("music: live mode delivers MP3 audio directly via sing", async () => {
+		const command = registry.resolve("music");
+		let singInvoked = false;
+		const singCmd = require("../commands/sing");
+		const originalSingStart = singCmd.onStart;
+		singCmd.onStart = async () => { singInvoked = true; return { messageID: "music_live" }; };
+
+		try {
+			await command.onStart({
+				api: {}, // not an array for api.calls => live mode
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["blinding", "lights"],
+				message: { reply: () => Promise.resolve({}) }
+			});
+			assert.strictEqual(singInvoked, true, "music command in live mode must route to direct mp3 audio delivery");
+		}
+		finally {
+			singCmd.onStart = originalSingStart;
+		}
+	});
+
 	/* ── summary ── */
 	const failed = results.filter(r => !r.ok);
 	for (const r of results)
