@@ -83,11 +83,29 @@ function createAPIWrapper(rawClient, config = {}) {
 			return ig._userID || null;
 		},
 
-		sendMessage: async (form, threadID, callback, replyToMessageID) => {
+		sendMessage: async (form, threadID, arg3, arg4) => {
+			let callback;
+			let replyToMessageID;
+
 			if (typeof threadID === "function") {
 				callback = threadID;
 				threadID = null;
 			}
+			if (typeof arg3 === "function") {
+				callback = arg3;
+				replyToMessageID = arg4;
+			} else if (typeof arg3 === "string" || typeof arg3 === "number") {
+				replyToMessageID = String(arg3);
+				if (typeof arg4 === "function") callback = arg4;
+			} else if (arg3 && typeof arg3 === "object") {
+				if (arg3.replyToMessageID || arg3.replyTo) {
+					replyToMessageID = String(arg3.replyToMessageID || arg3.replyTo);
+				}
+				if (typeof arg4 === "function") callback = arg4;
+			} else if (typeof arg4 === "function") {
+				callback = arg4;
+			}
+
 			if (!threadID && form && typeof form === "object") {
 				threadID = form.threadID || form.threadId;
 			}
@@ -105,11 +123,10 @@ function createAPIWrapper(rawClient, config = {}) {
 					return await dispatchMediaMessage(wrapper, threadID, form, replyToMessageID);
 				}
 
-				// Plain text message dispatch directly to underlying client
-				const text = typeof form === "object" && form !== null ? (form.body != null ? String(form.body) : "") : String(form || "");
+				const payload = (form && typeof form === "object") ? form : String(form || "");
 				if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
 					try {
-						return await ig.replyToMessage(threadID, text, replyToMessageID);
+						return await ig.replyToMessage(threadID, payload, replyToMessageID);
 					} catch (_) {}
 				}
 
@@ -117,34 +134,34 @@ function createAPIWrapper(rawClient, config = {}) {
 					if (typeof ig.sendMessage === "function") {
 						if (replyToMessageID) {
 							try {
-								return await ig.sendMessage(text, threadID, undefined, replyToMessageID);
+								return await ig.sendMessage(payload, threadID, undefined, replyToMessageID);
 							} catch (replyErr) {
 								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
-								return await ig.sendMessage(text, threadID);
-							}
-						}
-						return await ig.sendMessage(text, threadID);
-					}
-					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
-						if (replyToMessageID && typeof ig.sendMessage.reply === "function") {
-							try {
-								return await ig.sendMessage.reply(threadID, text, replyToMessageID);
-							} catch (replyErr) {
-								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
-								return await ig.sendMessage.toThread(threadID, text);
+								try {
+									return await ig.sendMessage(payload, threadID);
+								} catch (plainErr) {
+									if (typeof payload === "object" && payload !== null && payload.body != null) {
+										return await ig.sendMessage(String(payload.body), threadID);
+									}
+									throw plainErr;
+								}
 							}
 						}
 						try {
-							return await ig.sendMessage.toThread(threadID, replyToMessageID ? { body: text, replyTo: replyToMessageID } : text);
-						} catch (threadErr) {
-							if (replyToMessageID) {
-								return await ig.sendMessage.toThread(threadID, text);
+							return await ig.sendMessage(payload, threadID);
+						} catch (sendErr) {
+							if (typeof payload === "object" && payload !== null && payload.body != null) {
+								logger.warn("Failed to send rich payload, falling back to plain text:", sendErr?.message || sendErr);
+								return await ig.sendMessage(String(payload.body), threadID);
 							}
-							throw threadErr;
+							throw sendErr;
 						}
 					}
+					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
+						return await ig.sendMessage.toThread(threadID, replyToMessageID ? { body: typeof payload === "object" ? payload.body : payload, replyTo: replyToMessageID } : payload);
+					}
 					if (typeof ig.sendDirectMessage === "function") {
-						return await ig.sendDirectMessage(threadID, text);
+						return await ig.sendDirectMessage(threadID, typeof payload === "object" ? payload.body : payload);
 					}
 				}
 				return { messageID: "mock_" + Date.now() };
@@ -282,27 +299,39 @@ function createAPIWrapper(rawClient, config = {}) {
 					return await ig.setMessageReaction(reaction || "", messageID, threadID);
 				}
 				if (ig && typeof ig.sendReaction === "function") {
-					return await ig.sendReaction(reaction || "", messageID);
+					return await ig.sendReaction(reaction || "", messageID, threadID);
 				}
 				return { success: false, unsupported: true };
 			})();
 			return wrapCallback(promise, callback);
 		},
 
-		setMessageReaction: (reaction, messageID, callback, force) => {
-			return wrapper.sendReaction(reaction, messageID, undefined, callback);
+		setMessageReaction: (reaction, messageID, threadIDOrCallback, callbackOrForce, maybeForce) => {
+			let threadID = undefined;
+			let callback = undefined;
+			if (typeof threadIDOrCallback === "function") {
+				callback = threadIDOrCallback;
+			} else {
+				threadID = threadIDOrCallback;
+				if (typeof callbackOrForce === "function") {
+					callback = callbackOrForce;
+				}
+			}
+			return wrapper.sendReaction(reaction, messageID, threadID, callback);
 		},
 
 		unsendMessage: async (messageID, threadIDOrCallback, maybeCallback) => {
-			let callback;
+			let threadID = undefined;
+			let callback = undefined;
 			if (typeof threadIDOrCallback === "function") {
 				callback = threadIDOrCallback;
-			} else if (typeof maybeCallback === "function") {
-				callback = maybeCallback;
+			} else {
+				threadID = threadIDOrCallback;
+				if (typeof maybeCallback === "function") callback = maybeCallback;
 			}
 			const promise = (async () => {
 				if (ig && typeof ig.unsendMessage === "function") {
-					return await ig.unsendMessage(messageID);
+					return await ig.unsendMessage(messageID, threadID);
 				}
 				return { success: false, unsupported: true };
 			})();

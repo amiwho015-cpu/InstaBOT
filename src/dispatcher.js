@@ -69,6 +69,7 @@ function createDispatcher({ api, config, registry, database }) {
 	function roleOf(event, threadData) {
 		const senderID = senderIDOf(event);
 		if (isBotAdmin(senderID)) return ROLE_ADMIN_BOT;
+		if (event && event.isGroup === false) return ROLE_ADMIN_BOX;
 		const rawAdmins = (threadData && (threadData.adminIDs || threadData.adminIds || threadData.admin_ids)) || [];
 		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
 			if (!a) return "";
@@ -156,9 +157,24 @@ function createDispatcher({ api, config, registry, database }) {
 		const body = typeof event.body === "string" ? event.body : "";
 		if (!body) return;
 		const senderID = senderIDOf(event);
-		const hasPrefix = config.prefix && body.startsWith(config.prefix);
 
-		const rawBody = hasPrefix ? body.slice(config.prefix.length).trim() : body.trim();
+		const threadPrefix = threadData?.settings?.prefix || threadData?.prefix;
+		const primaryPrefix = threadPrefix || config.prefix || "!";
+		const candidatePrefixes = [primaryPrefix];
+		for (const alt of ["!", "-", "*", "/"]) {
+			if (!candidatePrefixes.includes(alt)) candidatePrefixes.push(alt);
+		}
+
+		let matchedPrefix = "";
+		for (const p of candidatePrefixes) {
+			if (p && body.startsWith(p)) {
+				matchedPrefix = p;
+				break;
+			}
+		}
+
+		const hasPrefix = Boolean(matchedPrefix);
+		const rawBody = hasPrefix ? body.slice(matchedPrefix.length).trim() : body.trim();
 		const rawArgs = rawBody ? rawBody.split(/\s+/) : [];
 		const rawName = (rawArgs[0] || "").toLowerCase();
 
@@ -201,10 +217,11 @@ function createDispatcher({ api, config, registry, database }) {
 		if (!command) {
 			if (config.hideNotiMessage.commandNotFound || !hasPrefix) return;
 			const suggestion = suggestionFor(name);
-			// Uses the configured prefix via {pn}: "Did you mean -ping or try -help".
+			// Uses the matched prefix (or configured prefix) via {pn}: "Did you mean -ping or try -help".
 			const key = suggestion ? "commandNotFoundSuggestion" : "commandNotFound";
 			const text = t(config.language, key, suggestion || "");
-			return message.reply(text.replace(/\{pn\}/g, config.prefix));
+			const effectivePrefix = matchedPrefix || config.prefix || "!";
+			return message.reply(text.replace(/\{pn\}/g, effectivePrefix));
 		}
 
 		const commandName = command.config.name.toLowerCase();
@@ -215,16 +232,8 @@ function createDispatcher({ api, config, registry, database }) {
 			return;
 		}
 
-		if (userData && userData.banned && userData.banned.status) {
-			if (!config.hideNotiMessage.userBanned)
-				return message.reply(t(config.language, "userBanned", config.botName, userData.banned.reason || "—"));
-			return;
-		}
-
 		const needRole = requiredRole(command, threadData);
 		if (needRole > role) {
-			// By default, non-admins cannot use admin base commands (bot, admin, cmd, event, etc.)
-			// Do not send them any output; bot does not respond to them like Floppa
 			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot", "cmd", "command", "event", "events", "eventcmd"];
 			if (adminBaseCmds.includes(commandName)) {
 				return;
@@ -471,93 +480,97 @@ function createDispatcher({ api, config, registry, database }) {
 	 * list, then a cached value, and finally ask the API once per thread.
 	 */
 	async function resolveThreadGroup(event, threadData) {
-		const members = new Set();
-		for (const list of [event.participantIDs, event.userIDs]) {
-			if (Array.isArray(list)) for (const id of list) if (id != null && String(id)) members.add(String(id));
+		if (event.isGroup === true) {
+			if (!threadData.isGroup) {
+				database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
+			}
+			if (api && typeof api.getThreadInfo === "function" &&
+				(!Array.isArray(threadData.adminIDs) || threadData.adminIDs.length === 0 || !threadData._adminFetchedAt || (Date.now() - (threadData._adminFetchedAt || 0) > 10 * 60 * 1000))) {
+				try {
+					const info = await new Promise((resolve, reject) => {
+						let done = false;
+						const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 3500);
+						api.getThreadInfo(event.threadID, (error, result) => {
+							if (!done) { done = true; clearTimeout(timer); error ? reject(error) : resolve(result); }
+						});
+					});
+					if (info) {
+						const rawAdmins = info.adminIDs || info.adminIds || info.admin_ids || info.admin_user_ids || info.thread_admin_ids || [];
+						const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
+							.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
+							.filter(Boolean)
+							.map(String);
+						if (Array.isArray(info.userInfo)) {
+							for (const u of info.userInfo) {
+								if (u && (u.isAdmin || u.is_admin) && (u.userID || u.userId || u.id || u.pk)) {
+									adminList.push(String(u.userID || u.userId || u.id || u.pk));
+								}
+							}
+						}
+						if (Array.isArray(info.participants)) {
+							for (const p of info.participants) {
+								if (p && (p.isAdmin || p.is_admin) && (p.userID || p.userId || p.id || p.pk)) {
+									adminList.push(String(p.userID || p.userId || p.id || p.pk));
+								}
+							}
+						}
+						if (info.inviter) {
+							const inviterId = typeof info.inviter === "object" ? (info.inviter.userID || info.inviter.userId || info.inviter.id || info.inviter.pk) : info.inviter;
+							if (inviterId) adminList.push(String(inviterId));
+						}
+						const uniqueAdmins = Array.from(new Set(adminList));
+						const updates = { isGroup: true, groupKnown: true, _adminFetchedAt: Date.now() };
+						if (info.name || info.threadName) updates.name = info.name || info.threadName;
+						if (uniqueAdmins.length > 0) {
+							updates.adminIDs = uniqueAdmins;
+							threadData.adminIDs = uniqueAdmins;
+						}
+						database.threads.update(event.threadID, updates);
+					}
+				} catch (_) {}
+			}
+			return { isGroup: true, known: true };
 		}
-		const looksGroup = event.isGroup === true || members.size > 1;
 
-		if (event.isGroup === false && !looksGroup) return { isGroup: false, known: true };
-
-		const isGroup = event.isGroup === true || looksGroup || (threadData.groupKnown ? threadData.isGroup === true : false);
-		if (!isGroup && threadData.groupKnown && threadData.isGroup === false) {
+		if (event.isGroup === false) {
+			if (threadData.isGroup !== false) {
+				database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
+			}
 			return { isGroup: false, known: true };
 		}
 
-		const shouldFetchThreadInfo = (!threadData.groupKnown && event.isGroup == null) ||
-			(isGroup && (!Array.isArray(threadData.adminIDs) || threadData.adminIDs.length === 0 || !threadData._adminFetchedAt || (Date.now() - (threadData._adminFetchedAt || 0) > 10 * 60 * 1000)));
+		const members = new Set();
+		for (const list of [event.participantIDs, event.userIDs, event.participants]) {
+			if (Array.isArray(list)) for (const id of list) if (id != null && String(id)) members.add(String(id));
+		}
+		if (members.size > 2) {
+			database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
+			return { isGroup: true, known: true };
+		}
+		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
 
-		if (shouldFetchThreadInfo && api && typeof api.getThreadInfo === "function") {
+		if (api && typeof api.getThreadInfo === "function") {
 			try {
 				const info = await new Promise((resolve, reject) => {
 					let done = false;
-					const timer = setTimeout(() => {
-						if (!done) { done = true; resolve(null); }
-					}, 3500);
+					const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 3500);
 					api.getThreadInfo(event.threadID, (error, result) => {
-						if (!done) {
-							done = true;
-							clearTimeout(timer);
-							error ? reject(error) : resolve(result);
-						}
+						if (!done) { done = true; clearTimeout(timer); error ? reject(error) : resolve(result); }
 					});
 				});
-
 				if (info) {
 					const determinedIsGroup = !!(info.isGroup === true || Number(info.threadType) === 2 ||
 						(Array.isArray(info.participantIDs) && info.participantIDs.length > 2) ||
 						(Array.isArray(info.participants) && info.participants.length > 2) ||
-						(Array.isArray(info.userInfo) && info.userInfo.length > 2) ||
-						looksGroup);
-
-					const rawAdmins = info.adminIDs || info.adminIds || info.admin_ids || info.admin_user_ids || info.thread_admin_ids || [];
-					const adminList = (Array.isArray(rawAdmins) ? rawAdmins : [])
-						.map(a => (typeof a === "object" ? (a.id || a.userID || a.pk || a.uid) : a))
-						.filter(Boolean)
-						.map(String);
-
-					if (Array.isArray(info.userInfo)) {
-						for (const u of info.userInfo) {
-							if (u && (u.isAdmin || u.is_admin) && (u.userID || u.userId || u.id || u.pk)) {
-								adminList.push(String(u.userID || u.userId || u.id || u.pk));
-							}
-						}
-					}
-
-					if (Array.isArray(info.participants)) {
-						for (const p of info.participants) {
-							if (p && (p.isAdmin || p.is_admin) && (p.userID || p.userId || p.id || p.pk)) {
-								adminList.push(String(p.userID || p.userId || p.id || p.pk));
-							}
-						}
-					}
-
-					if (info.inviter) {
-						const inviterId = typeof info.inviter === "object" ? (info.inviter.userID || info.inviter.userId || info.inviter.id || info.inviter.pk) : info.inviter;
-						if (inviterId) adminList.push(String(inviterId));
-					}
-
-					const uniqueAdmins = Array.from(new Set(adminList));
-					const updates = { isGroup: determinedIsGroup, groupKnown: true, _adminFetchedAt: Date.now() };
+						(Array.isArray(info.userInfo) && info.userInfo.length > 2));
+					const updates = { isGroup: determinedIsGroup, groupKnown: true };
 					if (info.name || info.threadName) updates.name = info.name || info.threadName;
-					if (uniqueAdmins.length > 0) {
-						updates.adminIDs = uniqueAdmins;
-						threadData.adminIDs = uniqueAdmins;
-					}
 					database.threads.update(event.threadID, updates);
 					return { isGroup: determinedIsGroup, known: true };
 				}
-			}
-			catch (_) { }
+			} catch (_) {}
 		}
 
-		if (isGroup) {
-			if (!threadData.groupKnown || !threadData.isGroup) {
-				database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
-			}
-			return { isGroup: true, known: true };
-		}
-		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
 		return { isGroup: false, known: false };
 	}
 
