@@ -158,23 +158,9 @@ function createDispatcher({ api, config, registry, database }) {
 		if (!body) return;
 		const senderID = senderIDOf(event);
 
-		const threadPrefix = threadData?.settings?.prefix || threadData?.prefix;
-		const primaryPrefix = threadPrefix || config.prefix || "!";
-		const candidatePrefixes = [primaryPrefix];
-		for (const alt of ["!", "-", "*", "/"]) {
-			if (!candidatePrefixes.includes(alt)) candidatePrefixes.push(alt);
-		}
-
-		let matchedPrefix = "";
-		for (const p of candidatePrefixes) {
-			if (p && body.startsWith(p)) {
-				matchedPrefix = p;
-				break;
-			}
-		}
-
-		const hasPrefix = Boolean(matchedPrefix);
-		const rawBody = hasPrefix ? body.slice(matchedPrefix.length).trim() : body.trim();
+		const activePrefix = (threadData && (threadData.settings?.prefix || threadData.prefix)) || config.prefix || "*";
+		const hasPrefix = Boolean(activePrefix && body.startsWith(activePrefix));
+		const rawBody = hasPrefix ? body.slice(activePrefix.length).trim() : body.trim();
 		const rawArgs = rawBody ? rawBody.split(/\s+/) : [];
 		const rawName = (rawArgs[0] || "").toLowerCase();
 
@@ -217,11 +203,10 @@ function createDispatcher({ api, config, registry, database }) {
 		if (!command) {
 			if (config.hideNotiMessage.commandNotFound || !hasPrefix) return;
 			const suggestion = suggestionFor(name);
-			// Uses the matched prefix (or configured prefix) via {pn}: "Did you mean -ping or try -help".
+			// Uses the configured prefix via {pn}: "Did you mean *ping or try *help".
 			const key = suggestion ? "commandNotFoundSuggestion" : "commandNotFound";
 			const text = t(config.language, key, suggestion || "");
-			const effectivePrefix = matchedPrefix || config.prefix || "!";
-			return message.reply(text.replace(/\{pn\}/g, effectivePrefix));
+			return message.reply(text.replace(/\{pn\}/g, activePrefix));
 		}
 
 		const commandName = command.config.name.toLowerCase();
