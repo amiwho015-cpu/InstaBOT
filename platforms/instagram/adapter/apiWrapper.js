@@ -134,25 +134,35 @@ function createAPIWrapper(rawClient, config = {}) {
 					if (typeof ig.sendMessage === "function") {
 						if (replyToMessageID) {
 							try {
-								return await ig.sendMessage(payload, threadID, undefined, replyToMessageID);
+								return await new Promise((resolve, reject) => {
+									ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res), replyToMessageID);
+								});
 							} catch (replyErr) {
 								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
 								try {
-									return await ig.sendMessage(payload, threadID);
+									return await new Promise((resolve, reject) => {
+										ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
+									});
 								} catch (plainErr) {
 									if (typeof payload === "object" && payload !== null && payload.body != null) {
-										return await ig.sendMessage(String(payload.body), threadID);
+										return await new Promise((resolve, reject) => {
+											ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+										});
 									}
 									throw plainErr;
 								}
 							}
 						}
 						try {
-							return await ig.sendMessage(payload, threadID);
+							return await new Promise((resolve, reject) => {
+								ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
+							});
 						} catch (sendErr) {
 							if (typeof payload === "object" && payload !== null && payload.body != null) {
 								logger.warn("Failed to send rich payload, falling back to plain text:", sendErr?.message || sendErr);
-								return await ig.sendMessage(String(payload.body), threadID);
+								return await new Promise((resolve, reject) => {
+									ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+								});
 							}
 							throw sendErr;
 						}

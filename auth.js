@@ -138,19 +138,7 @@ function splitCallback(args) {
 			return { index: i, args: rest };
 		}
 	}
-	const cleaned = args.slice();
-	while (cleaned.length > 0 && cleaned[cleaned.length - 1] === undefined) {
-		cleaned.pop();
-	}
-	if (cleaned.length === 4 && cleaned[2] === undefined) {
-		cleaned.splice(2, 1);
-		return { index: -1, args: cleaned };
-	}
-	if (cleaned.length === 5 && (cleaned[3] === undefined || cleaned[3] === null)) {
-		cleaned.splice(3, 1);
-		return { index: -1, args: cleaned };
-	}
-	return { index: -1, args: cleaned };
+	return { index: -1, args };
 }
 
 function createError(payload) {
@@ -501,8 +489,15 @@ function login(options, callback) {
 		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
 			api._lastThreadID = String(args[1]);
 		}
-		if (args.length === 4 && args[2] === undefined) {
-			args.splice(2, 1);
+		if (args.length === 4 && typeof args[2] !== "function" && args[3]) {
+			return new Promise((resolve, reject) => {
+				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), args[3]);
+			});
+		}
+		if (args.length === 3 && (typeof args[2] === "string" || typeof args[2] === "number")) {
+			return new Promise((resolve, reject) => {
+				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), String(args[2]));
+			});
 		}
 		return originalSendMessage.apply(this, args);
 	};
@@ -512,8 +507,10 @@ function login(options, callback) {
 		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
 			api._lastThreadID = String(args[1]);
 		}
-		if (args.length === 5 && (args[3] === undefined || args[3] === null)) {
-			args.splice(3, 1);
+		if (args.length === 5 && typeof args[3] !== "function" && args[4]) {
+			return new Promise((resolve, reject) => {
+				originalSendImage(args[0], args[1], args[2], (err, res) => err ? reject(err) : resolve(res), args[4]);
+			});
 		}
 		return originalSendImage.apply(this, args);
 	};
