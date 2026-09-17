@@ -97,11 +97,16 @@ class HttpClient extends EventEmitter {
       'X-IG-Capabilities': '3brTvx0=',
       'X-IG-App-ID': '936619743392459',
       'X-IG-App-Startup-Country': 'US',
+      'X-ASBD-ID': '129477',
+      'X-IG-WWW-Claim': '0',
       'X-FB-HTTP-EQ': 'true',
       'X-Requested-With': 'XMLHttpRequest',
       'Sec-Fetch-Site': 'same-origin',
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Dest': 'empty',
+      'sec-ch-ua': '"Google Chrome";v="133", "Chromium";v="133", "Not?A_Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
       'Priority': 'u=3, i',
       'Accept': '*/*'
     };
@@ -175,12 +180,19 @@ class HttpClient extends EventEmitter {
         
         config.headers['X-IG-Connection-Type'] = 'WIFI';
         config.headers['X-IG-Capabilities'] = '3brTvx0=';
+        config.headers['X-ASBD-ID'] = '129477';
         config.headers['Referer'] = 'https://www.instagram.com/';
         config.headers['Origin'] = 'https://www.instagram.com';
         config.headers['Accept'] = '*/*';
         config.headers['Accept-Language'] = 'en-US,en;q=0.9';
         config.headers['Viewport-Width'] = this.viewportWidth.toString();
         config.headers['Viewport-Height'] = this.viewportHeight.toString();
+        config.headers['sec-ch-ua'] = '"Google Chrome";v="133", "Chromium";v="133", "Not?A_Brand";v="24"';
+        config.headers['sec-ch-ua-mobile'] = '?0';
+        config.headers['sec-ch-ua-platform'] = '"Windows"';
+        config.headers['Sec-Fetch-Site'] = 'same-origin';
+        config.headers['Sec-Fetch-Mode'] = 'cors';
+        config.headers['Sec-Fetch-Dest'] = 'empty';
         
         log.silly(`${config.method?.toUpperCase()} ${config.url}`);
         

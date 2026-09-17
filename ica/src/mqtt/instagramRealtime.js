@@ -204,10 +204,18 @@ class InstagramMQTTClient extends EventEmitter {
   _buildWsHeaders(cookieHeader) {
     return {
       'User-Agent': this._getDefaultUserAgent(),
-      'Accept-Language': 'en-US',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Origin': 'https://www.instagram.com',
       'Referer': 'https://www.instagram.com/direct/inbox/',
+      'Sec-WebSocket-Version': '13',
+      'Sec-Fetch-Dest': 'websocket',
+      'Sec-Fetch-Mode': 'websocket',
+      'Sec-Fetch-Site': 'same-site',
+      'sec-ch-ua': '"Google Chrome";v="133", "Chromium";v="133", "Not?A_Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
       'X-IG-App-ID': '936619743392459',
+      'X-ASBD-ID': '129477',
       'X-IG-D': this.igDid || '',
       'X-CSRFToken': this.csrftoken || '',
       'Cookie': cookieHeader

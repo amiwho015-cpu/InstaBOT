@@ -11,6 +11,7 @@
  * Author: Saifullah Al Neoaz (https://github.com/lazyneoaz)
  */
 
+const fs = require("fs");
 const path = require("path");
 const root = path.resolve(__dirname, "..");
 const log = require(path.join(root, "src/logger"));
@@ -33,7 +34,9 @@ if (!threadID) {
 function connect(config) {
 	if (config.server && config.server.url && config.server.token) {
 		const login = require(path.join(root, "auth"));
-		return login({ server: config.server.url, token: config.server.token, timeout: config.server.timeout });
+		const accountFile = path.join(root, "account.txt");
+		const cookies = process.env.IG_COOKIES || (fs.existsSync(accountFile) ? fs.readFileSync(accountFile, "utf8") : null);
+		return login({ server: config.server.url, token: config.server.token, timeout: config.server.timeout, botId: config.server.botId, cookies });
 	}
 	const igLogin = require("ig-chat-api");
 	const appState = loadAccount();
@@ -82,6 +85,7 @@ function call(fn, ...args) {
 	if (track) await step("music sticker", () => message.music(track));
 
 	const out = path.join(root, "..", "outputs", "instabot-live-send.json");
+	try { fs.mkdirSync(path.dirname(out), { recursive: true }); } catch (_) {}
 	require("fs").writeFileSync(out, JSON.stringify({ threadID, me, at: new Date().toISOString(), results }, null, 2));
 	console.log(`\nWrote ${out}`);
 	process.exit(0);

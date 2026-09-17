@@ -24,6 +24,16 @@ function getICA(config = {}) {
 		};
 	}
 
+	if (config.mode === "emulation" || config.useEmulation) {
+		const emulation = require("../emulation");
+		return {
+			mode: "emulation",
+			login: emulation.login,
+			CookieUtils: null,
+			raw: emulation
+		};
+	}
+
 	// Default to direct local ICA engine
 	const localIca = require("../../../ica");
 	return {

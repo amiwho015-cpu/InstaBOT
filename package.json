@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "InstaBOT - Advanced Instagram Automation & Chatbot Architecture",
   "main": "index.js",
+  "types": "index.d.ts",
   "engines": {
     "node": ">=20.18.1"
   },

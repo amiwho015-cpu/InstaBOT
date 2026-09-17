@@ -153,4 +153,13 @@ async function main() {
 	}
 }
 
-main();
+if (require.main === module) {
+	main();
+}
+
+module.exports = {
+	main,
+	createBot,
+	loadConfig,
+	...require("./platforms/instagram")
+};

@@ -104,6 +104,8 @@ function createAPIWrapper(rawClient, config = {}) {
 				if (typeof arg4 === "function") callback = arg4;
 			} else if (typeof arg4 === "function") {
 				callback = arg4;
+			} else if (arg4) {
+				replyToMessageID = String(arg4);
 			}
 
 			if (!threadID && form && typeof form === "object") {
@@ -126,7 +128,8 @@ function createAPIWrapper(rawClient, config = {}) {
 				const payload = (form && typeof form === "object") ? form : String(form || "");
 				if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
 					try {
-						return await ig.replyToMessage(threadID, payload, replyToMessageID);
+						const textToSend = typeof payload === "object" && payload !== null ? (payload.body != null ? payload.body : payload) : payload;
+						return await ig.replyToMessage(threadID, textToSend, replyToMessageID);
 					} catch (_) {}
 				}
 
