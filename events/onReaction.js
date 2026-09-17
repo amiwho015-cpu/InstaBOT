@@ -29,6 +29,7 @@ module.exports = {
 			"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
 			"👏", "🙌", "👐", "🤲", "🙏", "😡", "😠", "❌", "🗑️"
 		];
+		if (!event.reaction || typeof event.reaction !== "string") return;
 		if (!HAND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h)) return;
 		if (event.reactionStatus === "deleted") return;
 

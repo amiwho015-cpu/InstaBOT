@@ -50,7 +50,15 @@ class Permissions {
 			return 2;
 		}
 
-		// 3. Thread Admin / Group Moderator
+		// 3. Direct Message (DM) check: in private chat (non-group), user is thread admin (role 1)
+		if (threadData && threadData.isGroup === false) {
+			return 1;
+		}
+		if (threadID && String(threadID) === uid) {
+			return 1;
+		}
+
+		// 4. Thread Admin / Group Moderator
 		if (threadData) {
 			const rawAdmins = threadData.adminIDs || threadData.adminIds || threadData.admin_ids || [];
 			const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
@@ -63,7 +71,7 @@ class Permissions {
 			}
 		}
 
-		// 4. Default user
+		// 5. Default user
 		return 0;
 	}
 

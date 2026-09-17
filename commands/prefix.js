@@ -20,7 +20,7 @@ module.exports = {
 		noPrefix: true,
 		noPrefixRole: 0,
 		description: { en: "Show the command prefix (bot admins can change it)" },
-		usage: { en: "{p}prefix [newPrefix] — or just `prefix` / `prefix !`" }
+		usage: { en: "{p}prefix [newPrefix] — or just `prefix` / `prefix *`" }
 	},
 
 	onStart: async function ({ message, args, config, role }) {

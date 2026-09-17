@@ -230,7 +230,7 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 		return primaryResult;
 	} finally {
 		for (const f of tempFiles) {
-			fs.unlink(f).catch(() => {});
+			fs.remove(f).catch(() => {});
 		}
 	}
 }

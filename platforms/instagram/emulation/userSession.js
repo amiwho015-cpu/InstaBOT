@@ -101,8 +101,9 @@ class UserSessionEmulation extends EventEmitter {
 					Promise.resolve(handler(ctx)).catch(e => this.emit("error", e));
 				}
 			}
-		} else if (event.type === "reaction") {
+		} else if (event.type === "reaction" || event.type === "message_reaction") {
 			this.emit("reaction", event);
+			this.emit("message_reaction", event);
 		} else if (event.type === "typing" || event.type === "typ") {
 			this.emit("typing", event);
 		}

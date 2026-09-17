@@ -94,6 +94,9 @@ class Dispatcher {
 		}
 
 		const threadData = database.getThreadData(threadID);
+		if (event.isGroup === false && threadData && threadData.isGroup === undefined) {
+			threadData.isGroup = false;
+		}
 
 		// Whitelist Checks
 		if (this.config.WHITELIST_ENABLE) {
@@ -178,7 +181,7 @@ class Dispatcher {
 
 		if (isGlobalAdminOnly && userRole < 2) {
 			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
-			const p = threadData?.prefix || this.config.PREFIX || "!";
+			const p = threadData?.prefix || this.config.PREFIX || "*";
 			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
 			if (!cmdName || !ignored.includes(cmdName)) {
 				return; // Silently ignore non-admins when global admin-only is on (Floppa standard)
@@ -187,7 +190,7 @@ class Dispatcher {
 
 		if (isThreadAdminOnly && userRole < 1) {
 			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
-			const p = threadData?.prefix || this.config.PREFIX || "!";
+			const p = threadData?.prefix || this.config.PREFIX || "*";
 			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
 			if (!cmdName || !ignored.includes(cmdName)) {
 				return; // Silently ignore non-admins when thread admin-only is on (Floppa standard)
@@ -195,20 +198,21 @@ class Dispatcher {
 		}
 
 		// Prefix Resolution
-		const threadPrefix = threadData?.prefix || this.config.PREFIX || "!";
+		const globalPrefix = this.config.PREFIX || this.config.prefix || "*";
+		const threadPrefix = threadData?.prefix || globalPrefix;
 		const body = (event.body || "").trim();
 
 		if (body.toLowerCase() === "prefix") {
 			await this.bot.api.sendMessage(
-				`🌐 Global prefix: ${this.config.PREFIX || "!"}\n🛸 Thread prefix: ${threadPrefix}`,
+				`🌐 Global prefix: ${globalPrefix}\n🛸 Thread prefix: ${threadPrefix}`,
 				threadID
 			).catch(() => {});
 			return;
 		}
 
-		const startsWithGlobal = this.config.PREFIX && body.startsWith(this.config.PREFIX);
+		const startsWithGlobal = globalPrefix && body.startsWith(globalPrefix);
 		const startsWithThread = threadPrefix && body.startsWith(threadPrefix);
-		const activePrefix = startsWithThread ? threadPrefix : (startsWithGlobal ? this.config.PREFIX : null);
+		const activePrefix = startsWithThread ? threadPrefix : (startsWithGlobal ? globalPrefix : null);
 
 		let commandName = "";
 		let args = [];
@@ -218,13 +222,16 @@ class Dispatcher {
 			args = rawContent.split(/\s+/);
 			commandName = (args.shift() || "").toLowerCase();
 		} else {
-			// Check if no-prefix execution is allowed
-			const canNoPrefix = this.config.NO_PREFIX !== false;
-			if (canNoPrefix && body) {
+			// Check if no-prefix execution is allowed (restricted to bot admins or commands opting into noPrefixRole: 0)
+			if (body) {
 				const candidateArgs = body.split(/\s+/);
 				const candidateCmd = candidateArgs[0].toLowerCase();
 				const found = this.bot.commandLoader.getCommand(candidateCmd);
-				if (found && (found.config?.noPrefix || found.config?.hasPrefix === false || canNoPrefix)) {
+				const isDevOrAdmin = userRole >= 2;
+				const bareAllowed = !!found && (found.config?.noPrefix === true || found.config?.hasPrefix === false) &&
+					(isDevOrAdmin || found.config?.noPrefixRole === 0);
+				const globalNoPrefix = (this.config.NO_PREFIX === true || this.config.noPrefix === true) && isDevOrAdmin;
+				if (bareAllowed || globalNoPrefix) {
 					commandName = candidateCmd;
 					args = candidateArgs.slice(1);
 				}
@@ -290,7 +297,7 @@ class Dispatcher {
 		}
 
 		const threadData = database.getThreadData(event.threadID);
-		const prefix = threadData?.prefix || this.config.PREFIX || "!";
+		const prefix = threadData?.prefix || this.config.PREFIX || "*";
 		const message = createMessageContext({ api: this.bot.api, event, command, prefix });
 		const args = event.body ? event.body.trim().split(/\s+/) : [];
 
@@ -343,7 +350,7 @@ class Dispatcher {
 				if (authorMatch) {
 					const database = global.db || require("../utils/database");
 					const threadData = database.getThreadData(event.threadID);
-					const prefix = threadData?.prefix || this.config.PREFIX || "!";
+					const prefix = threadData?.prefix || this.config.PREFIX || "*";
 					const message = createMessageContext({ api: this.bot.api, event, command, prefix });
 
 					try {

@@ -501,6 +501,23 @@ function createAPIWrapper(rawClient, config = {}) {
 			return wrapCallback(promise, callback);
 		},
 
+		addUserToThread: (userIDs, threadID, callback) => wrapper.addUserToGroup(userIDs, threadID, callback),
+
+		removeUserFromGroup: async (userID, threadID, callback) => {
+			const promise = (async () => {
+				if (ig && typeof ig.removeUserFromGroup === "function") {
+					return await ig.removeUserFromGroup(userID, threadID);
+				}
+				if (ig && typeof ig.removeUserFromThread === "function") {
+					return await ig.removeUserFromThread(userID, threadID);
+				}
+				return { success: false, unsupported: true };
+			})();
+			return wrapCallback(promise, callback);
+		},
+
+		removeUserFromThread: (userID, threadID, callback) => wrapper.removeUserFromGroup(userID, threadID, callback),
+
 		leaveGroup: async (threadID, callback) => {
 			const promise = (async () => {
 				if (ig && typeof ig.leaveGroup === "function") {

@@ -35,7 +35,7 @@ module.exports = {
 		}
 
 		const action = (args[0] || "info").toLowerCase();
-		const p = (config && (config.prefix || config.PREFIX)) || "-";
+		const p = (config && (config.prefix || config.PREFIX)) || "*";
 
 		if (action === "info") {
 			const activePrefix = tData.prefix || config.prefix || "*";

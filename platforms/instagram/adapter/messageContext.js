@@ -23,12 +23,12 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 		api = apiOrOpts.api;
 		event = apiOrOpts.event;
 		command = apiOrOpts.command || null;
-		prefix = apiOrOpts.prefix || "!";
+		prefix = apiOrOpts.prefix || "*";
 	} else {
 		api = apiOrOpts;
 		event = maybeEvent || {};
 		command = maybeOpts.command || null;
-		prefix = maybeOpts.prefix || "!";
+		prefix = maybeOpts.prefix || "*";
 	}
 
 	const threadID = event.threadID;
@@ -48,13 +48,18 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 	const context = {
 		threadID,
 		event,
+		messageReply: event.messageReply || event.repliedMessage || null,
+		replyTo: event.messageReply || event.repliedMessage || event.replyTo || null,
+		repliedMessage: event.repliedMessage || event.messageReply || null,
 
 		send(form, callback) {
-			return wrap(api.sendMessage(form, threadID, undefined, eventMessageID), callback);
+			const payload = typeof form === "string" ? { body: form } : form;
+			return wrap(api.sendMessage(payload, threadID), callback);
 		},
 
 		reply(form, callback) {
-			return wrap(api.sendMessage(form, threadID, undefined, eventMessageID), callback);
+			const payload = typeof form === "string" ? { body: form } : form;
+			return wrap(api.sendMessage(payload, threadID, undefined, eventMessageID), callback);
 		},
 
 		unsend(messageID = eventMessageID, callback) {
@@ -63,6 +68,10 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 
 		react(emoji, messageID = eventMessageID, callback) {
 			return wrap(api.sendReaction(emoji == null ? "" : emoji, messageID, threadID), callback);
+		},
+
+		reaction(emoji, messageID = eventMessageID, callback) {
+			return this.react(emoji, messageID, callback);
 		},
 
 		effect(text, effect, callback) {

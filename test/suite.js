@@ -199,28 +199,28 @@ async function runSuite() {
     };
     bot.api = createAPIWrapper(bot.client.rawApi, bot.config);
 
-    // 1. Dispatch !ping
+    // 1. Dispatch *ping
     await bot.dispatcher.dispatch({
       type: 'message',
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_ping',
-      body: '!ping',
+      body: '*ping',
       args: [],
       attachments: []
     });
 
-    assert(replies.length > 0, 'Bot should have responded to !ping');
+    assert(replies.length > 0, 'Bot should have responded to *ping');
     assert(replies.some(r => ((r && (r.text || r.body)) || '').toLowerCase().includes('pong') || ((r && (r.text || r.body)) || '').toLowerCase().includes('ping')), `Response should contain ping/pong`);
 
-    // 2. Dispatch !help to trigger interactive onReply registration
+    // 2. Dispatch *help to trigger interactive onReply registration
     replies.length = 0;
     await bot.dispatcher.dispatch({
       type: 'message',
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_help',
-      body: '!help',
+      body: '*help',
       args: [],
       attachments: []
     });
@@ -278,12 +278,12 @@ async function runSuite() {
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_theme',
-      body: '!theme blue',
+      body: '*theme blue',
       args: ['blue'],
       attachments: []
     });
 
-    assert(replies.length > 0, 'Bot should reply to !theme');
+    assert(replies.length > 0, 'Bot should reply to *theme');
     const msg = typeof replies[0] === 'string' ? replies[0] : replies[0].body;
     assert(msg.includes('not supported') || msg.includes('Instagram Direct'), `Expected friendly notice, got: ${msg}`);
   });
@@ -306,6 +306,8 @@ async function runSuite() {
 
   if (failed > 0) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 

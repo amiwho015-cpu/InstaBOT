@@ -26,12 +26,19 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, event, args, threadsData, api, getLang }) {
-		const adminIDs = await threadsData.get(event.threadID, "adminIDs");
-		if (!adminIDs.includes(api.getCurrentUserID()))
+		const rawAdmins = (threadsData && typeof threadsData.get === "function" ? await threadsData.get(event.threadID, "adminIDs") : null) || [];
+		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => typeof a === "object" ? String(a.id || a.userID || a.pk || a.uid || "") : String(a)).filter(Boolean);
+		const selfID = String(api.getCurrentUserID ? api.getCurrentUserID() : (api._userID || ""));
+		if (selfID && adminIDs.length > 0 && !adminIDs.includes(selfID))
 			return message.reply(getLang("needAdmin"));
+
 		async function kickAndCheckError(uid) {
 			try {
-				await api.removeUserFromGroup(uid, event.threadID);
+				if (typeof api.removeUserFromGroup === "function") {
+					await api.removeUserFromGroup(uid, event.threadID);
+				} else if (typeof api.removeUserFromThread === "function") {
+					await api.removeUserFromThread(uid, event.threadID);
+				}
 			}
 			catch (e) {
 				message.reply(getLang("needAdmin"));
@@ -52,8 +59,13 @@ module.exports = {
 				return message.SyntaxError();
 			if (await kickAndCheckError(uids.shift()) === "ERROR")
 				return;
-			for (const uid of uids)
-				api.removeUserFromGroup(uid, event.threadID);
+			for (const uid of uids) {
+				if (typeof api.removeUserFromGroup === "function") {
+					api.removeUserFromGroup(uid, event.threadID);
+				} else if (typeof api.removeUserFromThread === "function") {
+					api.removeUserFromThread(uid, event.threadID);
+				}
+			}
 		}
 	}
 };
