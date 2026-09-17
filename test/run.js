@@ -2942,6 +2942,102 @@ async function main() {
 		assert.strictEqual(photoCalls[1].pathOrBuf.buffer, buf);
 	});
 
+	await test("emulation: BrowserSession parses cookies and generates browser client headers", async () => {
+		const { BrowserSession } = require("../platforms/instagram/emulation/browserSession");
+		const mockCookies = [
+			{ name: "sessionid", value: "sess_test", domain: ".instagram.com" },
+			{ name: "ds_user_id", value: "user_test", domain: ".instagram.com" },
+			{ name: "csrftoken", value: "csrf_test", domain: ".instagram.com" }
+		];
+		const session = new BrowserSession({ cookies: mockCookies });
+		assert.strictEqual(session.userId, "user_test");
+		assert.strictEqual(session.sessionId, "sess_test");
+
+		const headers = session.getBrowserHeaders();
+		assert.strictEqual(headers["X-IG-App-ID"], "936619743392459");
+		assert.strictEqual(headers["X-ASBD-ID"], "129477");
+		assert.strictEqual(headers["sec-ch-ua-platform"], '"Windows"');
+		assert(headers["Cookie"].includes("sessionid=sess_test"));
+
+		const wsHeaders = session.getMqttWsHeaders();
+		assert.strictEqual(wsHeaders["Sec-WebSocket-Version"], "13");
+		assert.strictEqual(wsHeaders["X-ASBD-ID"], "129477");
+		assert(wsHeaders["Cookie"].includes("sessionid=sess_test"));
+	});
+
+	await test("emulation: GraphQLClient formats broadcastText, broadcastReaction, and typing indicators", async () => {
+		const { BrowserSession } = require("../platforms/instagram/emulation/browserSession");
+		const { GraphQLClient } = require("../platforms/instagram/emulation/graphQLClient");
+		const session = new BrowserSession({ cookies: "sessionid=sess_g; ds_user_id=usr_g; csrftoken=csrf_g;" });
+		const client = new GraphQLClient(session);
+
+		let intercepted = null;
+		client.http.request = async (cfg) => {
+			intercepted = cfg;
+			return { data: { payload: { item_id: "mid_g_100" } }, headers: { "x-ig-set-www-claim": "claim_g" } };
+		};
+
+		const res = await client.broadcastText("th_g", "hello", "reply_target_1");
+		assert.strictEqual(res.messageID, "mid_g_100");
+		assert.strictEqual(res.threadID, "th_g");
+		assert(intercepted.data.includes("hello"));
+		assert(intercepted.data.includes("reply_target_1"));
+		assert.strictEqual(intercepted.headers["X-ASBD-ID"], "129477");
+
+		await client.broadcastReaction("th_g", "mid_g_100", "🔥");
+		assert(intercepted.data.includes("reaction_type=like"));
+
+		await client.sendTypingIndicator("th_g");
+		assert(intercepted.data.includes("activity_status=1"));
+
+		await client.stopTypingIndicator("th_g");
+		assert(intercepted.data.includes("activity_status=0"));
+	});
+
+	await test("emulation: UserSessionEmulation supports flat API and event-driven bot patterns", async () => {
+		const { UserSessionEmulation } = require("../platforms/instagram/emulation/userSession");
+		const session = new UserSessionEmulation({
+			appState: [{ name: "sessionid", value: "sess_emu", domain: ".instagram.com" }, { name: "ds_user_id", value: "bot_emu", domain: ".instagram.com" }]
+		}, { commandPrefix: "/" });
+
+		assert.strictEqual(session.getCurrentUserID(), "bot_emu");
+
+		const sent = [];
+		session.graphQLClient.broadcastText = async (tid, text, replyTo) => {
+			sent.push({ tid, text, replyTo });
+			return { messageID: "mid_" + sent.length, threadID: tid };
+		};
+
+		await session.sendMessage("hello emu", "th_100");
+		assert.strictEqual(sent[0].text, "hello emu");
+		assert.strictEqual(sent[0].tid, "th_100");
+
+		let commandHandled = false;
+		session.command("ping", async (ctx) => {
+			commandHandled = true;
+			await ctx.replyAsync("pong");
+		});
+
+		session._routeEvent({
+			type: "message",
+			threadID: "th_100",
+			senderID: "user_u",
+			messageID: "msg_u_1",
+			body: "/ping"
+		});
+
+		assert(commandHandled);
+		assert(sent.some(s => s.text === "pong" && s.replyTo === "msg_u_1"));
+	});
+
+	await test("emulation: integration with platforms/instagram getICA({ mode: 'emulation' })", async () => {
+		const instagram = require("../platforms/instagram");
+		const ica = instagram.getICA({ mode: "emulation" });
+		assert.strictEqual(ica.mode, "emulation");
+		assert(typeof ica.login === "function");
+		assert(typeof instagram.createMessengerBot === "function");
+	});
+
 	/* ── summary ── */
 	const failed = results.filter(r => !r.ok);
 	for (const r of results)

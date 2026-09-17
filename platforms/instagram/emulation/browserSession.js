@@ -133,9 +133,17 @@ class BrowserSession {
 
 	getCookieString(url = "https://www.instagram.com/") {
 		try {
-			return this.jar.getCookieStringSync(url);
+			const str = this.jar.getCookieStringSync(url);
+			if (str && str.trim()) return str;
+			const all = this.jar.serializeSync().cookies || [];
+			return all.map(c => `${c.key}=${c.value}`).join("; ");
 		} catch (_) {
-			return "";
+			try {
+				const all = this.jar.serializeSync().cookies || [];
+				return all.map(c => `${c.key}=${c.value}`).join("; ");
+			} catch (_) {
+				return "";
+			}
 		}
 	}
 
