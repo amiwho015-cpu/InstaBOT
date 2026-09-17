@@ -72,40 +72,88 @@ function normalizeEvent(event) {
 	if (!event || typeof event !== "object") return event;
 	const normalized = Object.assign({}, event);
 
-	if (Array.isArray(normalized.attachments)) {
-		normalized.attachments = normalized.attachments.map(att => {
-			if (!att || typeof att !== "object") return att;
-			const type = att.type === "image" ? "photo" : att.type === "gif" ? "animated_image" : att.type;
-			return Object.assign({}, att, { type });
-		});
-	}
+	let attachments = Array.isArray(normalized.attachments) ? normalized.attachments.map(att => {
+		if (!att || typeof att !== "object") return att;
+		const type = att.type === "image" ? "photo" : att.type === "gif" ? "animated_image" : att.type;
+		return Object.assign({}, att, { type });
+	}) : [];
 
-	const repliedData = normalized.messageReply || normalized.repliedMessage || normalized.repliedToMessage || normalized.replyToMessage || normalized.replied_to_message || normalized.reply_to_item;
+	if (attachments.length === 0) {
+		const m = normalized.media || normalized.visual_media?.media || normalized.raven_media?.media || normalized.clip?.clip || normalized.media_share || normalized.direct_story?.media || (normalized.raw && (normalized.raw.media || normalized.raw.visual_media?.media));
+		const u = m?.image_versions2?.candidates?.[0]?.url
+			|| m?.candidates?.[0]?.url
+			|| normalized.image_versions2?.candidates?.[0]?.url
+			|| (normalized.raw?.image_versions2?.candidates?.[0]?.url)
+			|| normalized.carousel_share?.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
+			|| normalized.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
+			|| m?.video_versions?.[0]?.url
+			|| normalized.video_versions?.[0]?.url
+			|| m?.url
+			|| (typeof normalized.photo === "string" ? normalized.photo : normalized.photo?.url)
+			|| (typeof normalized.image === "string" ? normalized.image : normalized.image?.url);
+		if (u) {
+			const isVid = (m?.media_type === 2 || m?.video_versions || normalized.video_versions);
+			attachments.push({
+				type: isVid ? "video" : "photo",
+				url: u
+			});
+		}
+	}
+	normalized.attachments = attachments;
+
+	const repliedData = normalized.messageReply || normalized.repliedMessage || normalized.repliedToMessage || normalized.replyToMessage || normalized.reply_to_message || normalized.replied_to_message || normalized.replied_to_item || normalized.reply_to_item || normalized.quoted_item || (normalized.raw && (normalized.raw.messageReply || normalized.raw.repliedMessage || normalized.raw.replyToMessage || normalized.raw.replied_to_message || normalized.raw.replied_to_item));
 	if (repliedData) {
 		const replied = repliedData;
 		let attachList = [];
 		if (Array.isArray(replied.attachments) && replied.attachments.length > 0) {
-			attachList = replied.attachments;
+			attachList = replied.attachments.map(att => {
+				if (!att || typeof att !== "object") return att;
+				const type = att.type === "image" ? "photo" : att.type === "gif" ? "animated_image" : att.type;
+				return Object.assign({}, att, { type });
+			});
 		} else if (replied.attachment) {
-			attachList = Array.isArray(replied.attachment) ? replied.attachment : [replied.attachment];
-		} else if (replied.media || replied.visual_media || replied.clip || replied.media_share) {
-			const m = replied.media || replied.visual_media?.media || replied.clip?.clip || replied.media_share;
-			const u = m?.image_versions2?.candidates?.[0]?.url || m?.video_versions?.[0]?.url || m?.url;
-			if (u) attachList.push({ type: (m?.media_type === 2 || m?.video_versions) ? "video" : "photo", url: u });
-		} else if (replied.image) {
-			attachList.push({ type: "photo", url: typeof replied.image === "string" ? replied.image : replied.image.url });
+			const rawList = Array.isArray(replied.attachment) ? replied.attachment : [replied.attachment];
+			attachList = rawList.map(att => {
+				if (!att || typeof att !== "object") return att;
+				const type = att.type === "image" ? "photo" : att.type === "gif" ? "animated_image" : att.type;
+				return Object.assign({}, att, { type });
+			});
+		} else {
+			const rm = replied.media || replied.visual_media?.media || replied.raven_media?.media || replied.clip?.clip || replied.media_share || replied.direct_story?.media;
+			const ru = rm?.image_versions2?.candidates?.[0]?.url
+				|| rm?.candidates?.[0]?.url
+				|| replied.image_versions2?.candidates?.[0]?.url
+				|| replied.carousel_share?.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
+				|| replied.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
+				|| replied.reel_share?.media?.image_versions2?.candidates?.[0]?.url
+				|| replied.story_share?.media?.image_versions2?.candidates?.[0]?.url
+				|| rm?.video_versions?.[0]?.url
+				|| replied.video_versions?.[0]?.url
+				|| rm?.url
+				|| (typeof replied.photo === "string" ? replied.photo : replied.photo?.url)
+				|| (typeof replied.image === "string" ? replied.image : replied.image?.url);
+			if (ru) {
+				const isVid = (rm?.media_type === 2 || rm?.video_versions || replied.video_versions);
+				attachList.push({ type: isVid ? "video" : "photo", url: ru });
+			}
 		}
 
 		normalized.messageReply = {
-			messageID: (replied.messageID || replied.item_id || replied.id || normalized.replyTo)?.toString() || null,
+			...replied,
+			messageID: (replied.messageID || replied.item_id || replied.id || normalized.replyTo || normalized.reply_to_item_id || normalized.replied_to_item_id || normalized.replied_to_target_id)?.toString() || null,
 			senderID: (replied.senderID || replied.user_id || replied.sender_id) != null ? String(replied.senderID || replied.user_id || replied.sender_id) : null,
-			body: (replied.body || replied.text) != null ? String(replied.body || replied.text) : "",
+			body: (replied.body || replied.text || replied.caption?.text || (typeof replied.caption === "string" ? replied.caption : "")) != null ? String(replied.body || replied.text || replied.caption?.text || (typeof replied.caption === "string" ? replied.caption : "")) : "",
 			attachments: attachList,
 			timestamp: (replied.timestamp || "").toString() || null
 		};
 		normalized.repliedMessage = normalized.messageReply;
 		normalized.replyTo = normalized.messageReply.messageID;
 		if (normalized.type === "message") normalized.type = "message_reply";
+	}
+
+	if (!normalized.body && (normalized.caption || normalized.media?.caption || normalized.visual_media?.media?.caption)) {
+		const cap = normalized.caption?.text || (typeof normalized.caption === "string" ? normalized.caption : "") || normalized.media?.caption?.text || normalized.visual_media?.media?.caption?.text || "";
+		if (cap) normalized.body = cap;
 	}
 
 	if (normalized.senderID != null && normalized.userID == null) normalized.userID = normalized.senderID;

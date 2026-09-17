@@ -97,11 +97,21 @@ class SendMedia {
 
     const uid = this.http.getCookieValue('ds_user_id');
     const clientContext = CryptoUtils.generateUUID();
-    const isRecipientUsers = form.recipientType === 'recipient_users' || form.recipientUsers;
+    const strThreadID = String(threadID || '');
+    const hasColon = strThreadID.includes(':') && !strThreadID.startsWith('t_');
+    const isRecipientUsers = form.recipientType === 'recipient_users' || form.recipientUsers || hasColon;
     const recipientField = isRecipientUsers ? 'recipient_users' : 'thread_ids';
-    const recipientValue = isRecipientUsers
-      ? JSON.stringify(form.recipientUsers || [[String(threadID)]])
-      : JSON.stringify(Array.isArray(threadID) ? threadID.map(String) : [String(threadID)]);
+    let recipientValue;
+    if (form.recipientUsers) {
+      recipientValue = JSON.stringify(form.recipientUsers);
+    } else if (hasColon) {
+      const uids = strThreadID.split(':').filter(Boolean);
+      recipientValue = JSON.stringify([uids]);
+    } else if (isRecipientUsers) {
+      recipientValue = JSON.stringify([[String(threadID)]]);
+    } else {
+      recipientValue = JSON.stringify(Array.isArray(threadID) ? threadID.map(String) : [String(threadID)]);
+    }
 
     const cleanForm = { ...form };
     delete cleanForm.recipientType;
@@ -282,10 +292,48 @@ class SendMedia {
       messageData.upload_id = uploadId;
       messageData.view_mode = options.viewMode || options.view_mode || 'permanent';
 
-      const response = await this.http.postForm(
-        'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
-        messageData
-      );
+      let response;
+      try {
+        response = await this.http.postForm(
+          'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+          messageData
+        );
+      } catch (postErr) {
+        if (replyTarget) {
+          delete messageData.replied_to_target_id;
+          delete messageData.replied_to_action_source;
+          delete messageData.reply_to_item_id;
+          response = await this.http.postForm(
+            'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+            messageData
+          );
+        } else {
+          throw postErr;
+        }
+      }
+
+      if ((!response || response.status !== 'ok') && replyTarget) {
+        delete messageData.replied_to_target_id;
+        delete messageData.replied_to_action_source;
+        delete messageData.reply_to_item_id;
+        try {
+          response = await this.http.postForm(
+            'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+            messageData
+          );
+        } catch (_) {}
+      }
+
+      if ((!response || response.status !== 'ok') && messageData.thread_ids && String(threadID).startsWith('t_s_')) {
+        const cleanId = String(threadID).replace(/^t_s_/, '');
+        messageData.thread_ids = JSON.stringify([cleanId]);
+        try {
+          response = await this.http.postForm(
+            'https://www.instagram.com/api/v1/direct_v2/threads/broadcast/configure_photo/',
+            messageData
+          );
+        } catch (_) {}
+      }
 
       if (response && response.status === 'ok') {
         const info = this.extractInfo(response, threadID, uploadId, clientContext);

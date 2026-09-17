@@ -12,6 +12,46 @@ const path = require("path");
 
 const { extractMediaUrl } = require("../src/utils");
 
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 45 * 1024 * 1024);
+
+async function downloadMediaBuffer(url) {
+  const headers = {
+    "User-Agent": USER_AGENT,
+    "Accept": "*/*"
+  };
+  try {
+    if (new URL(url).hostname.includes("tiktok")) headers.Referer = "https://www.tiktok.com/";
+  } catch (_) {}
+
+  try {
+    const res = await axios.get(url, {
+      responseType: "arraybuffer",
+      timeout: 25000,
+      maxContentLength: MAX_BYTES,
+      headers
+    });
+    if (res.status === 200 && res.data && res.data.length > 0) {
+      return Buffer.from(res.data);
+    }
+  } catch (err) {
+    if (headers.Referer) {
+      delete headers.Referer;
+      const retryRes = await axios.get(url, {
+        responseType: "arraybuffer",
+        timeout: 25000,
+        maxContentLength: MAX_BYTES,
+        headers
+      });
+      if (retryRes.status === 200 && retryRes.data && retryRes.data.length > 0) {
+        return Buffer.from(retryRes.data);
+      }
+    }
+    throw err;
+  }
+  throw new Error("Empty response from media CDN");
+}
+
 module.exports = {
   config: {
     name: "alldl",
@@ -168,9 +208,24 @@ module.exports = {
         throw new Error("Unable to extract downloadable stream from this URL");
       }
 
-      const caption = `✅ 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗱 [${isAudio ? "AUDIO" : "VIDEO"}]\n📝 ${title.slice(0, 100)}`;
+      if (!tempFilePath && downloadUrl) {
+        try {
+          const ext = isAudio ? "mp3" : "mp4";
+          const tempDir = path.join(process.cwd(), "temp");
+          await fs.ensureDir(tempDir);
+          tempFilePath = path.join(tempDir, `alldl_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+          const buf = await downloadMediaBuffer(downloadUrl);
+          await fs.writeFile(tempFilePath, buf);
+        } catch (_) {
+          if (tempFilePath) {
+            await fs.unlink(tempFilePath).catch(() => {});
+            tempFilePath = null;
+          }
+        }
+      }
+
       if (message && typeof message.react === "function") {
-        message.react("✅");
+        message.react("✅").catch(() => {});
       } else if (api && typeof api.setMessageReaction === "function") {
         api.setMessageReaction("✅", event.messageID, event.threadID, () => {}, true);
       }
@@ -178,26 +233,55 @@ module.exports = {
       const attachment = tempFilePath
         ? { path: tempFilePath, type: isAudio ? "audio" : "video" }
         : { url: downloadUrl, type: isAudio ? "audio" : "video" };
-      const sent = await message.reply({
-        body: caption,
-        attachment,
-        textFirst: true
-      });
+
+      let sent = null;
+      try {
+        sent = await message.reply({
+          attachment,
+          textFirst: false
+        });
+      } catch (replyErr) {
+        try {
+          if (message && typeof message.send === "function") {
+            sent = await message.send({
+              attachment,
+              textFirst: false
+            });
+          } else if (api && typeof api.sendMessage === "function") {
+            sent = await api.sendMessage({
+              attachment,
+              textFirst: false
+            }, threadID);
+          } else {
+            throw replyErr;
+          }
+        } catch (sendErr) {
+          throw sendErr;
+        }
+      }
 
       if (tempFilePath) {
-        setTimeout(() => fs.unlink(tempFilePath).catch(() => {}), 20000);
+        setTimeout(() => fs.unlink(tempFilePath).catch(() => {}), 25000);
       }
 
       return sent;
     } catch (err) {
       if (tempFilePath) fs.unlink(tempFilePath).catch(() => {});
       if (message && typeof message.react === "function") {
-        message.react("❌");
+        message.react("❌").catch(() => {});
       } else if (api && typeof api.setMessageReaction === "function") {
         api.setMessageReaction("❌", event.messageID, event.threadID, () => {}, true);
       }
       const errMsg = `❌ Download failed: ${err.message}. Please check if the link is public and valid.`;
-      return message ? message.reply(errMsg) : api.sendMessage(errMsg, threadID);
+      try {
+        return await message.reply(errMsg);
+      } catch (_) {
+        if (message && typeof message.send === "function") {
+          return await message.send(errMsg);
+        } else if (api && typeof api.sendMessage === "function") {
+          return await api.sendMessage(errMsg, threadID);
+        }
+      }
     }
   },
 

@@ -3147,6 +3147,238 @@ async function main() {
 		}
 	});
 
+	await test("edit: image attached directly with caption prompt (*edit add bongobondu) extracts image", async () => {
+		const command = registry.resolve("edit");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		const originalPost = axios.post;
+
+		let toshiroCalled = false;
+		let targetUrlPassed = null;
+		let promptPassed = null;
+		let deliverySent = null;
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("toshiro-api-editz6t9.vercel.app")) {
+					toshiroCalled = true;
+					const parsed = new URL(url);
+					targetUrlPassed = parsed.searchParams.get("url");
+					promptPassed = parsed.searchParams.get("prompt");
+					return {
+						data: {
+							success: true,
+							url: "https://example.com/result.jpg"
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/result.jpg")) {
+					return {
+						data: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9])
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { deliverySent = m; return Promise.resolve({ messageID: "reply_ok" }); },
+				react: () => Promise.resolve({})
+			};
+
+			await command.onStart({
+				api: {},
+				event: {
+					threadID: "t1",
+					messageID: "m_direct",
+					body: "*edit add bongobondu",
+					attachments: [{ url: "https://example.com/attached_photo.jpg", type: "photo" }]
+				},
+				args: ["add", "bongobondu"],
+				message
+			});
+
+			assert.strictEqual(toshiroCalled, true, "Toshiro should be called for directly attached image");
+			assert.strictEqual(targetUrlPassed, "https://example.com/attached_photo.jpg");
+			assert.strictEqual(promptPassed, "add bongobondu");
+			assert.ok(deliverySent && deliverySent.attachment, "attachment must be sent");
+		} finally {
+			axios.get = originalGet;
+			axios.post = originalPost;
+		}
+	});
+
+	await test("edit: delivery fallback to message.send when message.reply rejects attachment", async () => {
+		const command = registry.resolve("edit");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		const originalPost = axios.post;
+
+		let replyAttempted = false;
+		let sendSent = null;
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("toshiro-api-editz6t9.vercel.app")) {
+					return {
+						data: {
+							success: true,
+							url: "https://example.com/result.jpg"
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/result.jpg")) {
+					return {
+						data: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9])
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => {
+					replyAttempted = true;
+					return Promise.reject(new Error("Cannot reply with media to this item"));
+				},
+				send: (m) => {
+					sendSent = m;
+					return Promise.resolve({ messageID: "send_ok" });
+				},
+				react: () => Promise.resolve({})
+			};
+
+			await command.onStart({
+				api: {},
+				event: {
+					threadID: "t1",
+					messageID: "m_reply_fail",
+					messageReply: {
+						messageID: "p1",
+						attachments: [{ url: "https://example.com/source.jpg", type: "photo" }]
+					}
+				},
+				args: ["cyberpunk"],
+				message
+			});
+
+			assert.strictEqual(replyAttempted, true, "reply should have been attempted first");
+			assert.ok(sendSent && sendSent.attachment, "message.send should receive attachment when reply fails");
+			assert.strictEqual(sendSent.textFirst, false);
+		} finally {
+			axios.get = originalGet;
+			axios.post = originalPost;
+		}
+	});
+
+	await test("edit: falls back to Pollinations Turbo when Toshiro fails", async () => {
+		const command = registry.resolve("edit");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		const originalPost = axios.post;
+
+		let pollinationsCalled = false;
+		let deliverySent = null;
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("toshiro-api-editz6t9.vercel.app")) {
+					throw new Error("Toshiro service timeout");
+				}
+				if (typeof url === "string" && url.includes("image.pollinations.ai")) {
+					pollinationsCalled = true;
+					return {
+						data: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9])
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { deliverySent = m; return Promise.resolve({ messageID: "reply_ok" }); },
+				react: () => Promise.resolve({})
+			};
+
+			await command.onStart({
+				api: {},
+				event: {
+					threadID: "t1",
+					messageID: "m_poll_fallback",
+					messageReply: {
+						messageID: "p1",
+						attachments: [{ url: "https://example.com/source.jpg", type: "photo" }]
+					}
+				},
+				args: ["cyberpunk"],
+				message
+			});
+
+			assert.strictEqual(pollinationsCalled, true, "Pollinations Turbo must be called when Toshiro fails");
+			assert.ok(deliverySent && deliverySent.attachment, "delivered image buffer");
+		} finally {
+			axios.get = originalGet;
+			axios.post = originalPost;
+		}
+	});
+
+	await test("edit: group chat (gc) reply to photo executes edit and sends result", async () => {
+		const command = registry.resolve("edit");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		const originalPost = axios.post;
+
+		let toshiroCalled = false;
+		let deliverySent = null;
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("toshiro-api-editz6t9.vercel.app")) {
+					toshiroCalled = true;
+					return {
+						data: {
+							success: true,
+							url: "https://example.com/gc_result.jpg"
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/gc_result.jpg")) {
+					return {
+						data: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9])
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { deliverySent = m; return Promise.resolve({ messageID: "gc_ok" }); },
+				react: () => Promise.resolve({})
+			};
+
+			await command.onStart({
+				api: {},
+				event: {
+					isGroup: true,
+					threadID: "340282366841710300949128123456789",
+					messageID: "m_gc_reply",
+					messageReply: {
+						messageID: "photo_msg_in_gc",
+						media: {
+							image_versions2: {
+								candidates: [{ url: "https://example.com/gc_photo.jpg" }]
+							}
+						}
+					}
+				},
+				args: ["cyberpunk", "anime"],
+				message
+			});
+
+			assert.strictEqual(toshiroCalled, true, "Toshiro should be called in group chat");
+			assert.ok(deliverySent && deliverySent.attachment, "attachment delivered to group chat");
+		} finally {
+			axios.get = originalGet;
+			axios.post = originalPost;
+		}
+	});
+
 	await test("music: live mode delivers MP3 audio directly via sing", async () => {
 		const command = registry.resolve("music");
 		let singInvoked = false;
@@ -3166,6 +3398,123 @@ async function main() {
 		finally {
 			singCmd.onStart = originalSingStart;
 		}
+	});
+
+	await test("alldl: extracts URL and delivers video attachment without extra body text", async () => {
+		const command = registry.resolve("alldl");
+		assert.ok(command, "alldl command should be registered");
+		const axios = require("axios");
+		const originalGet = axios.get;
+
+		let deliverySent = null;
+		const reactions = [];
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("tikwm.com/api")) {
+					return {
+						data: {
+							data: {
+								play: "https://example.com/video.mp4",
+								title: "Sample Video"
+							}
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/video.mp4")) {
+					return {
+						status: 200,
+						data: Buffer.from("mock_video_bytes")
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { deliverySent = m; return Promise.resolve({ messageID: "alldl_reply" }); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["https://www.tiktok.com/@user/video/12345"],
+				message
+			});
+
+			assert.ok(deliverySent && deliverySent.attachment, "attachment must be sent");
+			assert.strictEqual(deliverySent.textFirst, false, "textFirst must be false");
+			assert.strictEqual(deliverySent.body, undefined, "extra text caption must be omitted");
+			assert.deepStrictEqual(reactions, ["⏳", "✅"]);
+		} finally {
+			axios.get = originalGet;
+		}
+	});
+
+	await test("alldl: delivery fallback to message.send when reply fails", async () => {
+		const command = registry.resolve("alldl");
+		const axios = require("axios");
+		const originalGet = axios.get;
+
+		let replyAttempted = false;
+		let sendSent = null;
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("tikwm.com/api")) {
+					return {
+						data: {
+							data: {
+								play: "https://example.com/video.mp4",
+								title: "Sample Video"
+							}
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/video.mp4")) {
+					return {
+						status: 200,
+						data: Buffer.from("mock_video_bytes")
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { replyAttempted = true; return Promise.reject(new Error("Cannot reply with media")); },
+				send: (m) => { sendSent = m; return Promise.resolve({ messageID: "send_ok" }); },
+				react: () => Promise.resolve({})
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["https://www.tiktok.com/@user/video/12345"],
+				message
+			});
+
+			assert.strictEqual(replyAttempted, true, "reply attempted first");
+			assert.ok(sendSent && sendSent.attachment, "message.send receives attachment");
+			assert.strictEqual(sendSent.textFirst, false);
+			assert.strictEqual(sendSent.body, undefined);
+		} finally {
+			axios.get = originalGet;
+		}
+	});
+
+	await test("ica: ValidationUtils accepts group thread IDs with colons, prefixes, and underscores", () => {
+		const ValidationUtils = require("../ica/src/utils/validation");
+		assert.strictEqual(ValidationUtils.isValidThreadID("123456789"), true);
+		assert.strictEqual(ValidationUtils.isValidThreadID("12345:67890"), true);
+		assert.strictEqual(ValidationUtils.isValidThreadID("t_s_17841401234567890"), true);
+		assert.strictEqual(ValidationUtils.isValidThreadID("th_123_456"), true);
+		assert.strictEqual(ValidationUtils.isValidThreadID(["12345", "67890"]), true);
+		assert.strictEqual(ValidationUtils.isValidThreadID(""), false);
+		assert.strictEqual(ValidationUtils.isValidThreadID(null), false);
+
+		const valid1 = ValidationUtils.validateThreadID("12345:67890");
+		assert.strictEqual(valid1.valid, true);
+		assert.strictEqual(valid1.id, "12345:67890");
 	});
 
 	/* ── summary ── */

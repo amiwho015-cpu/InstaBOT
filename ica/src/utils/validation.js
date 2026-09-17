@@ -16,8 +16,12 @@ class ValidationUtils {
 
   static isValidThreadID(id) {
     if (!id) return false;
-    const str = id.toString();
-    return /^\d+$/.test(str) || /^\d+_\d+$/.test(str) || /^t_\d+$/.test(str);
+    if (Array.isArray(id)) {
+      return id.length > 0 && id.every(x => ValidationUtils.isValidThreadID(x));
+    }
+    const str = id.toString().trim();
+    if (str.length === 0 || str.length > 128) return false;
+    return /^[0-9A-Za-z_:.\-]+$/.test(str);
   }
 
   static isValidMessageID(id) {
@@ -108,7 +112,8 @@ class ValidationUtils {
     if (!this.isValidThreadID(threadID)) {
       return { valid: false, error: 'Invalid thread ID' };
     }
-    return { valid: true, id: threadID.toString() };
+    const id = Array.isArray(threadID) ? threadID.map(String) : threadID.toString().trim();
+    return { valid: true, id };
   }
 
   static validateUserID(userID) {

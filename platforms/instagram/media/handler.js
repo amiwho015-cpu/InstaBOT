@@ -217,11 +217,43 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 					}
 				}
 			} catch (err) {
-				logger.warn("Failed to dispatch media item", { kind, error: err.message });
-				if (hasVideoOrAudio && bodyText) {
-					return primaryResult || { threadID, messageID: "preamble_sent" };
+				if (replyTarget) {
+					try {
+						if (kind === "video") {
+							if (typeof api.sendVideo === "function") {
+								res = await api.sendVideo(threadID, filePath, { caption });
+							} else if (typeof api.sendPhoto === "function") {
+								res = await api.sendPhoto(threadID, filePath, { caption });
+							}
+						} else if (kind === "audio") {
+							if (typeof api.sendVoice === "function") {
+								res = await api.sendVoice(threadID, filePath);
+							} else if (typeof api.sendAudio === "function") {
+								res = await api.sendAudio(filePath, threadID);
+							}
+						} else {
+							if (typeof api.sendPhoto === "function") {
+								res = await api.sendPhoto(threadID, filePath, { caption });
+							} else if (typeof api.sendImage === "function") {
+								res = await api.sendImage(filePath, threadID, caption);
+							} else {
+								res = await api.sendMessage({ body: caption, attachment: filePath }, threadID);
+							}
+						}
+					} catch (retryErr) {
+						logger.warn("Failed to dispatch media item on fallback without reply", { kind, error: retryErr.message });
+						if (hasVideoOrAudio && bodyText) {
+							return primaryResult || { threadID, messageID: "preamble_sent" };
+						}
+						throw retryErr;
+					}
+				} else {
+					logger.warn("Failed to dispatch media item", { kind, error: err.message });
+					if (hasVideoOrAudio && bodyText) {
+						return primaryResult || { threadID, messageID: "preamble_sent" };
+					}
+					throw err;
 				}
-				throw err;
 			}
 
 			if (isFirst) primaryResult = res;

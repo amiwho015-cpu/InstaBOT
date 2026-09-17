@@ -876,6 +876,9 @@ class InstagramMQTTClient extends EventEmitter {
 
     return (
       item.replied_to_item_id?.toString()
+      || item.replied_to_target_id?.toString()
+      || item.reply_to_target_id?.toString()
+      || item.reply_target_id?.toString()
       || item.reply_to_item?.item_id?.toString()
       || item.reply_to_item?.id?.toString()
       || item.reply_to_item_id?.toString()
@@ -896,6 +899,10 @@ class InstagramMQTTClient extends EventEmitter {
     if (res && res.messageID && (res.type === 'message' || res.attachments?.length > 0)) {
       if (!this._recentMessages) this._recentMessages = new Map();
       this._recentMessages.set(res.messageID, res);
+      if (typeof global !== "undefined") {
+        if (!global.recentMessages) global.recentMessages = new Map();
+        global.recentMessages.set(String(res.messageID), res);
+      }
       if (this._recentMessages.size > 500) {
         const first = this._recentMessages.keys().next().value;
         this._recentMessages.delete(first);
@@ -914,13 +921,16 @@ class InstagramMQTTClient extends EventEmitter {
     const isGroup = tid ? (item.is_group === true || tid.includes(':')) : false;
 
     const replyTo = this._extractReplyTo(item);
-    const repliedObj = item.replied_to_message || item.replied_to_item || item.reply_to_message || item.reply_to_item;
+    const repliedObj = item.replied_to_message || item.replied_to_item || item.reply_to_message || item.reply_to_item || item.quoted_item;
     let repliedMessage = null;
     if (repliedObj && typeof repliedObj === "object") {
       const rMedia = repliedObj.media || repliedObj.visual_media?.media || repliedObj.raven_media?.media || repliedObj.clip?.clip || repliedObj.media_share || repliedObj;
       const rAttach = [];
       if (rMedia) {
         const u = rMedia.image_versions2?.candidates?.[0]?.url
+          || rMedia.candidates?.[0]?.url
+          || rMedia.carousel_share?.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
+          || rMedia.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url
           || rMedia.video_versions?.[0]?.url
           || rMedia.audio?.audio_src
           || rMedia.voice_media?.media?.audio?.audio_clusters?.[0]?.url
@@ -934,8 +944,9 @@ class InstagramMQTTClient extends EventEmitter {
           rAttach.push({ type, url: u });
         }
       }
-      if (rAttach.length === 0 && replyTo && this._recentMessages && this._recentMessages.has(replyTo)) {
-        const cached = this._recentMessages.get(replyTo);
+      if (rAttach.length === 0 && replyTo) {
+        const cached = (this._recentMessages && this._recentMessages.get(replyTo)) ||
+                       (typeof global !== "undefined" && global.recentMessages && global.recentMessages.get(String(replyTo)));
         if (cached && Array.isArray(cached.attachments) && cached.attachments.length > 0) {
           for (const ca of cached.attachments) rAttach.push(ca);
         }
@@ -943,12 +954,12 @@ class InstagramMQTTClient extends EventEmitter {
       repliedMessage = {
         messageID: (repliedObj.item_id || repliedObj.id || replyTo)?.toString(),
         senderID: (repliedObj.user_id || repliedObj.sender_id)?.toString(),
-        body: repliedObj.text || (this._recentMessages?.get(replyTo)?.body) || "",
+        body: repliedObj.text || repliedObj.caption?.text || (this._recentMessages?.get(replyTo)?.body) || (typeof global !== "undefined" && global.recentMessages?.get(String(replyTo))?.body) || "",
         attachments: rAttach,
         timestamp: (repliedObj.timestamp || "").toString()
       };
-    } else if (replyTo && this._recentMessages && this._recentMessages.has(replyTo)) {
-      const cached = this._recentMessages.get(replyTo);
+    } else if (replyTo && ((this._recentMessages && this._recentMessages.has(replyTo)) || (typeof global !== "undefined" && global.recentMessages && global.recentMessages.has(String(replyTo))))) {
+      const cached = (this._recentMessages && this._recentMessages.get(replyTo)) || (global.recentMessages.get(String(replyTo)));
       repliedMessage = {
         messageID: replyTo,
         senderID: cached.senderID,
@@ -975,11 +986,12 @@ class InstagramMQTTClient extends EventEmitter {
     // Raven / disappearing / visual media
     if (item.item_type === 'raven_media' || item.visual_media || item.raven_media || item.item_type === 'visual_media') {
       const vm = item.visual_media?.media || item.raven_media?.media || item.media;
-      const vUrl = vm?.image_versions2?.candidates?.[0]?.url || vm?.video_versions?.[0]?.url || vm?.url;
+      const vUrl = vm?.image_versions2?.candidates?.[0]?.url || vm?.candidates?.[0]?.url || vm?.video_versions?.[0]?.url || vm?.url;
+      const bodyText = item.text || item.caption?.text || (typeof item.caption === "string" ? item.caption : "") || vm?.caption?.text || (typeof vm?.caption === "string" ? vm?.caption : "") || '';
       return {
         type: 'message',
         senderID: sid,
-        body: item.text || '',
+        body: bodyText,
         threadID: tid,
         messageID: mid,
         timestamp: ts,
@@ -994,15 +1006,16 @@ class InstagramMQTTClient extends EventEmitter {
       };
     }
 
-    // Media / photo / video / clip
+    // Media / photo / video / clip / xma share
     if (item.item_type === 'media' || item.item_type === 'photo' ||
-        item.item_type === 'video_call_event' || item.item_type === 'clip' || item.clip || item.media_share || item.media || item.image_versions2) {
-      const clipMedia = item.clip?.clip || item.media_share || item.media || item;
-      const mUrl = clipMedia?.image_versions2?.candidates?.[0]?.url || clipMedia?.video_versions?.[0]?.url || clipMedia?.url;
+        item.item_type === 'video_call_event' || item.item_type === 'clip' || item.clip || item.media_share || item.media || item.image_versions2 || item.xma_share || item.item_type === 'xma') {
+      const clipMedia = item.clip?.clip || item.media_share || item.media || item.xma_share || item;
+      const mUrl = clipMedia?.image_versions2?.candidates?.[0]?.url || clipMedia?.candidates?.[0]?.url || clipMedia?.video_versions?.[0]?.url || clipMedia?.preview_url || clipMedia?.target_url || clipMedia?.url;
+      const bodyText = item.text || item.caption?.text || (typeof item.caption === "string" ? item.caption : "") || clipMedia?.caption?.text || (typeof clipMedia?.caption === "string" ? clipMedia?.caption : "") || '';
       return {
         type: 'message',
         senderID: sid,
-        body: item.text || clipMedia?.caption?.text || '',
+        body: bodyText,
         threadID: tid,
         messageID: mid,
         timestamp: ts,
@@ -1072,6 +1085,29 @@ class InstagramMQTTClient extends EventEmitter {
 
     // Text / generic message item (fallback)
     if (item.item_type === 'text' || item.item_type === 'link' || item.text !== undefined || item.body !== undefined) {
+      const textAttachments = item.item_type === 'link' && item.link?.link_context ? [{
+        type: 'share',
+        url: item.link.link_context.link_url,
+        title: item.link.link_context.link_title
+      }] : [];
+
+      if (textAttachments.length === 0) {
+        const mObj = item.media || item.visual_media?.media || item.raven_media?.media || item.clip?.clip || item.media_share || item.xma_share;
+        const mUrl = mObj?.image_versions2?.candidates?.[0]?.url
+          || mObj?.candidates?.[0]?.url
+          || item.image_versions2?.candidates?.[0]?.url
+          || mObj?.video_versions?.[0]?.url
+          || mObj?.preview_url
+          || mObj?.target_url
+          || mObj?.url;
+        if (mUrl) {
+          textAttachments.push({
+            type: (mObj?.media_type === 2 || mObj?.video_versions) ? 'video' : 'photo',
+            url: mUrl
+          });
+        }
+      }
+
       return {
         type: 'message',
         senderID: sid,
@@ -1082,11 +1118,7 @@ class InstagramMQTTClient extends EventEmitter {
         isGroup,
         replyTo,
         repliedMessage,
-        attachments: item.item_type === 'link' && item.link?.link_context ? [{
-          type: 'share',
-          url: item.link.link_context.link_url,
-          title: item.link.link_context.link_title
-        }] : [],
+        attachments: textAttachments,
         mentions: {}
       };
     }

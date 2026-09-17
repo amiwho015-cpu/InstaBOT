@@ -516,28 +516,39 @@ function findImageInMessage(msg) {
 	if (typeof msg === "string" && /^https?:\/\//i.test(msg)) return msg;
 	if (typeof msg !== "object") return null;
 
-	// 1. Array of attachments
-	const attachs = Array.isArray(msg.attachments) ? msg.attachments : (msg.attachment ? [msg.attachment] : []);
+	// 1. Direct array of attachments or attachment field
+	const attachs = Array.isArray(msg.attachments) ? msg.attachments : (msg.attachment ? (Array.isArray(msg.attachment) ? msg.attachment : [msg.attachment]) : []);
 	for (const a of attachs) {
 		if (!a) continue;
 		if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
-		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.src || a.uri;
+		const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.src || a.uri || a.candidate?.url || a.candidates?.[0]?.url;
 		if (u && typeof u === "string") return u;
 		if (u && typeof u === "object" && u.url) return u.url;
 		if (a.image_versions2?.candidates?.[0]?.url) return a.image_versions2.candidates[0].url;
 		if (a.media?.image_versions2?.candidates?.[0]?.url) return a.media.image_versions2.candidates[0].url;
 		if (a.video_versions?.[0]?.url) return a.video_versions[0].url;
+		if (a.raw && typeof a.raw === "object") {
+			const rawU = findImageInMessage(a.raw);
+			if (rawU) return rawU;
+		}
 	}
 
 	// 2. Direct image or media fields
-	const m = msg.media || msg.visual_media?.media || msg.raven_media?.media || msg.clip?.clip || msg.media_share || msg.direct_story?.media;
+	const m = msg.media || msg.visual_media?.media || msg.raven_media?.media || msg.clip?.clip || msg.media_share || msg.direct_story?.media || msg.xma_share;
 	if (m) {
-		const u = m.image_versions2?.candidates?.[0]?.url || m.video_versions?.[0]?.url || m.url;
+		const u = m.image_versions2?.candidates?.[0]?.url || m.candidates?.[0]?.url || m.video_versions?.[0]?.url || m.preview_url || m.target_url || m.url;
 		if (u && typeof u === "string") return u;
 	}
+	if (msg.visual_media?.url && typeof msg.visual_media.url === "string") return msg.visual_media.url;
+	if (msg.visual_media?.image_versions2?.candidates?.[0]?.url) return msg.visual_media.image_versions2.candidates[0].url;
+	if (msg.raven_media?.image_versions2?.candidates?.[0]?.url) return msg.raven_media.image_versions2.candidates[0].url;
+	if (msg.raven_media?.url) return msg.raven_media.url;
 	if (msg.image_versions2?.candidates?.[0]?.url) return msg.image_versions2.candidates[0].url;
 	if (msg.carousel_share?.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url) {
 		return msg.carousel_share.carousel_media[0].image_versions2.candidates[0].url;
+	}
+	if (msg.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url) {
+		return msg.carousel_media[0].image_versions2.candidates[0].url;
 	}
 	if (msg.reel_share?.media?.image_versions2?.candidates?.[0]?.url) {
 		return msg.reel_share.media.image_versions2.candidates[0].url;
@@ -545,12 +556,24 @@ function findImageInMessage(msg) {
 	if (msg.story_share?.media?.image_versions2?.candidates?.[0]?.url) {
 		return msg.story_share.media.image_versions2.candidates[0].url;
 	}
-	if (msg.image) return typeof msg.image === "string" ? msg.image : (msg.image.url || null);
-	if (msg.photo) return typeof msg.photo === "string" ? msg.photo : (msg.photo.url || null);
+	if (msg.image) return typeof msg.image === "string" ? msg.image : (msg.image.url || (Array.isArray(msg.image) ? (typeof msg.image[0] === "string" ? msg.image[0] : msg.image[0]?.url) : null));
+	if (msg.photo) return typeof msg.photo === "string" ? msg.photo : (msg.photo.url || (Array.isArray(msg.photo) ? (typeof msg.photo[0] === "string" ? msg.photo[0] : msg.photo[0]?.url) : null));
+	if (Array.isArray(msg.images) && msg.images.length > 0) return typeof msg.images[0] === "string" ? msg.images[0] : msg.images[0]?.url;
+	if (Array.isArray(msg.photos) && msg.photos.length > 0) return typeof msg.photos[0] === "string" ? msg.photos[0] : msg.photos[0]?.url;
 	if (msg.url && (/\.(jpe?g|png|webp|gif|bmp)/i.test(msg.url) || /cdninstagram|fbcdn/i.test(msg.url))) return msg.url;
 
-	// 3. Link inside text/body
-	const text = msg.body || msg.text;
+	// 3. Nested raw or message objects
+	if (msg.raw && typeof msg.raw === "object" && msg.raw !== msg) {
+		const rawU = findImageInMessage(msg.raw);
+		if (rawU) return rawU;
+	}
+	if (msg.message && typeof msg.message === "object" && msg.message !== msg) {
+		const msgU = findImageInMessage(msg.message);
+		if (msgU) return msgU;
+	}
+
+	// 4. Link inside text/body
+	const text = msg.body || msg.text || msg.caption?.text || (typeof msg.caption === "string" ? msg.caption : "");
 	if (text) {
 		const match = String(text).match(/https?:\/\/[^\s]+/i);
 		if (match && (/\.(jpe?g|png|webp|gif|bmp)/i.test(match[0]) || /cdninstagram|fbcdn/i.test(match[0]))) return match[0];
@@ -565,25 +588,42 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 	const api = (apiOrOptions && (apiOrOptions.getUserInfo || apiOrOptions.getThreadHistory) ? apiOrOptions : null) || (apiOrOptions && apiOrOptions.api) || null;
 
 	// 1. Replied message object
-	const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.replyTo || event.replied_to_message || event.reply_to_item;
+	const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.reply_to_message || event.replyTo || event.replied_to_message || event.replied_to_item || event.reply_to_item || (event.raw && (event.raw.messageReply || event.raw.repliedMessage || event.raw.replyToMessage || event.raw.replied_to_message || event.raw.replied_to_item));
 	if (reply && typeof reply === "object") {
 		const u = findImageInMessage(reply);
 		if (u) return u;
 	}
 
 	// 1b. Fast in-memory cache lookup by replied message ID
-	const replyID = (reply && (reply.messageID || reply.item_id || reply.id)) ||
-	                (typeof event.replyTo === "string" ? event.replyTo : (event.replyTo && (event.replyTo.messageID || event.replyTo.id))) ||
-	                event.replyToItemId || event.replied_to_item_id || event.reply_to_item_id;
-	if (replyID && global.recentMessages && global.recentMessages.has(String(replyID))) {
-		const cached = global.recentMessages.get(String(replyID));
-		const u = findImageInMessage(cached);
-		if (u) return u;
+	const replyID = (reply && (reply.messageID || reply.item_id || reply.id || reply.mid)) ||
+	                (typeof event.replyTo === "string" || typeof event.replyTo === "number" ? String(event.replyTo) : (event.replyTo && (event.replyTo.messageID || event.replyTo.item_id || event.replyTo.id))) ||
+	                event.replyToItemId || event.replied_to_item_id || event.reply_to_item_id ||
+	                event.replied_to_target_id || event.reply_to_target_id ||
+	                (event.raw && (event.raw.replyTo || event.raw.replied_to_item_id || event.raw.replied_to_target_id));
+
+	if (replyID) {
+		const idStr = String(replyID);
+		if (global.recentMessages && global.recentMessages.has(idStr)) {
+			const cached = global.recentMessages.get(idStr);
+			const u = findImageInMessage(cached);
+			if (u) return u;
+		}
+		const icaRecent = (api && api._raw && api._raw.mqtt && api._raw.mqtt._recentMessages) ||
+		                  (api && api._recentMessages);
+		if (icaRecent && icaRecent.has(idStr)) {
+			const cached = icaRecent.get(idStr);
+			const u = findImageInMessage(cached);
+			if (u) return u;
+		}
 	}
 
-	// 2. Current message attachments
+	// 2. Current message attachments & media
 	const currUrl = findImageInMessage(event);
 	if (currUrl) return currUrl;
+	if (event.raw && typeof event.raw === "object") {
+		const rawUrl = findImageInMessage(event.raw);
+		if (rawUrl) return rawUrl;
+	}
 
 	// 3. Direct URL in args
 	if (Array.isArray(args) && args.length > 0) {
@@ -598,22 +638,40 @@ async function extractImageUrl(event, args = [], apiOrOptions = null) {
 		if (m && (/\.(jpe?g|png|webp|gif|bmp)/i.test(m[0]) || /cdninstagram|fbcdn/i.test(m[0]))) return m[0];
 	}
 
-	// 5. If we have api and threadID, check thread history (Floppa intelligence)
-	const threadID = event.threadID || event.threadId;
-	if (api && threadID && typeof api.getThreadHistory === "function") {
+	// 5. If we have api and threadID, check thread history with timeout race
+	const threadID = event.threadID || event.threadId || (event.raw && (event.raw.threadID || event.raw.thread_id));
+	if (api && threadID && (typeof api.getThreadHistory === "function" || typeof api.getThreadInfo === "function")) {
 		try {
-
-			const history = await new Promise((resolve) => {
+			const historyPromise = new Promise((resolve) => {
+				let done = false;
 				const handler = (err, res) => {
+					if (done) return;
+					done = true;
 					if (err) return resolve(null);
 					const msgs = (res && res.messages) || (res && res.items) || (res && res.thread && res.thread.items) || (Array.isArray(res) ? res : null);
 					resolve(msgs);
 				};
-				const ret = api.getThreadHistory(threadID, 15, undefined, handler);
-				if (ret && typeof ret.then === "function") {
-					ret.then(res => handler(null, res)).catch(err => handler(err));
+				try {
+					if (typeof api.getThreadHistory === "function") {
+						const ret = api.getThreadHistory(threadID, 15, undefined, handler);
+						if (ret && typeof ret.then === "function") {
+							ret.then(res => handler(null, res)).catch(err => handler(err));
+						}
+					} else if (typeof api.getThreadInfo === "function") {
+						const ret = api.getThreadInfo(threadID, handler);
+						if (ret && typeof ret.then === "function") {
+							ret.then(res => handler(null, res)).catch(err => handler(err));
+						}
+					}
+				} catch (_) {
+					resolve(null);
 				}
 			});
+
+			const history = await Promise.race([
+				historyPromise,
+				new Promise(resolve => setTimeout(() => resolve(null), 3500))
+			]);
 
 			if (Array.isArray(history) && history.length > 0) {
 				if (replyID) {
