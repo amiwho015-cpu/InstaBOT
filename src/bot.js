@@ -35,9 +35,7 @@ function loadServerCookies() {
  * bot talks to the private ig-chat-api server through auth.js; otherwise it
  * falls back to a locally-installed ig-chat-api package (Mode B, development).
  */
-function resolveLogin(config) {
-	const server = config.server || {};
-	if (server.url && server.token) return { login: serverLogin, mode: "server" };
+function resolveDirectLogin() {
 	try {
 		return { login: require("ig-chat-api"), mode: "direct" };
 	}
@@ -54,10 +52,45 @@ function resolveLogin(config) {
 		log.error("ICA", "Could not load local ICA engine", err);
 	}
 	throw new Error(
-		"No server configured and the direct 'ig-chat-api' package or local 'ica' is not available.\n" +
-		"Recommended: set server.url + server.token in config.json (or IG_API_SERVER / IG_API_TOKEN).\n" +
-		"Mode B (development): place cookies in account.txt."
+		"Direct mode selected, but neither 'ig-chat-api' package nor local 'ica' engine could be loaded."
 	);
+}
+
+function resolveServerLogin(config) {
+	const server = config.server || {};
+	if (server.url && server.token) return { login: serverLogin, mode: "server" };
+	throw new Error(
+		"Server mode selected, but server.url or server.token is not configured.\n" +
+		"Set server.url + server.token in config.json or via IG_API_SERVER and IG_API_TOKEN."
+	);
+}
+
+/**
+ * Resolve the login function. Supports direct mode (local ica engine / ig-chat-api)
+ * and server mode (auth.js RPC bridge).
+ */
+function resolveLogin(config) {
+	const requestedMode = (process.env.EXECUTION_MODE || process.env.MODE || config.mode || "").trim().toLowerCase();
+
+	if (requestedMode === "direct") {
+		return resolveDirectLogin();
+	}
+	if (requestedMode === "server") {
+		return resolveServerLogin(config);
+	}
+
+	// If custom IG_API_SERVER is explicitly configured in environment, use server mode
+	if (process.env.IG_API_SERVER && process.env.IG_API_SERVER.trim()) {
+		return resolveServerLogin(config);
+	}
+
+	// Fallback to server if configured, else direct
+	const server = config.server || {};
+	if (server.url && server.token) {
+		return { login: serverLogin, mode: "server" };
+	}
+
+	return resolveDirectLogin();
 }
 
 /**
@@ -267,8 +300,19 @@ function createBot(config) {
 				const { createAPIWrapper } = require("../platforms/instagram/adapter/apiWrapper");
 				const wrappedApi = createAPIWrapper(api, config);
 				state.api = wrappedApi;
-				state.botID = String(wrappedApi.getCurrentUserID());
-				dispatcher = createDispatcher({ api: wrappedApi, config, registry, database });
+				const currentUID = wrappedApi.getCurrentUserID();
+				state.botID = (currentUID && currentUID !== "null" && currentUID !== "undefined") ? String(currentUID) : null;
+				if (!state.botID) {
+					const creds = checkCredentialsStatus();
+					if (creds && creds.userID && creds.userID !== "unknown") state.botID = String(creds.userID);
+				}
+				dispatcher = createDispatcher({
+					api: wrappedApi,
+					config,
+					registry,
+					database,
+					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } }
+				});
 
 				try {
 					const fetchInfo = api.getUserInfo(state.botID);
@@ -278,7 +322,7 @@ function createBot(config) {
 					log.success("LOGIN", `Logged in as ${state.botID}${profile && profile.vanity ? ` (@${profile.vanity})` : ""}`);
 				}
 				catch (_) {
-					log.success("LOGIN", `Logged in as ${state.botID}`);
+					log.success("LOGIN", `Logged in as ${state.botID || "Instagram User"}`);
 				}
 
 				startListening();
@@ -339,7 +383,11 @@ function createBot(config) {
 
 		state.messagesHandled++;
 
-		if (shouldLog(event.type)) {
+		// Real-time console logging for messages and user actions
+		if (event.type === "message" || event.type === "message_reply") {
+			const bodyPreview = (event.body || "").replace(/\s+/g, " ").slice(0, 80);
+			log.info(String(event.type).toUpperCase(), `[Thread: ${event.threadID}] [User: ${event.senderID || event.userID}]: "${bodyPreview}"`);
+		} else if (shouldLog(event.type)) {
 			const shown = Object.assign({}, event);
 			if (Array.isArray(shown.participantIDs)) shown.participantIDs = `Array(${shown.participantIDs.length})`;
 			log.info(String(event.type).toUpperCase(), JSON.stringify(shown));

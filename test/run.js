@@ -598,12 +598,12 @@ async function main() {
 			messageID: "reaction1",
 			targetMessageID: "bot_msg_to_unsend",
 			senderID: "admin1",
-			reaction: "😡",
+			reaction: "✋",
 			isGroup: true
 		});
 
 		const unsendCalls = api.calls.filter(c => c.method === "unsendMessage");
-		assert.ok(unsendCalls.some(c => c.id === "bot_msg_to_unsend" && c.threadID === "t"), "expected target message to be unsent on angry reaction");
+		assert.ok(unsendCalls.some(c => c.id === "bot_msg_to_unsend" && c.threadID === "t"), "expected target message to be unsent on hand reaction");
 	});
 
 	await test("dispatcher: reply handler is invoked", async () => {

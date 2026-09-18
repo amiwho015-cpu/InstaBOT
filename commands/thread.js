@@ -35,10 +35,10 @@ module.exports = {
 		}
 
 		const action = (args[0] || "info").toLowerCase();
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 
 		if (action === "info") {
-			const activePrefix = tData.prefix || config.prefix || "*";
+			const activePrefix = (tData.prefix !== undefined && tData.prefix !== null) ? tData.prefix : p;
 			const isBanned = Boolean(tData.banned?.status || tData.settings?.banned);
 			const isOff = Boolean(tData.adminOnly || tData.settings?.adminOnly || tData.settings?.botOff);
 			const autoTalk = Boolean(tData.autotalk || tData.settings?.autotalk);

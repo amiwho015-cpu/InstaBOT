@@ -125,7 +125,7 @@ module.exports = {
 		}
 
 		const action = (args.shift() || "list").toLowerCase();
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 
 		// Toggle events for this chat
 		if (action === "off" || action === "disable") {

@@ -39,7 +39,7 @@ module.exports = {
 		}
 
 		const type = (args[0] || "").toLowerCase();
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 
 		if (!type || type === "view" || type === "list") {
 			if (!rulesOfThread.length) {

@@ -36,11 +36,11 @@ class HttpClient extends EventEmitter {
     this.viewportHeight = options.viewportHeight || 905;
     // Adaptive rate limiting (learns from 429 responses).
     this.rateLimitController = new AdaptiveRateLimiter({
-      globalMinDelayMs: options.globalRateLimitDelay || 1500,
-      perUrlBaseDelayMs: options.perUrlBaseDelayMs || 1000
+      globalMinDelayMs: options.globalRateLimitDelay !== undefined ? options.globalRateLimitDelay : 0,
+      perUrlBaseDelayMs: options.perUrlBaseDelayMs !== undefined ? options.perUrlBaseDelayMs : 0
     });
     // Kept for backwards compatibility / inspection.
-    this.globalRateLimitDelay = options.globalRateLimitDelay || 1500;
+    this.globalRateLimitDelay = options.globalRateLimitDelay !== undefined ? options.globalRateLimitDelay : 0;
     this.maxRetries = options.maxRetries || 3;
     this.retryDelay = options.retryDelay || 2000;
     this.rateLimitBackoffMultiplier = 2;

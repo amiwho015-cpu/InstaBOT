@@ -78,8 +78,8 @@ class SendMessage {
     this.uuid      = options.uuid;
     this.sendMedia = null; // injected by instagramChat after construction
 
-    // Per-thread send rate limit — prevents spamming a single thread.
-    this.perThreadMinDelayMs = options.perThreadMinDelayMs || 800;
+    // Per-thread send rate limit — prevents spamming a single thread while keeping normal replies instantaneous.
+    this.perThreadMinDelayMs = options.perThreadMinDelayMs !== undefined ? options.perThreadMinDelayMs : 50;
     this._lastSendByThread = new Map();
     this._maxThreadEntries = 1000;
 
@@ -131,6 +131,17 @@ class SendMessage {
 
     if (messageID && threadID) {
       this.http.rememberMessageThread(messageID, threadID);
+      if (typeof global !== "undefined") {
+        if (!global.recentMessages) global.recentMessages = new Map();
+        const botID = String(this.session?.userID || this.userID || this.http?.getCookieValue?.('ds_user_id') || "");
+        global.recentMessages.set(String(messageID), {
+          messageID: String(messageID),
+          threadID: String(threadID),
+          senderID: botID,
+          isBot: true,
+          timestamp: Date.now()
+        });
+      }
     }
 
     return { threadID, messageID, timestamp: Date.now().toString(), clientContext };

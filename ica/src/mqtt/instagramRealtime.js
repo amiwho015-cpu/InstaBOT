@@ -150,6 +150,14 @@ class InstagramMQTTClient extends EventEmitter {
   }
   
   async _connectMQTT() {
+    if (this.mqttClient) {
+      try {
+        this.mqttClient.removeAllListeners();
+        this.mqttClient.end(true);
+      } catch (_) {}
+      this.mqttClient = null;
+    }
+
     const cookieHeader = this._buildCookieHeader();
     const cid = this.uuid || this.deviceId;
     const endpoints = [
@@ -713,9 +721,10 @@ class InstagramMQTTClient extends EventEmitter {
       log.silly(`message on ${topic} len=${message ? message.length : 0}`);
 
       if (Buffer.isBuffer(message)) {
-        // Try zlib inflate first, then raw deflate, then plain JSON
+        // Try gunzip first, then zlib inflate, raw deflate, then plain JSON
         let parsed = false;
         for (const tryFn of [
+          () => JSON.parse(zlib.gunzipSync(message).toString()),
           () => JSON.parse(zlib.inflateSync(message).toString()),
           () => JSON.parse(zlib.inflateRawSync(message).toString()),
           () => JSON.parse(message.toString())

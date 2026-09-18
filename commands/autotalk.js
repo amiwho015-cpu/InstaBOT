@@ -55,7 +55,7 @@ module.exports = {
 		}
 
 		const currentState = Boolean(tData.autotalk === true || tData.settings.autotalk === true);
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 		return message.reply(`🗣️ Auto-Talk Status: ${currentState ? "ENABLED ✅" : "DISABLED ❌"}\n\nUsage:\n• ${p}autotalk on — Enable auto-talk\n• ${p}autotalk off — Disable auto-talk`);
 	},
 

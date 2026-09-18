@@ -97,7 +97,17 @@ function buildApi(client) {
     },
     sendDirectMessage: (userID, message, cb)                      => client.sendDirectMessage(userID, message, cb),
     replyToMessage:    (threadID, message, replyToMessageID, cb)  => client.replyToMessage(threadID, message, replyToMessageID, cb),
-    unsendMessage:     (messageID, cb)                            => client.unsendMessage(messageID, cb),
+    unsendMessage:     (messageID, threadIDOrCallback, cb) => {
+      let threadID = undefined;
+      let callback = undefined;
+      if (typeof threadIDOrCallback === "function") {
+        callback = threadIDOrCallback;
+      } else {
+        threadID = threadIDOrCallback;
+        if (typeof cb === "function") callback = cb;
+      }
+      return client.unsendMessage(messageID, threadID, callback);
+    },
 
     // Media
     sendPhoto:        (a, b, c, d) => {

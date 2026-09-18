@@ -181,8 +181,12 @@ class Dispatcher {
 
 		if (isGlobalAdminOnly && userRole < 2) {
 			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
-			const p = threadData?.prefix || this.config.PREFIX || "*";
-			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
+			const p = (threadData?.prefix !== undefined && threadData?.prefix !== null)
+				? threadData.prefix
+				: (this.config.PREFIX !== undefined ? this.config.PREFIX : (this.config.prefix !== undefined ? this.config.prefix : "*"));
+			const cmdName = (p !== "" && (event.body || "").trim().startsWith(p))
+				? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase()
+				: ((event.body || "").trim().split(/\s+/)[0]?.toLowerCase());
 			if (!cmdName || !ignored.includes(cmdName)) {
 				return; // Silently ignore non-admins when global admin-only is on (Floppa standard)
 			}
@@ -190,16 +194,24 @@ class Dispatcher {
 
 		if (isThreadAdminOnly && userRole < 1) {
 			const ignored = (this.config.ADMIN_ONLY_IGNORE_COMMANDS || this.config.adminOnly?.ignoreCommands || []).map(s => s.toLowerCase());
-			const p = threadData?.prefix || this.config.PREFIX || "*";
-			const cmdName = (event.body || "").trim().startsWith(p) ? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase() : "";
+			const p = (threadData?.prefix !== undefined && threadData?.prefix !== null)
+				? threadData.prefix
+				: (this.config.PREFIX !== undefined ? this.config.PREFIX : (this.config.prefix !== undefined ? this.config.prefix : "*"));
+			const cmdName = (p !== "" && (event.body || "").trim().startsWith(p))
+				? (event.body || "").trim().slice(p.length).trim().split(/\s+/)[0]?.toLowerCase()
+				: ((event.body || "").trim().split(/\s+/)[0]?.toLowerCase());
 			if (!cmdName || !ignored.includes(cmdName)) {
 				return; // Silently ignore non-admins when thread admin-only is on (Floppa standard)
 			}
 		}
 
 		// Prefix Resolution
-		const globalPrefix = this.config.PREFIX || this.config.prefix || "*";
-		const threadPrefix = threadData?.prefix || globalPrefix;
+		const globalPrefix = this.config.PREFIX !== undefined
+			? this.config.PREFIX
+			: (this.config.prefix !== undefined ? this.config.prefix : "*");
+		const threadPrefix = (threadData?.prefix !== undefined && threadData?.prefix !== null)
+			? threadData.prefix
+			: globalPrefix;
 		const body = (event.body || "").trim();
 
 		if (body.toLowerCase() === "prefix") {
@@ -210,14 +222,14 @@ class Dispatcher {
 			return;
 		}
 
-		const startsWithGlobal = globalPrefix && body.startsWith(globalPrefix);
-		const startsWithThread = threadPrefix && body.startsWith(threadPrefix);
-		const activePrefix = startsWithThread ? threadPrefix : (startsWithGlobal ? globalPrefix : null);
+		const startsWithGlobal = globalPrefix !== "" && body.startsWith(globalPrefix);
+		const startsWithThread = threadPrefix !== "" && body.startsWith(threadPrefix);
+		const activePrefix = startsWithThread ? threadPrefix : (startsWithGlobal ? globalPrefix : (globalPrefix === "" ? "" : null));
 
 		let commandName = "";
 		let args = [];
 
-		if (activePrefix) {
+		if (activePrefix !== null) {
 			const rawContent = body.slice(activePrefix.length).trim();
 			args = rawContent.split(/\s+/);
 			commandName = (args.shift() || "").toLowerCase();
@@ -297,7 +309,9 @@ class Dispatcher {
 		}
 
 		const threadData = database.getThreadData(event.threadID);
-		const prefix = threadData?.prefix || this.config.PREFIX || "*";
+		const prefix = (threadData?.prefix !== undefined && threadData?.prefix !== null)
+			? threadData.prefix
+			: (this.config.PREFIX !== undefined ? this.config.PREFIX : (this.config.prefix !== undefined ? this.config.prefix : "*"));
 		const message = createMessageContext({ api: this.bot.api, event, command, prefix });
 		const args = event.body ? event.body.trim().split(/\s+/) : [];
 
@@ -350,7 +364,9 @@ class Dispatcher {
 				if (authorMatch) {
 					const database = global.db || require("../utils/database");
 					const threadData = database.getThreadData(event.threadID);
-					const prefix = threadData?.prefix || this.config.PREFIX || "*";
+					const prefix = (threadData?.prefix !== undefined && threadData?.prefix !== null)
+						? threadData.prefix
+						: (this.config.PREFIX !== undefined ? this.config.PREFIX : (this.config.prefix !== undefined ? this.config.prefix : "*"));
 					const message = createMessageContext({ api: this.bot.api, event, command, prefix });
 
 					try {
@@ -379,8 +395,10 @@ class Dispatcher {
 		}
 
 		// Direct reaction unsend handler
-		const UNSEND_EMOJIS = ["😡", "😠", "❌", "🗑️", "👎"];
-		if (UNSEND_EMOJIS.includes(event.reaction) && event.reactionStatus !== "deleted") {
+		const UNSEND_EMOJIS = [
+			"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
+		];
+		if (UNSEND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h) && event.reactionStatus !== "deleted") {
 			const database = global.db || require("../utils/database");
 			const threadData = database.getThreadData ? database.getThreadData(event.threadID) : null;
 			const userRole = this.permissions.getUserRole(event.senderID, event.threadID, threadData);

@@ -375,7 +375,7 @@ class InstagramChatAPI extends EventEmitter {
 
     if (callback) {
       connectPromise.catch(() => {});
-      return;
+      return () => this.stopListening();
     }
     return connectPromise;
   }
@@ -415,13 +415,17 @@ class InstagramChatAPI extends EventEmitter {
     const options = getOptions();
 
     if (event && event.messageID) {
-      if (this.http.isMessageSeen(event.messageID)) return;
-      this.http.markMessageSeen(event.messageID);
+      // Only deduplicate new message events to avoid dropping reactions, edits, unsend notices or replies
+      const isDeduplicatable = event.type === 'message' || event.type === 'message_reply';
+      if (isDeduplicatable) {
+        if (this.http.isMessageSeen(event.messageID)) return;
+        this.http.markMessageSeen(event.messageID);
+      }
     }
     
     if (event && event.type === 'message' && !options.selfListen) {
       const currentUserIDObj = this.getCurrentUserID();
-      const currentUserId = currentUserIDObj && currentUserIDObj.userId ? currentUserIDObj.userId.toString() : null;
+      const currentUserId = currentUserIDObj && (currentUserIDObj.userId || currentUserIDObj.userID || (typeof currentUserIDObj === 'string' ? currentUserIDObj : null)) ? String(currentUserIDObj.userId || currentUserIDObj.userID || currentUserIDObj) : null;
       if (currentUserId && event.senderID === currentUserId) {
         return;
       }
@@ -469,8 +473,16 @@ class InstagramChatAPI extends EventEmitter {
     return this.sendMessage.reply(threadID, message, replyToMessageID, callback);
   }
 
-  unsendMessage(messageID, callback) {
-    return this.unsend.unsend(messageID, callback);
+  unsendMessage(messageID, threadIDOrCallback, callback) {
+    let threadID = null;
+    let cb = null;
+    if (typeof threadIDOrCallback === 'function') {
+      cb = threadIDOrCallback;
+    } else {
+      threadID = threadIDOrCallback;
+      if (typeof callback === 'function') cb = callback;
+    }
+    return this.unsend.unsend(messageID, threadID, cb);
   }
 
   // ==================== MEDIA METHODS ====================

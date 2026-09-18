@@ -27,6 +27,16 @@ class UnsendMessage {
         throw new Error('Message ID is required');
       }
 
+      if (typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
+        const cached = global.recentMessages.get(String(messageID));
+        const botID = this.http?.getCookieValue?.('ds_user_id');
+        if (cached && cached.senderID && botID && String(cached.senderID) !== String(botID)) {
+          const notOurMessageErr = new Error('Cannot unsend message sent by another user');
+          if (callback) return callback(notOurMessageErr);
+          throw notOurMessageErr;
+        }
+      }
+
       const resolvedThreadID = await this.resolveThreadID(messageID, threadID);
       const csrfToken = this.http.getCsrfToken();
       if (!csrfToken) {

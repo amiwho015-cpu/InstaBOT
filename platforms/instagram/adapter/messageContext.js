@@ -23,12 +23,22 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 		api = apiOrOpts.api;
 		event = apiOrOpts.event;
 		command = apiOrOpts.command || null;
-		prefix = apiOrOpts.prefix || "*";
+		prefix = (apiOrOpts.prefix !== undefined && apiOrOpts.prefix !== null)
+			? apiOrOpts.prefix
+			: ((apiOrOpts.config && apiOrOpts.config.prefix !== undefined && apiOrOpts.config.prefix !== null)
+				? apiOrOpts.config.prefix
+				: ((api && api.config && api.config.prefix !== undefined && api.config.prefix !== null)
+					? api.config.prefix
+					: "*"));
 	} else {
 		api = apiOrOpts;
 		event = maybeEvent || {};
 		command = maybeOpts.command || null;
-		prefix = maybeOpts.prefix || "*";
+		prefix = (maybeOpts.prefix !== undefined && maybeOpts.prefix !== null)
+			? maybeOpts.prefix
+			: ((api && api.config && api.config.prefix !== undefined && api.config.prefix !== null)
+				? api.config.prefix
+				: "*");
 	}
 
 	const threadID = event.threadID;

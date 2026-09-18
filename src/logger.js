@@ -27,13 +27,28 @@ function timestamp() {
 
 let quiet = false;
 
-function write(level, color, tag, message, args) {
+function write(level, color, tag, message, args = []) {
 	if (quiet) return;
-	const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
-	stream.write(`${paint("dim", timestamp())} ${paint("magenta", `[${tag}]`)} ${paint(color, message)}\n`);
-	for (const item of args) {
-		if (item instanceof Error) stream.write(`  ${item.stack || item.message}\n`);
-		else stream.write(`  ${typeof item === "string" ? item : JSON.stringify(item, null, 2)}\n`);
+	let outTag = tag;
+	let outMsg = message;
+	let outArgs = Array.isArray(args) ? args : [args];
+	if (outMsg === undefined) {
+		outMsg = outTag;
+		outTag = level.toUpperCase();
+	}
+	const formatted = `${paint("dim", timestamp())} ${paint("magenta", `[${outTag}]`)} ${paint(color, String(outMsg))}`;
+	if (level === "error" || level === "warn") {
+		console.error(formatted);
+		for (const item of outArgs) {
+			if (item instanceof Error) console.error(`  ${item.stack || item.message}`);
+			else console.error(`  ${typeof item === "string" ? item : JSON.stringify(item, null, 2)}`);
+		}
+	} else {
+		console.log(formatted);
+		for (const item of outArgs) {
+			if (item instanceof Error) console.log(`  ${item.stack || item.message}`);
+			else console.log(`  ${typeof item === "string" ? item : JSON.stringify(item, null, 2)}`);
+		}
 	}
 }
 

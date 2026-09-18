@@ -1,13 +1,6 @@
 {
   "botName": "InstaBOT",
-  "prefix": "*",
-  "language": "en",
   "adminBot": [],
-  "devUsers": [
-    "36296727311",
-    "49212864825"
-  ],
-  "nickNameOnStart": "InstaBOT",
   "env": {
     "token": "chat.api.toke.neokex.ica.token.can.change.a9y.2ime.ok",
     "url": "https://nkx-ica.neokex.xyz",
@@ -30,8 +23,6 @@
     "apiToken": "",
     "notes": "Song search for the sing command. Leave apiUrl/apiToken blank to search Instagram's own music catalogue. Point them at your music server to search there instead; {query} is replaced with the song text."
   },
-  "antiInbox": false,
-  "noPrefix": false,
   "welcome": {
     "enable": false,
     "message": "Welcome %1 to %2! 👋",
@@ -44,40 +35,6 @@
     "message": "%1 left %2. 👋",
     "threadIDs": [],
     "notes": "Announce members who leave or are removed from a group thread. %1 = the member, %2 = the thread name. Leave threadIDs empty for every thread."
-  },
-  "defaultOff": false,
-  "adminOnly": {
-    "enable": false,
-    "ignoreCommands": []
-  },
-  "whiteList": {
-    "enable": false,
-    "userIDs": [],
-    "threadIDs": []
-  },
-  "hideNotiMessage": {
-    "commandNotFound": false,
-    "adminOnly": false,
-    "userBanned": false,
-    "needRoleToUseCommand": false
-  },
-  "cooldown": {
-    "default": 1
-  },
-  "selfListen": true,
-  "listenEvents": true,
-  "autoMarkRead": false,
-  "autoMarkDelivery": true,
-  "autoReconnect": true,
-  "restartListenInterval": 3600000,
-  "logEvents": {
-    "disableAll": false,
-    "message": true,
-    "message_reply": true,
-    "message_reaction": true,
-    "message_unsend": true,
-    "read_receipt": false,
-    "typ": false
   },
   "onlineStatus": {
     "enable": true,

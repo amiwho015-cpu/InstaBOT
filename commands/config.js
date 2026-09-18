@@ -45,7 +45,7 @@ module.exports = {
 		}
 
 		const action = (args[0] || "").toLowerCase();
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 
 		// 1. Reload config from disk (Bot Admin only)
 		if (action === "reload" || action === "load") {

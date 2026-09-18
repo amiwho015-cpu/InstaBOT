@@ -114,8 +114,9 @@ module.exports = {
 		if (selfTargets.length) {
 			const selfTemplate = settings.selfMessage ||
 				"Thanks for inviting me to %2 💋. Type {prefix}help to see all available commands.";
+			const pref = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 			const text = fill(selfTemplate, [null, threadName || threadID])
-				.replace(/\{prefix\}/g, String(config.prefix == null ? "*" : config.prefix));
+				.replace(/\{prefix\}/g, String(pref));
 			try {
 				await message.send(text);
 			}

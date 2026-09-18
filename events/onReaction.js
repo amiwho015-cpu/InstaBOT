@@ -3,7 +3,7 @@
 /**
  * onReaction — runs for reaction events.
  * Records reactions so commands can inspect them, and removes messages that
- * the bot's own admins mark with an angry reaction.
+ * the bot's own admins mark with a hand or trash reaction.
  * Author: Saifullah Al Neoaz (https://github.com/lazyneoaz)
  */
 
@@ -24,14 +24,17 @@ module.exports = {
 		if (!targetID) return;
 
 		const HAND_EMOJIS = [
-			"✋", "🖐️", "🖐", "🤚", "👋", "👌", "👍", "👎",
-			"✍️", "🤝", "🖕", "👊", "🤛", "🤜", "🤞", "🫰",
-			"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
-			"👏", "🙌", "👐", "🤲", "🙏", "😡", "😠", "❌", "🗑️"
+			"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
 		];
 		if (!event.reaction || typeof event.reaction !== "string") return;
 		if (!HAND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h)) return;
 		if (event.reactionStatus === "deleted") return;
+
+		const botID = String((api && typeof api.getCurrentUserID === "function" ? api.getCurrentUserID() : "") || "").trim();
+		const cached = (global.recentMessages && typeof global.recentMessages.get === "function") ? global.recentMessages.get(String(targetID)) : null;
+		if (cached && cached.senderID && botID && String(cached.senderID) !== botID) {
+			return; // Cannot unsend messages sent by other users
+		}
 
 		const isBotAdmin = (api && typeof api.getCurrentUserID === "function" && String(api.getCurrentUserID() || "").trim() === senderID) || (config && (
 			(Array.isArray(config.adminBot) && config.adminBot.map(String).includes(senderID)) ||

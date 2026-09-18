@@ -358,6 +358,15 @@ function createAPIWrapper(rawClient, config = {}) {
 				if (typeof maybeCallback === "function") callback = maybeCallback;
 			}
 			const promise = (async () => {
+				if (global.recentMessages && typeof global.recentMessages.get === "function") {
+					const cached = global.recentMessages.get(String(messageID));
+					const currentUID = wrapper.getCurrentUserID();
+					if (cached && cached.senderID && currentUID && String(cached.senderID) !== String(currentUID)) {
+						const err = new Error("Cannot unsend message sent by another user");
+						err.code = "NOT_OWN_MESSAGE";
+						throw err;
+					}
+				}
 				if (ig && typeof ig.unsendMessage === "function") {
 					return await ig.unsendMessage(messageID, threadID);
 				}

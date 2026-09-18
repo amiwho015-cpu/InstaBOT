@@ -199,28 +199,30 @@ async function runSuite() {
     };
     bot.api = createAPIWrapper(bot.client.rawApi, bot.config);
 
-    // 1. Dispatch *ping
+    const activePrefix = bot.config.PREFIX !== undefined ? bot.config.PREFIX : (bot.config.prefix !== undefined ? bot.config.prefix : "*");
+
+    // 1. Dispatch ping
     await bot.dispatcher.dispatch({
       type: 'message',
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_ping',
-      body: '*ping',
+      body: `${activePrefix}ping`,
       args: [],
       attachments: []
     });
 
-    assert(replies.length > 0, 'Bot should have responded to *ping');
+    assert(replies.length > 0, `Bot should have responded to ${activePrefix}ping`);
     assert(replies.some(r => ((r && (r.text || r.body)) || '').toLowerCase().includes('pong') || ((r && (r.text || r.body)) || '').toLowerCase().includes('ping')), `Response should contain ping/pong`);
 
-    // 2. Dispatch *help to trigger interactive onReply registration
+    // 2. Dispatch help to trigger interactive onReply registration
     replies.length = 0;
     await bot.dispatcher.dispatch({
       type: 'message',
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_help',
-      body: '*help',
+      body: `${activePrefix}help`,
       args: [],
       attachments: []
     });
@@ -260,6 +262,7 @@ async function runSuite() {
   await test('Graceful Fallback on Facebook-only features (e.g. !theme)', async () => {
     const bot = new Bot();
     await bot.commandLoader.loadCommands();
+    const activePrefix = bot.config.PREFIX !== undefined ? bot.config.PREFIX : (bot.config.prefix !== undefined ? bot.config.prefix : "*");
 
     const replies = [];
     bot.api = {
@@ -278,12 +281,12 @@ async function runSuite() {
       threadID: 'test_thread',
       senderID: 'user_123',
       messageID: 'msg_theme',
-      body: '*theme blue',
+      body: `${activePrefix}theme blue`,
       args: ['blue'],
       attachments: []
     });
 
-    assert(replies.length > 0, 'Bot should reply to *theme');
+    assert(replies.length > 0, `Bot should reply to ${activePrefix}theme`);
     const msg = typeof replies[0] === 'string' ? replies[0] : replies[0].body;
     assert(msg.includes('not supported') || msg.includes('Instagram Direct'), `Expected friendly notice, got: ${msg}`);
   });

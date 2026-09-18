@@ -30,7 +30,7 @@ module.exports = {
 
 	onStart: async function ({ message, args, config, registry, bot, event }) {
 		const reg = registry || (bot && bot.commandLoader) || global.registry;
-		const prefix = (config && (config.prefix || config.PREFIX)) || "*";
+		const prefix = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 		const query = (args[0] || "").toLowerCase();
 
 		const getCmd = q => {

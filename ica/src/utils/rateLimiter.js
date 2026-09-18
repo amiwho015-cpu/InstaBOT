@@ -20,8 +20,8 @@
 
 class AdaptiveRateLimiter {
   constructor(options = {}) {
-    this.globalMinDelayMs = options.globalMinDelayMs || 1500;
-    this.perUrlBaseDelayMs = options.perUrlBaseDelayMs || 1000;
+    this.globalMinDelayMs = options.globalMinDelayMs !== undefined ? options.globalMinDelayMs : 0;
+    this.perUrlBaseDelayMs = options.perUrlBaseDelayMs !== undefined ? options.perUrlBaseDelayMs : 0;
     this.maxDelayMs = options.maxDelayMs || 60000;
     this.relaxAfterSuccesses = options.relaxAfterSuccesses || 10;
     this.relaxFactor = options.relaxFactor || 0.9;
@@ -87,7 +87,7 @@ class AdaptiveRateLimiter {
       if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) {
         e.delayMs = Math.min(this.maxDelayMs, retryAfterSec * 1000);
       } else {
-        e.delayMs = Math.min(this.maxDelayMs, e.delayMs * this.bumpFactor);
+        e.delayMs = Math.min(this.maxDelayMs, Math.max(1000, (e.delayMs || 500) * this.bumpFactor));
       }
       e.successStreak = 0;
       return;

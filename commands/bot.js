@@ -73,7 +73,7 @@ module.exports = {
 		}
 
 		const subCmd = args[0] ? args[0].toLowerCase() : "status";
-		const p = (config && (config.prefix || config.PREFIX)) || "*";
+		const p = (config && config.prefix !== undefined) ? config.prefix : ((config && config.PREFIX !== undefined) ? config.PREFIX : "*");
 
 		// 1. Global toggle / Default-Off (Bot Admin only)
 		if (subCmd === "global" || subCmd === "defaultoff" || subCmd === "default-off") {

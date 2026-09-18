@@ -398,10 +398,13 @@ class EventStream {
 
 	_onData(chunk) {
 		this.buffer += chunk;
-		let index;
-		while ((index = this.buffer.indexOf("\n\n")) !== -1) {
+		for (;;) {
+			const m = this.buffer.match(/\r?\n\r?\n/);
+			if (!m) break;
+			const index = m.index;
+			const delimLen = m[0].length;
 			const raw = this.buffer.slice(0, index);
-			this.buffer = this.buffer.slice(index + 2);
+			this.buffer = this.buffer.slice(index + delimLen);
 			this._onEvent(raw);
 		}
 		// Guard against a peer that never sends the delimiter.
@@ -427,6 +430,10 @@ class EventStream {
 	}
 
 	_scheduleReconnect() {
+		if (this.req) {
+			try { this.req.destroy(); } catch (_) { /* ignore */ }
+			this.req = null;
+		}
 		if (this.stopped || this.timer) return;
 		// Exponential backoff, capped, so a long server outage does not hammer it.
 		const delay = Math.min(this.maxRetry, this.retry * Math.pow(2, Math.min(5, this.attempts)));
@@ -497,22 +504,72 @@ function login(options, callback) {
 	};
 	api.sendReaction = api.setMessageReaction;
 
+	const originalUnsendMessage = api.unsendMessage;
+	api.unsendMessage = function (messageID, threadID, callback) {
+		let cb = callback;
+		let tid = threadID;
+		if (typeof tid === "function") {
+			cb = tid;
+			tid = undefined;
+		}
+		if (!tid) {
+			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || undefined;
+		}
+		if (typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
+			const cached = global.recentMessages.get(String(messageID));
+			const botID = String(api._userID || (api.getCurrentUserID ? api.getCurrentUserID() : "") || "");
+			if (cached && cached.senderID && botID && String(cached.senderID) !== botID) {
+				const err = new Error("Cannot unsend message sent by another user");
+				if (typeof cb === "function") {
+					cb(err);
+					return undefined;
+				}
+				return Promise.reject(err);
+			}
+		}
+		if (tid) {
+			return originalUnsendMessage(messageID, tid, cb);
+		}
+		return originalUnsendMessage(messageID, cb);
+	};
+
 	const originalSendMessage = api.sendMessage;
 	api.sendMessage = function (...args) {
 		if (args.length > 1 && (typeof args[1] === "string" || typeof args[1] === "number")) {
 			api._lastThreadID = String(args[1]);
 		}
+		const record = (res) => {
+			if (res && res.messageID) {
+				const mid = String(res.messageID);
+				const tid = String(res.threadID || args[1] || "");
+				if (tid) api._recentMessageThreads.set(mid, tid);
+				if (typeof global !== "undefined" && global.recentMessages) {
+					global.recentMessages.set(mid, {
+						messageID: mid,
+						threadID: tid,
+						senderID: String(api._userID || (api.getCurrentUserID ? api.getCurrentUserID() : "") || ""),
+						isBot: true,
+						timestamp: Date.now()
+					});
+				}
+			}
+			return res;
+		};
 		if (args.length === 4 && typeof args[2] !== "function" && args[3]) {
 			return new Promise((resolve, reject) => {
-				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), args[3]);
+				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(record(res)), args[3]);
 			});
 		}
 		if (args.length === 3 && (typeof args[2] === "string" || typeof args[2] === "number")) {
 			return new Promise((resolve, reject) => {
-				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(res), String(args[2]));
+				originalSendMessage(args[0], args[1], (err, res) => err ? reject(err) : resolve(record(res)), String(args[2]));
 			});
 		}
-		return originalSendMessage.apply(this, args);
+		const p = originalSendMessage.apply(this, args);
+		if (p && typeof p.then === "function") {
+			return p.then(record);
+		}
+		return p;
 	};
 
 	const originalSendImage = api.sendImage;

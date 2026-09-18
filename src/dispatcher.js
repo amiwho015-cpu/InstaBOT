@@ -158,8 +158,11 @@ function createDispatcher({ api, config, registry, database }) {
 		if (!body) return;
 		const senderID = senderIDOf(event);
 
-		const activePrefix = (threadData && (threadData.settings?.prefix || threadData.prefix)) || config.prefix || "*";
+		const threadPref = threadData && (threadData.settings?.prefix !== undefined ? threadData.settings.prefix : threadData.prefix);
+		const basePref = config.prefix !== undefined ? config.prefix : (config.PREFIX !== undefined ? config.PREFIX : "*");
+		const activePrefix = String((threadPref !== undefined && threadPref !== null) ? threadPref : basePref);
 		const hasPrefix = Boolean(activePrefix && body.startsWith(activePrefix));
+		const emptyPrefixMode = activePrefix === "";
 		const rawBody = hasPrefix ? body.slice(activePrefix.length).trim() : body.trim();
 		const rawArgs = rawBody ? rawBody.split(/\s+/) : [];
 		const rawName = (rawArgs[0] || "").toLowerCase();
@@ -173,7 +176,7 @@ function createDispatcher({ api, config, registry, database }) {
 			(isBotAdmin(senderID) || bare.config.noPrefixRole === 0);
 		const noPrefixAllowed = config.noPrefix === true && isBotAdmin(senderID);
 
-		if (!hasPrefix && !bareAllowed && !noPrefixAllowed) return;
+		if (!hasPrefix && !bareAllowed && !noPrefixAllowed && !emptyPrefixMode) return;
 
 		const args = rawArgs.slice();
 		const name = (args.shift() || "").toLowerCase();
@@ -185,6 +188,7 @@ function createDispatcher({ api, config, registry, database }) {
 		if (isThreadAdminOnly && role < ROLE_ADMIN_BOX) {
 			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
 			if (!name || !ignored.includes(name)) {
+				log.warn("COMMAND", `Ignored "${name}" from ${senderID} in thread ${event.threadID}: Thread is admin-only / bot-off`);
 				return;
 			}
 		}
@@ -194,6 +198,7 @@ function createDispatcher({ api, config, registry, database }) {
 		if (isGlobalAdminOnly && !isBotAdmin(senderID)) {
 			const ignored = (config.adminOnly?.ignoreCommands || config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(s => String(s).toLowerCase());
 			if (!name || !ignored.includes(name)) {
+				log.warn("COMMAND", `Ignored "${name}" from ${senderID} in thread ${event.threadID}: Global admin-only / default-off`);
 				return;
 			}
 		}
@@ -201,6 +206,7 @@ function createDispatcher({ api, config, registry, database }) {
 		const command = registry.resolve(name);
 
 		if (!command) {
+			log.info("DISPATCH", `Command not found: "${name}" from ${senderID} in thread ${event.threadID}`);
 			if (config.hideNotiMessage.commandNotFound || !hasPrefix) return;
 			const suggestion = suggestionFor(name);
 			// Uses the configured prefix via {pn}: "Did you mean *ping or try *help".
@@ -212,6 +218,7 @@ function createDispatcher({ api, config, registry, database }) {
 		const commandName = command.config.name.toLowerCase();
 
 		if (userData && userData.banned && userData.banned.status) {
+			log.warn("COMMAND", `Blocked "${commandName}" for banned user ${senderID} (${userData.banned.reason || "no reason"})`);
 			if (!config.hideNotiMessage.userBanned)
 				return message.reply(t(config.language, "userBanned", config.botName, userData.banned.reason || "—"));
 			return;
@@ -219,6 +226,7 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const needRole = requiredRole(command, threadData);
 		if (needRole > role) {
+			log.warn("COMMAND", `Blocked "${commandName}" for user ${senderID} in thread ${event.threadID}: needRole=${needRole} > role=${role}`);
 			const adminBaseCmds = ["bot", "admin", "adminbot", "botcontrol", "botmode", "togglebot", "cmd", "command", "event", "events", "eventcmd"];
 			if (adminBaseCmds.includes(commandName)) {
 				return;
@@ -231,10 +239,41 @@ function createDispatcher({ api, config, registry, database }) {
 		}
 
 		const wait = cooldownRemaining(command, senderID);
-		if (wait) return message.reply(t(config.language, "cooldown", wait, commandName));
+		if (wait) {
+			log.warn("COMMAND", `Cooldown active for "${commandName}" by ${senderID} in thread ${event.threadID}: ${wait}s remaining`);
+			return message.reply(t(config.language, "cooldown", wait, commandName));
+		}
 
 		const commandApi = {
 			api,
+			bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } },
+			logger: require("../logger/log.js"),
+			log,
+			utils: global.utils,
+			FontSystem: global.utils?.FontSystem,
+			fonts: global.utils?.FontSystem?.fonts,
+			styler: global.utils,
+			prefix: activePrefix,
+			getText: (h, k, ...a) => global.utils && typeof global.utils.getText === "function" ? global.utils.getText(h, k, ...a) : (t(config.language, k, ...a) || k || ""),
+			getLang: (key, ...formatArgs) => {
+				const lang = config.language || "en";
+				const langs = command.langs || command.languages;
+				if (langs && langs[lang] && langs[lang][key] !== undefined) {
+					let str = langs[lang][key];
+					for (let i = 0; i < formatArgs.length; i++) {
+						str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+					}
+					return str;
+				}
+				if (langs && langs.en && langs.en[key] !== undefined) {
+					let str = langs.en[key];
+					for (let i = 0; i < formatArgs.length; i++) {
+						str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+					}
+					return str;
+				}
+				return t(lang, key, ...formatArgs);
+			},
 			message,
 			event,
 			messageReply: event.messageReply || event.repliedMessage || null,
@@ -249,8 +288,16 @@ function createDispatcher({ api, config, registry, database }) {
 			// is always the canonical name (e.g. `ban`).
 			invokedAs: name,
 			role,
+			isGroup: Boolean(event.isGroup),
+			isDM: !event.isGroup,
 			usersData: database.users,
 			threadsData: database.threads,
+			globalData: database,
+			usersDB: database.users,
+			threadsDB: database.threads,
+			globalDB: database,
+			money: database.users,
+			userStat: database.users,
 			userData,
 			threadData,
 			config,
@@ -260,6 +307,7 @@ function createDispatcher({ api, config, registry, database }) {
 			database,
 			globalModel: database,
 			models: database,
+			removeCommandNameFromBody: (b, p, n) => (b || "").replace(new RegExp(`^${p}(\\s+|)${n}`, "i"), "").trim(),
 			/**
 			 * Arm a handler for a reply. Pass the message a user must reply TO
 			 * (`messageID`), e.g. the result of `message.reply(...)`. Without it
@@ -280,17 +328,28 @@ function createDispatcher({ api, config, registry, database }) {
 			}
 		};
 
+		const startTime = Date.now();
+		log.info("COMMAND", `[TRIGGER] ${commandName} (${name}) | User: ${senderID} | Thread: ${event.threadID}${args.length ? ` | Args: "${args.join(" ")}"` : ""}`);
+
 		try {
-			await command.onStart(commandApi);
-			log.info("COMMAND", `${commandName} | ${senderID} | ${event.threadID} | ${args.join(" ")}`);
-			if (config.autoReactOnCommand !== false) {
+			if (typeof command.onStart === "function") {
+				await command.onStart(commandApi);
+			} else if (typeof command.run === "function") {
+				await command.run(commandApi);
+			} else if (typeof command.execute === "function") {
+				await command.execute(commandApi);
+			}
+			const elapsed = Date.now() - startTime;
+			log.success("COMMAND", `[OK] "${commandName}" completed in ${elapsed}ms`);
+			if (config.autoReactOnCommand) {
 				const autoEmoji = typeof config.autoReactOnCommand === "string" ? config.autoReactOnCommand : "✅";
 				message.react(autoEmoji).catch(() => {});
 			}
 		}
 		catch (error) {
-			log.error("COMMAND", `Error in "${commandName}"`, error);
-			if (config.autoReactOnCommand !== false) {
+			const elapsed = Date.now() - startTime;
+			log.error("COMMAND", `[FAIL] "${commandName}" failed after ${elapsed}ms: ${error.message || error}`, error);
+			if (config.autoReactOnCommand) {
 				message.react("❌").catch(() => {});
 			}
 			try {
@@ -313,6 +372,30 @@ function createDispatcher({ api, config, registry, database }) {
 			return true;
 		}
 
+		const activePrefix = (threadData && (threadData.settings?.prefix || threadData.prefix)) || config.prefix || "*";
+		const cmd = entry.commandName ? registry.resolve(entry.commandName) : null;
+		const getLang = (key, ...formatArgs) => {
+			const lang = config.language || "en";
+			const langs = cmd ? (cmd.langs || cmd.languages) : null;
+			if (langs && langs[lang] && langs[lang][key] !== undefined) {
+				let str = langs[lang][key];
+				for (let i = 0; i < formatArgs.length; i++) {
+					str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+				}
+				return str;
+			}
+			if (langs && langs.en && langs.en[key] !== undefined) {
+				let str = langs.en[key];
+				for (let i = 0; i < formatArgs.length; i++) {
+					str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+				}
+				return str;
+			}
+			return t(lang, key, ...formatArgs);
+		};
+
+		log.info("REPLY", `[TRIGGER] Reply handler for "${entry.commandName}" | User: ${senderIDOf(event)} | Thread: ${event.threadID}`);
+
 		try {
 			if (typeof entry.handler === "function") {
 				await entry.handler({
@@ -326,6 +409,12 @@ function createDispatcher({ api, config, registry, database }) {
 					threadData,
 					config,
 					commandName: entry.commandName,
+					prefix: activePrefix,
+					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } },
+					logger: require("../logger/log.js"),
+					log,
+					utils: global.utils,
+					getLang,
 					Reply: (form, cb) => message.reply(form).then(res => { cb && cb(null, res); return res; }).catch(err => { cb && cb(err); throw err; }),
 					React: (emoji, cb) => message.react(emoji).then(res => { cb && cb(null, res); return res; }).catch(err => { cb && cb(err); throw err; }),
 					setReplyHandler(handler, messageID) {
@@ -341,24 +430,26 @@ function createDispatcher({ api, config, registry, database }) {
 						return handler;
 					}
 				});
-			} else if (entry.commandName) {
-				const cmd = registry.resolve(entry.commandName);
-				if (cmd && typeof cmd.onReply === "function") {
-					await cmd.onReply({
-						api,
-						message,
-						event,
-						Reply: entry,
-						args: event.body ? event.body.split(/\s+/) : [],
-						usersData: database.users,
-						threadsData: database.threads,
-						userData,
-						threadData,
-						config,
-						commandName: entry.commandName,
-						getLang: (key, ...formatArgs) => t(config.language, key, ...formatArgs)
-					});
-				}
+			} else if (cmd && typeof cmd.onReply === "function") {
+				await cmd.onReply({
+					api,
+					message,
+					event,
+					Reply: entry,
+					args: event.body ? event.body.split(/\s+/) : [],
+					usersData: database.users,
+					threadsData: database.threads,
+					userData,
+					threadData,
+					config,
+					commandName: entry.commandName,
+					prefix: activePrefix,
+					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } },
+					logger: require("../logger/log.js"),
+					log,
+					utils: global.utils,
+					getLang
+				});
 			}
 		}
 		catch (error) {
@@ -371,6 +462,31 @@ function createDispatcher({ api, config, registry, database }) {
 		const entry = onReaction.get(String(event.messageID));
 		if (!entry) return false;
 		if (userData && userData.banned && userData.banned.status) return true;
+
+		const activePrefix = (threadData && (threadData.settings?.prefix || threadData.prefix)) || config.prefix || "*";
+		const cmd = entry.commandName ? registry.resolve(entry.commandName) : null;
+		const getLang = (key, ...formatArgs) => {
+			const lang = config.language || "en";
+			const langs = cmd ? (cmd.langs || cmd.languages) : null;
+			if (langs && langs[lang] && langs[lang][key] !== undefined) {
+				let str = langs[lang][key];
+				for (let i = 0; i < formatArgs.length; i++) {
+					str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+				}
+				return str;
+			}
+			if (langs && langs.en && langs.en[key] !== undefined) {
+				let str = langs.en[key];
+				for (let i = 0; i < formatArgs.length; i++) {
+					str = str.replace(new RegExp(`%${i + 1}`, "g"), String(formatArgs[i]));
+				}
+				return str;
+			}
+			return t(lang, key, ...formatArgs);
+		};
+
+		log.info("REACTION", `[TRIGGER] Reaction handler for "${entry.commandName}" | User: ${senderIDOf(event)} | Thread: ${event.threadID}`);
+
 		try {
 			if (typeof entry.handler === "function") {
 				await entry.handler({
@@ -383,6 +499,12 @@ function createDispatcher({ api, config, registry, database }) {
 					threadData,
 					config,
 					commandName: entry.commandName,
+					prefix: activePrefix,
+					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } },
+					logger: require("../logger/log.js"),
+					log,
+					utils: global.utils,
+					getLang,
 					setReplyHandler(handler, messageID) {
 						const key = messageID != null ? messageID : event.messageID;
 						if (key == null) return handler;
@@ -396,23 +518,25 @@ function createDispatcher({ api, config, registry, database }) {
 						return handler;
 					}
 				});
-			} else if (entry.commandName) {
-				const cmd = registry.resolve(entry.commandName);
-				if (cmd && typeof cmd.onReaction === "function") {
-					await cmd.onReaction({
-						api,
-						message,
-						event,
-						Reaction: entry,
-						usersData: database.users,
-						threadsData: database.threads,
-						userData,
-						threadData,
-						config,
-						commandName: entry.commandName,
-						getLang: (key, ...formatArgs) => t(config.language, key, ...formatArgs)
-					});
-				}
+			} else if (cmd && typeof cmd.onReaction === "function") {
+				await cmd.onReaction({
+					api,
+					message,
+					event,
+					Reaction: entry,
+					usersData: database.users,
+					threadsData: database.threads,
+					userData,
+					threadData,
+					config,
+					commandName: entry.commandName,
+					prefix: activePrefix,
+					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } },
+					logger: require("../logger/log.js"),
+					log,
+					utils: global.utils,
+					getLang
+				});
 			}
 		}
 		catch (error) {
@@ -466,15 +590,9 @@ function createDispatcher({ api, config, registry, database }) {
 	 */
 	async function resolveThreadGroup(event, threadData) {
 		const senderID = senderIDOf(event);
-		if (event.isGroup === false || (senderID && String(event.threadID) === senderID) || (threadData && threadData.isGroup === false)) {
-			if (threadData && threadData.isGroup !== false) {
-				database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
-			}
-			return { isGroup: false, known: true };
-		}
 
 		if (event.isGroup === true) {
-			if (!threadData.isGroup) {
+			if (!threadData.isGroup || !threadData.groupKnown) {
 				database.threads.update(event.threadID, { isGroup: true, groupKnown: true });
 			}
 			if (api && typeof api.getThreadInfo === "function" &&
@@ -520,6 +638,13 @@ function createDispatcher({ api, config, registry, database }) {
 			return { isGroup: true, known: true };
 		}
 
+		if (event.isGroup === false || (senderID && String(event.threadID) === senderID)) {
+			if (threadData && (threadData.isGroup !== false || !threadData.groupKnown)) {
+				database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
+			}
+			return { isGroup: false, known: true };
+		}
+
 		const members = new Set();
 		for (const list of [event.participantIDs, event.userIDs, event.participants]) {
 			if (Array.isArray(list)) for (const id of list) if (id != null && String(id)) members.add(String(id));
@@ -532,7 +657,7 @@ function createDispatcher({ api, config, registry, database }) {
 			database.threads.update(event.threadID, { isGroup: false, groupKnown: true });
 			return { isGroup: false, known: true };
 		}
-		if (threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
+		if (threadData && threadData.groupKnown) return { isGroup: threadData.isGroup === true, known: true };
 
 		// Fallback for mock tests where api.getThreadInfo is synchronous/mocked
 		if (api && typeof api.getThreadInfo === "function" && Array.isArray(api.calls)) {
@@ -557,7 +682,9 @@ function createDispatcher({ api, config, registry, database }) {
 			} catch (_) {}
 		}
 
-		return { isGroup: false, known: false };
+		const threadIdStr = String(event.threadID || "");
+		const looksLikeGroup = threadIdStr.length >= 17 && /^\d+$/.test(threadIdStr);
+		return { isGroup: looksLikeGroup, known: false };
 	}
 
 	async function handle(event) {
@@ -603,8 +730,10 @@ function createDispatcher({ api, config, registry, database }) {
 		// group-only commands see the truth.
 		const group = await resolveThreadGroup(event, threadData);
 		event.isGroup = group.isGroup;
-		threadData.isGroup = group.isGroup;
-		if (group.known) threadData.groupKnown = true;
+		if (group.known) {
+			threadData.isGroup = group.isGroup;
+			threadData.groupKnown = true;
+		}
 
 		const message = createMessageContext({ api, event, log });
 
@@ -646,10 +775,7 @@ function createDispatcher({ api, config, registry, database }) {
 				const targetMsgID = event.targetMessageID || event.messageID;
 				if (targetMsgID && event.reaction && event.reactionStatus !== "deleted") {
 					const UNSEND_EMOJIS = [
-						"✋", "🖐️", "🖐", "🤚", "👋", "👌", "👍", "👎",
-						"✍️", "🤝", "🖕", "👊", "🤛", "🤜", "🤞", "🫰",
-						"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
-						"👏", "🙌", "👐", "🤲", "🙏", "😠", "😡", "❌", "🗑️"
+						"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
 					];
 					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
@@ -657,11 +783,15 @@ function createDispatcher({ api, config, registry, database }) {
 						const role = roleOf(event, threadData);
 						const isDM = !event.isGroup;
 						if (role >= ROLE_ADMIN_BOX || isDM) {
-							try {
-								if (typeof api.unsendMessage === "function") {
-									await api.unsendMessage(targetMsgID, event.threadID, () => {}).catch(() => {});
-								}
-							} catch (_) {}
+							const botID = String((api && typeof api.getCurrentUserID === "function" ? api.getCurrentUserID() : "") || "").trim();
+							const cached = (global.recentMessages && typeof global.recentMessages.get === "function") ? global.recentMessages.get(String(targetMsgID)) : null;
+							if (!cached || !cached.senderID || !botID || String(cached.senderID) === botID) {
+								try {
+									if (typeof api.unsendMessage === "function") {
+										await api.unsendMessage(targetMsgID, event.threadID, () => {}).catch(() => {});
+									}
+								} catch (_) {}
+							}
 						}
 					} else if (REPLAY_EMOJIS.includes(event.reaction)) {
 						try {
