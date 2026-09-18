@@ -3379,58 +3379,10 @@ async function main() {
 		}
 	});
 
-	await test("music: live mode delivers MP3 audio directly via sing", async () => {
+	await test("music: -y without song query prompts for usage", async () => {
 		const command = registry.resolve("music");
-		let singInvoked = false;
-		const singCmd = require("../commands/sing");
-		const originalSingStart = singCmd.onStart;
-		singCmd.onStart = async () => { singInvoked = true; return { messageID: "music_live" }; };
-
-		try {
-			await command.onStart({
-				api: {}, // not an array for api.calls => live mode
-				event: { threadID: "t1", messageID: "m1" },
-				args: ["blinding", "lights"],
-				message: { reply: () => Promise.resolve({}) }
-			});
-			assert.strictEqual(singInvoked, true, "music command in live mode must route to direct mp3 audio delivery");
-		}
-		finally {
-			singCmd.onStart = originalSingStart;
-		}
-	});
-
-	await test("music: -y flag invokes YouTube mode and delivers audio", async () => {
-		const command = registry.resolve("music");
-		let youtubeRequested = false;
-		let queryReceived = "";
-		const singCmd = require("../commands/sing");
-		const originalSingStart = singCmd.onStart;
-		singCmd.onStart = async (params) => {
-			youtubeRequested = params.isYT === true || params.args.includes("-y");
-			queryReceived = params.args.filter(a => a !== "-y").join(" ");
-			return { messageID: "yt_music_ok" };
-		};
-
-		try {
-			await command.onStart({
-				api: { calls: [] },
-				event: { threadID: "t1", messageID: "m1" },
-				args: ["-y", "faded", "alan", "walker"],
-				message: { reply: () => Promise.resolve({}) }
-			});
-			assert.strictEqual(youtubeRequested, true, "music -y must pass YouTube mode to sing handler");
-			assert.strictEqual(queryReceived, "faded alan walker", "query should exclude the -y flag");
-		}
-		finally {
-			singCmd.onStart = originalSingStart;
-		}
-	});
-
-	await test("sing: -y without song query prompts for usage", async () => {
-		const singCmd = require("../commands/sing");
 		let replyMsg = "";
-		await singCmd.onStart({
+		await command.onStart({
 			api: { calls: [] },
 			event: { threadID: "t1", messageID: "m1" },
 			args: ["-y"],
@@ -3438,6 +3390,144 @@ async function main() {
 			config: { prefix: "*" }
 		});
 		assert.ok(replyMsg.includes("Usage: *music -y"), "missing query in YouTube mode must show YouTube music usage");
+	});
+
+	await test("music: -y downloads YouTube audio and delivers as audio attachment", async () => {
+		const command = registry.resolve("music");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		let sentMessage = null;
+		const reactions = [];
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && (url.includes("ryzendesu.vip") || url.includes("neokex.xyz") || url.includes("kaiz-apis"))) {
+					return {
+						data: { url: "https://example.com/yt_audio.mp3", status: true }
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/yt_audio.mp3")) {
+					return {
+						status: 200,
+						data: Buffer.from("mock_audio_mp3_content")
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { sentMessage = m; return Promise.resolve({ messageID: "m_yt" }); },
+				send: (m) => { sentMessage = m; return Promise.resolve({ messageID: "m_yt_send" }); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["-y", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+				message,
+				config: { prefix: "*" }
+			});
+
+			assert.ok(sentMessage && sentMessage.attachment, "attachment must be sent");
+			assert.strictEqual(sentMessage.attachment.type, "audio", "must be audio attachment");
+			assert.ok(reactions.includes("⏳") && reactions.includes("✅"), "must react with ⏳ and ✅");
+		} finally {
+			axios.get = originalGet;
+		}
+	});
+
+	await test("alldl: -a flag extracts and delivers audio attachment", async () => {
+		const command = registry.resolve("alldl");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		let sentMessage = null;
+		const reactions = [];
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && url.includes("tikwm.com/api")) {
+					return {
+						data: {
+							data: {
+								music: "https://example.com/audio.mp3",
+								title: "TikTok Audio Sample"
+							}
+						}
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/audio.mp3")) {
+					return {
+						status: 200,
+						data: Buffer.from("mock_audio_bytes")
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { sentMessage = m; return Promise.resolve({ messageID: "alldl_audio" }); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["-a", "https://www.tiktok.com/@user/video/98765"],
+				message
+			});
+
+			assert.ok(sentMessage && sentMessage.attachment, "attachment must be sent");
+			assert.strictEqual(sentMessage.attachment.type, "audio", "must be audio attachment");
+			assert.ok(reactions.includes("⏳") && reactions.includes("✅"));
+		} finally {
+			axios.get = originalGet;
+		}
+	});
+
+	await test("sms2: dispatches SMS requests successfully", async () => {
+		const command = registry.resolve("sms2");
+		assert.ok(command, "sms2 command should be registered");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		let replyMsg = "";
+		const reactions = [];
+
+		try {
+			axios.get = async (url) => {
+				if (typeof url === "string" && url.includes("xalman-apis.vercel.app")) {
+					return {
+						data: {
+							status: true,
+							total_requests: 1,
+							total_apis: 5,
+							mode: "ULTRA_FAST"
+						}
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { replyMsg = String(m); return Promise.resolve({}); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["01305057230", "1"],
+				message,
+				commandName: "sms2",
+				config: { prefix: "*" }
+			});
+
+			assert.ok(replyMsg.includes("SMS requests dispatched successfully"), "should confirm SMS dispatch");
+			assert.ok(replyMsg.includes("Total Requests: 1"));
+			assert.ok(reactions.includes("⏳") && reactions.includes("👍"));
+		} finally {
+			axios.get = originalGet;
+		}
 	});
 
 	await test("alldl: extracts URL and delivers video attachment without extra body text", async () => {

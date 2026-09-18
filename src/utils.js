@@ -731,6 +731,64 @@ function extractMediaUrl(event, args = [], kind = "any") {
 	return null;
 }
 
+function getFFmpegPath() {
+	try {
+		const staticFfmpeg = require("ffmpeg-static");
+		if (staticFfmpeg && fs.existsSync(staticFfmpeg)) return staticFfmpeg;
+	} catch (_) {}
+	try {
+		const which = require("child_process").execSync("which ffmpeg 2>/dev/null").toString().trim();
+		if (which && fs.existsSync(which)) return which;
+	} catch (_) {}
+	return null;
+}
+
+async function compressAudioFile(filePath, targetMaxBytes = 4.8 * 1024 * 1024) {
+	try {
+		const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+		if (!stat || stat.size === 0) return filePath;
+
+		const ffmpeg = getFFmpegPath();
+		if (!ffmpeg) return filePath;
+
+		if (stat.size > targetMaxBytes) {
+			const { execFile } = require("child_process");
+			const tempOut = filePath.replace(/(\.[a-z0-9]+)$/i, `_comp_${Date.now()}.mp3`);
+			const bitrates = ["96k", "64k", "48k", "32k"];
+			for (const br of bitrates) {
+				try {
+					await new Promise((resolve, reject) => {
+						execFile(ffmpeg, [
+							"-y",
+							"-i", filePath,
+							"-vn",
+							"-b:a", br,
+							"-ar", "44100",
+							"-ac", "2",
+							tempOut
+						], { timeout: 35000 }, (err) => {
+							if (err) return reject(err);
+							resolve();
+						});
+					});
+					const compStat = fs.existsSync(tempOut) ? fs.statSync(tempOut) : null;
+					if (compStat && compStat.size > 0 && compStat.size <= targetMaxBytes) {
+						try { fs.unlinkSync(filePath); } catch (_) {}
+						return tempOut;
+					}
+				} catch (_) {
+					try { fs.unlinkSync(tempOut); } catch (_) {}
+				}
+			}
+			if (fs.existsSync(tempOut)) {
+				try { fs.unlinkSync(filePath); } catch (_) {}
+				return tempOut;
+			}
+		}
+	} catch (_) {}
+	return filePath;
+}
+
 module.exports = {
 	getType,
 	isStream,
@@ -754,6 +812,8 @@ module.exports = {
 	extractImageUrl,
 	extractMediaUrl,
 	findImageInMessage,
+	getFFmpegPath,
+	compressAudioFile,
 	_resetUsernameCache() {
 		usernameCache = {};
 		try { fs.rmSync(USERNAME_CACHE_FILE, { force: true }); }

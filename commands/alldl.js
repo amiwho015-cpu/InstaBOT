@@ -10,7 +10,7 @@ const ytdl = require("@distube/ytdl-core");
 const fs = require("fs-extra");
 const path = require("path");
 
-const { extractMediaUrl } = require("../src/utils");
+const { extractMediaUrl, compressAudioFile } = require("../src/utils");
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const MAX_BYTES = Math.max(256 * 1024, Number(process.env.IG_MAX_MEDIA_BYTES) || 45 * 1024 * 1024);
@@ -56,7 +56,7 @@ module.exports = {
   config: {
     name: "alldl",
     aliases: ["download", "dl", "getmedia", "anydl"],
-    version: "2.5.0",
+    version: "2.6.0",
     author: "Gtajisan & frnAlt & lazyneoaz",
     cooldown: 5,
     role: 0,
@@ -67,13 +67,14 @@ module.exports = {
       en: "Downloads video or audio from TikTok, YouTube, Instagram, Facebook, Pinterest, Twitter/X and 40+ platforms."
     },
     category: "media",
-    usage: "{p}alldl <url> [--audio]\nReply to a message with a link: {p}alldl [--audio]"
+    usage: "{p}alldl <url> [-a | --audio]\nReply to a message with a link: {p}alldl [-a | --audio]"
   },
 
   onStart: async function ({ message, args, event, api, commandName }) {
     const threadID = event.threadId || event.threadID;
+    const audioFlags = ["--audio", "-audio", "-a", "--a", "-mp3", "--mp3"];
+    const isAudio = args.some(a => audioFlags.includes(String(a).toLowerCase()));
     let url = args.find(a => /^https?:\/\//i.test(a));
-    let isAudio = args.includes("--audio") || args.includes("--a") || args.includes("-a");
 
     const reply = event.messageReply || event.repliedMessage;
     if (!url && reply && (reply.body || reply.text)) {
@@ -88,12 +89,12 @@ module.exports = {
     }
 
     if (!url) {
-      const prompt = "📥 𝗨𝗻𝗶𝘃𝗲𝗿𝘀𝗮𝗹 𝗠𝗲𝗱𝗶𝗮 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n📌 Usage:\n• {p}alldl <url>\n• {p}alldl <url> --audio\n• Reply to any message containing a video link with {p}alldl\n\n💡 Supported: TikTok, YouTube, Instagram, Facebook, Twitter/X, Pinterest, Reddit, etc.";
+      const prompt = "📥 𝗨𝗻𝗶𝘃𝗲𝗿𝘀𝗮𝗹 𝗠𝗲𝗱𝗶𝗮 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿\n\n📌 Usage:\n• {p}alldl <url>\n• {p}alldl -a <url> (Extract audio)\n• {p}alldl <url> --audio\n• Reply to any message containing a video link with {p}alldl -a\n\n💡 Supported: TikTok, YouTube, Instagram, Facebook, Twitter/X, Pinterest, Reddit, etc.";
       return message ? message.reply(prompt) : api.sendMessage(prompt, threadID);
     }
 
     if (message && typeof message.react === "function") {
-      message.react("⏳");
+      message.react("⏳").catch(() => {});
     } else if (api && typeof api.setMessageReaction === "function") {
       api.setMessageReaction("⏳", event.messageID, event.threadID, () => {}, true);
     }
@@ -133,7 +134,19 @@ module.exports = {
         }
       }
 
-      // 2. TikTok Fast Path
+      // 2. Ryzendesu YTMP3 Audio Fast Path (for YouTube audio mode)
+      if (isAudio && !downloadUrl && !tempFilePath && /youtu\.?be/i.test(url)) {
+        try {
+          const ryzRes = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(url)}`, { timeout: 15000 });
+          const audioUrl = ryzRes.data?.url || ryzRes.data?.downloadUrl || ryzRes.data?.data?.url;
+          if (audioUrl) {
+            downloadUrl = audioUrl;
+            title = "YouTube Audio";
+          }
+        } catch (_) {}
+      }
+
+      // 3. TikTok Fast Path
       if (!downloadUrl && !tempFilePath && /tiktok\.com/i.test(url)) {
         try {
           const ttRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, { timeout: 12000 });
@@ -145,7 +158,7 @@ module.exports = {
         } catch (_) {}
       }
 
-      // 3. NeoKEX AllDL Universal API
+      // 4. NeoKEX AllDL Universal API
       if (!downloadUrl && !tempFilePath) {
         try {
           const neoRes = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(url)}`, { timeout: 20000 });
@@ -164,7 +177,7 @@ module.exports = {
         } catch (_) {}
       }
 
-      // 4. Kaiz API
+      // 5. Kaiz API
       if (!downloadUrl && !tempFilePath) {
         try {
           const kaizRes = await axios.get(`https://kaiz-apis.gleeze.com/api/alldl?url=${encodeURIComponent(url)}`, { timeout: 20000 });
@@ -176,7 +189,7 @@ module.exports = {
         } catch (_) {}
       }
 
-      // 5. Siputzx Universal API
+      // 6. Siputzx Universal API
       if (!downloadUrl && !tempFilePath) {
         try {
           const sipRes = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${encodeURIComponent(url)}`, { timeout: 15000 });
@@ -188,7 +201,7 @@ module.exports = {
         } catch (_) {}
       }
 
-      // 6. Cobalt API
+      // 7. Cobalt API
       if (!downloadUrl && !tempFilePath) {
         try {
           const cobRes = await axios.post(`https://api.cobalt.tools/api/json`, {
@@ -224,6 +237,11 @@ module.exports = {
         }
       }
 
+      // Size compression for audio files exceeding Instagram Direct limits
+      if (isAudio && tempFilePath) {
+        tempFilePath = await compressAudioFile(tempFilePath);
+      }
+
       if (message && typeof message.react === "function") {
         message.react("✅").catch(() => {});
       } else if (api && typeof api.setMessageReaction === "function") {
@@ -231,8 +249,8 @@ module.exports = {
       }
 
       const attachment = tempFilePath
-        ? { path: tempFilePath, type: isAudio ? "audio" : "video" }
-        : { url: downloadUrl, type: isAudio ? "audio" : "video" };
+        ? { path: tempFilePath, type: isAudio ? "audio" : "video", mimetype: isAudio ? "audio/mp4" : undefined }
+        : { url: downloadUrl, type: isAudio ? "audio" : "video", mimetype: isAudio ? "audio/mp4" : undefined };
 
       let sent = null;
       try {
