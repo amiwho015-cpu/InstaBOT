@@ -58,14 +58,15 @@ module.exports = {
 		category: "media",
 		cooldown: 5,
 		role: 0,
-		description: { en: "Search a song and send it as an Instagram music sticker" },
-		usage: { en: "{p}music <song name or artist> | {p}music <number> to pick from the last search" }
+		description: { en: "Search a song and send as audio or sticker, support -y for YouTube audio" },
+		usage: { en: "{p}music <song name> | {p}music -y <song name> (YouTube audio) | {p}music <number>" }
 	},
 
 	onStart: async function ({ message, args, event, config, usersData, setReplyHandler, api, invokedAs }) {
-		if (!Array.isArray(api?.calls) && !args.includes("--sticker") && !args.includes("--list")) {
+		const isYT = args.some(a => a === "-y" || a === "--yt" || a === "-yt");
+		if (isYT || (!Array.isArray(api?.calls) && !args.includes("--sticker") && !args.includes("--list"))) {
 			const singCmd = require("./sing");
-			return singCmd.onStart({ message, args, event, config, usersData, setReplyHandler, api, invokedAs: "music" });
+			return singCmd.onStart({ message, args, event, config, usersData, setReplyHandler, api, invokedAs: "music", isYT });
 		}
 
 		const reply = event.messageReply || event.repliedMessage;

@@ -3400,6 +3400,46 @@ async function main() {
 		}
 	});
 
+	await test("music: -y flag invokes YouTube mode and delivers audio", async () => {
+		const command = registry.resolve("music");
+		let youtubeRequested = false;
+		let queryReceived = "";
+		const singCmd = require("../commands/sing");
+		const originalSingStart = singCmd.onStart;
+		singCmd.onStart = async (params) => {
+			youtubeRequested = params.isYT === true || params.args.includes("-y");
+			queryReceived = params.args.filter(a => a !== "-y").join(" ");
+			return { messageID: "yt_music_ok" };
+		};
+
+		try {
+			await command.onStart({
+				api: { calls: [] },
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["-y", "faded", "alan", "walker"],
+				message: { reply: () => Promise.resolve({}) }
+			});
+			assert.strictEqual(youtubeRequested, true, "music -y must pass YouTube mode to sing handler");
+			assert.strictEqual(queryReceived, "faded alan walker", "query should exclude the -y flag");
+		}
+		finally {
+			singCmd.onStart = originalSingStart;
+		}
+	});
+
+	await test("sing: -y without song query prompts for usage", async () => {
+		const singCmd = require("../commands/sing");
+		let replyMsg = "";
+		await singCmd.onStart({
+			api: { calls: [] },
+			event: { threadID: "t1", messageID: "m1" },
+			args: ["-y"],
+			message: { reply: (msg) => { replyMsg = String(msg); return Promise.resolve({}); } },
+			config: { prefix: "*" }
+		});
+		assert.ok(replyMsg.includes("Usage: *music -y"), "missing query in YouTube mode must show YouTube music usage");
+	});
+
 	await test("alldl: extracts URL and delivers video attachment without extra body text", async () => {
 		const command = registry.resolve("alldl");
 		assert.ok(command, "alldl command should be registered");
