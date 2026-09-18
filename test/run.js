@@ -3431,6 +3431,70 @@ async function main() {
 
 			assert.ok(sentMessage && sentMessage.attachment, "attachment must be sent");
 			assert.strictEqual(sentMessage.attachment.type, "audio", "must be audio attachment");
+			assert.strictEqual(sentMessage.textFirst, false, "textFirst must be false to avoid extra text");
+			assert.ok(reactions.includes("⏳") && reactions.includes("✅"), "must react with ⏳ and ✅");
+		} finally {
+			axios.get = originalGet;
+		}
+	});
+
+	await test("sing: -y without song query prompts for usage", async () => {
+		const command = registry.resolve("sing");
+		let replyMsg = "";
+		const message = {
+			reply: (m) => { replyMsg = String(m); return Promise.resolve({}); }
+		};
+		await command.onStart({
+			api: {},
+			event: { threadID: "t1", messageID: "m1" },
+			args: ["-y"],
+			message,
+			config: { prefix: "*" }
+		});
+		assert.ok(replyMsg.includes("Usage: *sing -y"), "missing query in sing -y mode must show usage");
+	});
+
+	await test("sing: -y downloads YouTube audio and delivers without extra text", async () => {
+		const command = registry.resolve("sing");
+		const axios = require("axios");
+		const originalGet = axios.get;
+		let sentMessage = null;
+		const reactions = [];
+
+		try {
+			axios.get = async (url, opts) => {
+				if (typeof url === "string" && (url.includes("ryzendesu.vip") || url.includes("neokex.xyz") || url.includes("kaiz-apis"))) {
+					return {
+						data: { url: "https://example.com/sing_yt_audio.mp3", status: true }
+					};
+				}
+				if (typeof url === "string" && url.includes("example.com/sing_yt_audio.mp3")) {
+					return {
+						status: 200,
+						data: Buffer.from("mock_sing_audio_bytes")
+					};
+				}
+				return originalGet.apply(axios, arguments);
+			};
+
+			const message = {
+				reply: (m) => { sentMessage = m; return Promise.resolve({ messageID: "s_yt" }); },
+				send: (m) => { sentMessage = m; return Promise.resolve({ messageID: "s_yt_send" }); },
+				react: (r) => { reactions.push(r); return Promise.resolve({}); }
+			};
+
+			await command.onStart({
+				api: {},
+				event: { threadID: "t1", messageID: "m1" },
+				args: ["-y", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+				message,
+				config: { prefix: "*" }
+			});
+
+			assert.ok(sentMessage && sentMessage.attachment, "attachment must be sent");
+			assert.strictEqual(sentMessage.attachment.type, "audio", "must be audio attachment");
+			assert.strictEqual(sentMessage.textFirst, false, "textFirst must be false to avoid extra text");
+			assert.ok(sentMessage.body && sentMessage.body.includes("🎶"), "caption must contain song title");
 			assert.ok(reactions.includes("⏳") && reactions.includes("✅"), "must react with ⏳ and ✅");
 		} finally {
 			axios.get = originalGet;

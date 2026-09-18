@@ -257,7 +257,9 @@ module.exports = {
 						await safeReact("❌");
 						return message.reply(`❌ No YouTube audio found for "${ytQuery}".`);
 					}
-					video = videos[0];
+					// Prefer normal length songs (between 30s and 15 mins) over full album compilations or 10-hour loops
+					const songsOnly = videos.filter(v => (v.seconds || 0) >= 30 && (v.seconds || 0) <= 900);
+					video = songsOnly[0] || videos[0];
 				}
 
 				const tempPath = await downloadYouTubeAudio(video.url, video.title);
@@ -268,12 +270,13 @@ module.exports = {
 					sent = await message.send({
 						body: caption,
 						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
-						textFirst: true
+						textFirst: false
 					});
 				} catch (_) {
 					sent = await message.reply({
 						body: caption,
-						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" }
+						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
+						textFirst: false
 					});
 				}
 
@@ -341,5 +344,7 @@ module.exports = {
 			}, sent && sent.messageID);
 		}
 		return sent;
-	}
+	},
+	downloadYouTubeAudio,
+	downloadUrlToTempFile
 };

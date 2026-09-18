@@ -314,20 +314,22 @@ function createBot(config) {
 					bot: { commandLoader: { commands: registry.commands, aliases: registry.aliases } }
 				});
 
-				try {
-					const fetchInfo = api.getUserInfo(state.botID);
-					const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("getUserInfo timeout")), 3500));
-					const info = await Promise.race([fetchInfo, timeout]);
-					const profile = info && info[state.botID];
-					log.success("LOGIN", `Logged in as ${state.botID}${profile && profile.vanity ? ` (@${profile.vanity})` : ""}`);
-				}
-				catch (_) {
-					log.success("LOGIN", `Logged in as ${state.botID || "Instagram User"}`);
-				}
-
+				log.success("LOGIN", `Logged in as ${state.botID || "Instagram User"}`);
 				startListening();
 				onlineStatus.start();
 				resolve(api);
+
+				if (state.botID && typeof api.getUserInfo === "function") {
+					Promise.race([
+						api.getUserInfo(state.botID),
+						new Promise((_, reject) => setTimeout(() => reject(new Error("getUserInfo timeout")), 3000))
+					]).then(info => {
+						const profile = info && info[state.botID];
+						if (profile && profile.vanity) {
+							log.info("LOGIN", `Account handle: @${profile.vanity}`);
+						}
+					}).catch(() => {});
+				}
 			};
 
 			if (mode === "server") {

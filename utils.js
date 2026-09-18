@@ -9,7 +9,6 @@ const agent = new https.Agent({
 const moment = require("moment-timezone");
 const mimeDB = require("mime-db");
 const _ = require("lodash");
-const { google } = require("googleapis");
 const ora = require("ora");
 const log = require("./logger/log.js");
 const { isHexColor, colors } = require("./func/colors.js");
