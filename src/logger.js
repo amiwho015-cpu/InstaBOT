@@ -27,6 +27,12 @@ function timestamp() {
 
 let quiet = false;
 
+const recentLogs = [];
+
+function getRecentLogs() {
+	return recentLogs.slice(-100);
+}
+
 function write(level, color, tag, message, args = []) {
 	if (quiet) return;
 	let outTag = tag;
@@ -36,6 +42,14 @@ function write(level, color, tag, message, args = []) {
 		outMsg = outTag;
 		outTag = level.toUpperCase();
 	}
+	recentLogs.push({
+		time: timestamp().split(" ")[1],
+		level: level.toUpperCase(),
+		tag: outTag,
+		message: String(outMsg)
+	});
+	if (recentLogs.length > 200) recentLogs.shift();
+
 	const formatted = `${paint("dim", timestamp())} ${paint("magenta", `[${outTag}]`)} ${paint(color, String(outMsg))}`;
 	if (level === "error" || level === "warn") {
 		console.error(formatted);
@@ -84,5 +98,6 @@ module.exports = {
 	setQuiet: (value) => { quiet = Boolean(value); },
 	box,
 	colors: COLORS,
-	paint
+	paint,
+	getRecentLogs
 };

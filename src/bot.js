@@ -406,8 +406,8 @@ function createBot(config) {
 		const message = String(error && (error.error || error.message) || error);
 		if (/connection closed|closed by user|aborted|socket hang up|ECONNRESET|ETIMEDOUT/i.test(message)) return;
 		onlineStatus.writeLine({ event: "listener_error", error: message });
-		if (/not logged in|login_required|logged.?out/i.test(message)) {
-			log.error("LISTEN", "Session is no longer valid. Re-reading account.txt…", message);
+		if (/not logged in|login_required|logged.?out|unauthorized|session|forbidden/i.test(message)) {
+			log.error("LISTEN", "Session is no longer valid or expired. Re-authenticating…", message);
 			scheduleRelogin();
 		}
 		else {
@@ -453,10 +453,19 @@ function createBot(config) {
 
 	function scheduleRelogin() {
 		if (state.retireListener) return;
-		state.retireListener = setTimeout(() => {
+		state.retireListener = setTimeout(async () => {
 			state.retireListener = null;
-			log.info("LOGIN", "Reconnecting the realtime listener");
-			startListening();
+			log.info("LOGIN", "Re-authenticating session and reconnecting realtime listener…");
+			try {
+				if (typeof state.stopListening === "function") state.stopListening();
+			} catch (_) {}
+			try {
+				await startServer();
+				log.success("LOGIN", "Session restored and listener reconnected successfully");
+			} catch (err) {
+				log.error("LOGIN", "Re-authentication failed (will retry):", err.message || err);
+				scheduleRelogin();
+			}
 		}, 5000);
 		if (state.retireListener.unref) state.retireListener.unref();
 	}

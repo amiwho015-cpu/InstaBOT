@@ -187,7 +187,7 @@ function sessionHeaders(settings) {
 	return headers;
 }
 
-function request(settings, method, args, callbackIndex) {
+function doRequest(settings, method, args, callbackIndex, isRetry = false) {
 	return new Promise((resolve, reject) => {
 		const target = settings.base;
 		const lib = target.protocol === "https:" ? https : http;
@@ -199,9 +199,8 @@ function request(settings, method, args, callbackIndex) {
 			port: target.port || (target.protocol === "https:" ? 443 : 80),
 			path: "/rpc",
 			method: "POST",
-			// Reuse the TLS/TCP connection across calls: fewer handshakes, less
-			// churn on the server, and one persistent socket per client.
-			agent: target.protocol === "https:" ? httpsAgent : httpAgent,
+			// Reuse the TLS/TCP connection across calls, or use fresh socket on retry
+			agent: isRetry ? false : (target.protocol === "https:" ? httpsAgent : httpAgent),
 			headers: Object.assign({
 				"Content-Type": "application/json",
 				"Content-Length": Buffer.byteLength(payload),
@@ -227,11 +226,19 @@ function request(settings, method, args, callbackIndex) {
 		});
 		req.on("error", err => {
 			req.destroy();
+			const msg = String(err && (err.message || err) || "");
+			if (!isRetry && /ECONNRESET|EPIPE|socket hang up|ETIMEDOUT/i.test(msg)) {
+				return doRequest(settings, method, args, callbackIndex, true).then(resolve, reject);
+			}
 			reject(err);
 		});
 		req.write(payload);
 		req.end();
 	});
+}
+
+function request(settings, method, args, callbackIndex) {
+	return doRequest(settings, method, args, callbackIndex, false);
 }
 
 /**
@@ -320,8 +327,7 @@ class EventStream {
 	}
 
 	// The server sends a `: ping` comment every ~25s. If nothing at all arrives
-	// for much longer the stream is silently dead (common through proxies), so
-	// drop it and reconnect.
+	// for 45s (two missed pings) the stream is silently dead, so drop it and reconnect.
 	_isStalled(now) {
 		if (this.stopped || !this.req) return false;
 		// A stream that opened but has never delivered a byte (lastChunkAt=0) is
@@ -329,7 +335,7 @@ class EventStream {
 		// never writes. Age it from the moment the request was made, not from a
 		// chunk that may never come.
 		const since = this.lastChunkAt || this.connectedAt;
-		return !!since && now - since > 90000;
+		return !!since && now - since > 45000;
 	}
 
 	_armStallWatch() {
@@ -363,9 +369,9 @@ class EventStream {
 				Authorization: "Bearer " + this.settings.token
 			}, sessionHeaders(this.settings))
 		}, res => {
-			if (res.statusCode === 401) {
-				this.callback(new Error("Unauthorized: check your server token and session"));
-				return this.stop();
+			if (res.statusCode === 401 || res.statusCode === 403 || res.statusCode === 404) {
+				this.callback(new Error(`Event stream unauthorized or session lost (${res.statusCode}): check server token or session`));
+				return this._scheduleReconnect();
 			}
 			if (res.statusCode !== 200) {
 				this.callback(new Error(`Event stream failed with status ${res.statusCode}`));

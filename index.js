@@ -119,7 +119,8 @@ async function main() {
 			userID: bot.state.botID || null,
 			commands: bot.state.commandCount,
 			events: bot.state.eventCount
-		})
+		}),
+		bot
 	});
 
 	const shutdown = async (signal) => {
