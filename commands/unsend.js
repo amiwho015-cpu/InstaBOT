@@ -7,7 +7,7 @@ const HAND_EMOJIS = [
 module.exports = {
 	config: {
 		name: "unsend",
-		aliases: ["uns", "delete", "del"],
+		aliases: ["u", "delete", "del"],
 		author: "Neoaz 🐊",
 		category: "utility",
 		cooldown: 1,
