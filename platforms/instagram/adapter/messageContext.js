@@ -1,5 +1,7 @@
 "use strict";
 
+const { humanPause } = require("../../../utils/humanize");
+
 /**
  * platforms/instagram/adapter/messageContext.js
  *
@@ -49,11 +51,15 @@ function createMessageContext(apiOrOpts, maybeEvent = {}, maybeOpts = {}) {
 		threadID,
 		event,
 
-		send(form, callback) {
+		async send(form, callback) {
+			const text = typeof form === "string" ? form : (form && form.text) || "";
+			await humanPause(context, text);
 			return wrap(api.sendMessage(form, threadID, undefined, eventMessageID), callback);
 		},
 
-		reply(form, callback) {
+		async reply(form, callback) {
+			const text = typeof form === "string" ? form : (form && form.text) || "";
+			await humanPause(context, text);
 			return wrap(api.sendMessage(form, threadID, undefined, eventMessageID), callback);
 		},
 
