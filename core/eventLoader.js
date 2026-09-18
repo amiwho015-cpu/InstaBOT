@@ -68,7 +68,16 @@ class EventLoader {
 			if (typeof evt.run === "function") {
 				await evt.run(context.bot || global.GoatBot.instance, data);
 			} else if (typeof evt.onStart === "function") {
-				await evt.onStart({ event: data, ...context });
+				// Keep the complete bot context available to event handlers.  Reaction
+				// handlers need api/config to perform actions such as unsend.
+				const bot = context.bot || global.GoatBot.instance;
+				await evt.onStart({
+					event: data,
+					...context,
+					bot,
+					api: context.api || bot?.api,
+					config: context.config || bot?.config
+				});
 			}
 		} catch (err) {
 			logger.error(`Error executing event handler [${name}]`, { error: err.message });

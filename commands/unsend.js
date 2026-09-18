@@ -16,44 +16,36 @@ module.exports = {
 		usage: { en: "Reply to a message with {p}unsend or react with ✋/🗑️ to unsend" }
 	},
 
-	onStart: async function ({ message, event, api }) {
-		const replied = event.messageReply;
-		if (!replied || !replied.messageID) return;
-
-		const threadID = event.threadID;
-		const target = replied.messageID;
-
-		try {
-			await new Promise((resolve, reject) => {
-				api.unsendMessage(target, threadID, (error, result) => error ? reject(error) : resolve(result));
-			});
-		}
-		catch (_) { }
+	onStart: async function ({ message, event }) {
+		const replied = event.messageReply || event.repliedMessage;
+		if (!replied?.messageID) return;
+		await message.unsend(replied.messageID).catch(() => {});
 	},
 
-	onReaction: async function ({ api, event, role, isBotAdmin, config }) {
-		const reaction = event.reaction;
+	onReaction: async function ({ api, event, role, config }) {
+		const reaction = typeof event?.reaction === "string"
+			? event.reaction
+			: event?.reaction?.emoji;
 		if (!reaction || event.reactionStatus === "deleted") return;
-		if (!HAND_EMOJIS.some(h => reaction.includes(h) || reaction === h)) return;
+		if (!HAND_EMOJIS.some(emoji => reaction.includes(emoji))) return;
+
+		const targetID = event.targetMessageID || event.target_message_id;
+		const threadID = event.threadID || event.thread_id;
+		if (!targetID || !threadID || !api?.unsendMessage) return;
 
 		const uid = String(event.userID || event.senderID || "").trim();
-		const isAdmin = (role != null && role >= 1) ||
-			(typeof isBotAdmin === "function" ? isBotAdmin(uid) : false) ||
-			(config && Array.isArray(config.adminBot) && config.adminBot.map(String).includes(uid)) ||
-			(config && Array.isArray(config.ADMIN_BOT) && config.ADMIN_BOT.map(String).includes(uid)) ||
-			(config && Array.isArray(config.devUsers) && config.devUsers.map(String).includes(uid)) ||
-			(config && Array.isArray(config.DEV_USERS) && config.DEV_USERS.map(String).includes(uid));
+		const admins = [
+			...(Array.isArray(config?.adminBot) ? config.adminBot : []),
+			...(Array.isArray(config?.ADMIN_BOT) ? config.ADMIN_BOT : []),
+			...(Array.isArray(config?.devUsers) ? config.devUsers : []),
+			...(Array.isArray(config?.DEV_USERS) ? config.DEV_USERS : [])
+		].map(String);
+		if (!(Number(role) >= 1 || admins.includes(uid) || event.isGroup === false || event.isGroup == null)) return;
 
-		if (!isAdmin && event.isGroup) return;
-
-		const targetID = event.targetMessageID || event.messageID;
-		if (!targetID || !event.threadID) return;
-
-		try {
-			await new Promise((resolve, reject) => {
-				api.unsendMessage(targetID, event.threadID, (error, result) => error ? reject(error) : resolve(result));
-			});
-		}
-		catch (_) { }
+		await new Promise((resolve, reject) => {
+			api.unsendMessage(targetID, threadID, (error, result) =>
+				error ? reject(error) : resolve(result)
+			);
+		}).catch(() => {});
 	}
 };
