@@ -26,6 +26,9 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, event, args, threadsData, api, getLang }) {
+		if (!event.isGroup) {
+			return message.reply("❌ This command can only be used in group chats.");
+		}
 		const rawAdmins = (threadsData && typeof threadsData.get === "function" ? await threadsData.get(event.threadID, "adminIDs") : null) || [];
 		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => typeof a === "object" ? String(a.id || a.userID || a.pk || a.uid || "") : String(a)).filter(Boolean);
 		const selfID = String(api.getCurrentUserID ? api.getCurrentUserID() : (api._userID || ""));

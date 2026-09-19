@@ -92,6 +92,9 @@ module.exports = {
 	onStart: async function ({ message, api, event, args, threadsData, usersData, prefix, role, getLang }) {
 		if (!args[0])
 			return message.SyntaxError();
+		if (!event.isGroup) {
+			return message.reply("❌ Warning system is only available for group chats.");
+		}
 		const { threadID, senderID } = event;
 		const warnList = await threadsData.get(threadID, "data.warn", []);
 
