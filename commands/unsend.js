@@ -26,14 +26,14 @@ module.exports = {
 		const reaction = typeof event?.reaction === "string"
 			? event.reaction
 			: event?.reaction?.emoji || event?.reaction_unicode;
-		if (!reaction || event.reactionStatus === "deleted") return;
+		if (!reaction || event.reactionStatus === "deleted" || event.reaction_status === "deleted") return;
 		if (!HAND_EMOJIS.some(emoji => reaction.includes(emoji))) return;
 
 		const targetID = event.targetMessageID || event.target_message_id || event.messageID;
 		const threadID = event.threadID || event.thread_id;
 		if (!targetID || !threadID || !api?.unsendMessage) return;
-
-		if (role < 1) return;
+		
+		if (role < 1) return; // Role 1 is Admin Box, Role 2 is Bot Admin
 
 		await new Promise((resolve, reject) => {
 			api.unsendMessage(targetID, threadID, (error, result) =>

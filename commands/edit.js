@@ -20,72 +20,8 @@ const { safeLoadImage, createCanvas } = require("../func/canvasHelper");
 const MAX_ATTACHMENT_BYTES = 35 * 1024 * 1024;
 
 async function extractImageUrlFromEvent(event, args = [], api = null) {
-  const extracted = await (global.utils?.extractImageUrl || extractImageUrl)(event, args, api);
-  if (extracted) return extracted;
-
-  const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.reply_to_message || event.replyTo || event.replied_to_message || event.replied_to_item || event.reply_to_item || event.quoted_item || (event.raw && (event.raw.messageReply || event.raw.repliedMessage || event.raw.replyToMessage || event.raw.replied_to_message || event.raw.replied_to_item));
-  if (reply && typeof reply === "object") {
-    const u = findImageInMessage(reply);
-    if (u) return u;
-  }
-
-  const replyID = (reply && (reply.messageID || reply.item_id || reply.id || reply.mid)) ||
-                  (typeof event.replyTo === "string" || typeof event.replyTo === "number" ? String(event.replyTo) : (event.replyTo && (event.replyTo.messageID || event.replyTo.item_id || event.replyTo.id))) ||
-                  event.replyToItemId || event.replied_to_item_id || event.reply_to_item_id ||
-                  event.replied_to_target_id || event.reply_to_target_id ||
-                  (event.raw && (event.raw.replyTo || event.raw.replied_to_item_id || event.raw.replied_to_target_id));
-
-  if (replyID) {
-    const idStr = String(replyID);
-    if (global.recentMessages && global.recentMessages.has(idStr)) {
-      const cached = global.recentMessages.get(idStr);
-      const u = findImageInMessage(cached);
-      if (u) return u;
-    }
-    const icaRecent = (api && api._raw && api._raw.mqtt && api._raw.mqtt._recentMessages) || (api && api._recentMessages);
-    if (icaRecent && icaRecent.has(idStr)) {
-      const cached = icaRecent.get(idStr);
-      const u = findImageInMessage(cached);
-      if (u) return u;
-    }
-  }
-
-  const curr = findImageInMessage(event);
-  if (curr) return curr;
-
-  if (event.raw && typeof event.raw === "object") {
-    const rawU = findImageInMessage(event.raw);
-    if (rawU) return rawU;
-  }
-
-  
-  if (event.messageReply?.attachments?.length > 0) {
-    for (const a of event.messageReply.attachments) {
-      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.candidate?.url || a.candidates?.[0]?.url;
-      if (u) return u;
-    }
-  }
-
-  if (event.attachments?.length > 0) {
-    for (const a of event.attachments) {
-      const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.candidate?.url || a.candidates?.[0]?.url;
-      if (u) return u;
-    }
-  }
-
-  if (event.messageReply && (event.messageReply.body || event.messageReply.text)) {
-    const text = event.messageReply.body || event.messageReply.text;
-    const m = text.match(/https?:\/\/[^\s]+/i);
-    if (m) return m[0];
-  }
-
-  if (Array.isArray(args) && args.length > 0) {
-    for (const a of args) {
-      if (typeof a === "string" && /^https?:\/\//i.test(a)) return a;
-    }
-  }
-
-  return null;
+  // Use the robust utility helper to avoid redundant logic and delays
+  return await (global.utils?.extractImageUrl || extractImageUrl)(event, args, api);
 }
 
 async function downloadToBuffer(fileUrl) {
