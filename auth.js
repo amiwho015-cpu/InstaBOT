@@ -64,7 +64,8 @@ const METHODS = [
  */
 const NON_IDEMPOTENT_METHODS = [
 	"sendMessage", "sendImage", "sendAudio", "sendVideo", "sendMusic",
-	"addUserToThread", "removeUserFromThread", "changeProfilePicture", "changeBio"
+	"addUserToThread", "removeUserFromThread", "changeProfilePicture", "changeBio",
+	"setMessageReaction", "unsendMessage", "deleteMessage"
 ];
 
 // Raw media is base64-encoded (+33%) and wrapped in JSON, so keep it well under
@@ -248,7 +249,8 @@ function doRequest(settings, method, args, callbackIndex, isRetry = false) {
 }
 
 function request(settings, method, args, callbackIndex) {
-	return doRequest(settings, method, args, callbackIndex, false);
+	const canRetry = !NON_IDEMPOTENT_METHODS.includes(method);
+	return doRequest(settings, method, args, callbackIndex, !canRetry);
 }
 
 /**
@@ -711,7 +713,7 @@ function login(options, callback) {
 	function connect(attemptsLeft) {
 		return request(settings, "getCurrentUserID", []).catch(error => {
 			const message = String(error && (error.message || error) || "");
-			const warming = /still logging in|not logged in|no cookies/i.test(message);
+			const warming = /still logging in|not logged in|no cookies|restriction|challenge|checkpoint|psma/i.test(message);
 			if (warming && attemptsLeft > 0) {
 				return new Promise(resolve => setTimeout(resolve, 3000)).then(() => connect(attemptsLeft - 1));
 			}

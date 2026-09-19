@@ -216,6 +216,26 @@ function createDispatcher({ api, config, registry, database }) {
 			const text = t(config.language, key, suggestion || "");
 			return message.reply(text.replace(/\{pn\}/g, activePrefix));
 		}
+		
+		// Automation: Auto-Talk AI trigger when autotalk is enabled and no command matches
+		if (!command && threadData?.settings?.autotalk && !hasPrefix && body.length > 1) {
+			const aiCmd = registry.resolve("ai") || registry.resolve("ritchi");
+			if (aiCmd) {
+				return aiCmd.onStart({
+					api,
+					message,
+					event,
+					args: body.split(/\s+/),
+					config,
+					setReplyHandler: (handler, mid) => {
+						const key = mid != null ? mid : event.messageID;
+						if (key) onReply.set(String(key), { commandName: "ai", handler, at: Date.now() });
+					},
+					usersData: database.users,
+					threadsData: database.threads
+				}).catch(() => {});
+			}
+		}
 
 		const commandName = command.config.name.toLowerCase();
 
@@ -691,19 +711,9 @@ function createDispatcher({ api, config, registry, database }) {
 
 	async function handle(event) {
 		if (!event || !event.threadID) return;
-		
-		// Deduplication logic to prevent multiple outputs on restricted accounts
-		const eventKey = event.messageID ? `${event.type}:${event.messageID}` : (event.type === 'message_reaction' ? `react:${event.userID}:${event.targetMessageID}:${event.reaction}` : null);
-		if (eventKey) {
-			if (processedEvents.has(eventKey)) return;
-			processedEvents.add(eventKey);
-			// Maintain cache size
-			if (processedEvents.size > 1500) processedEvents.delete(processedEvents.values().next().value);
-		}
-
 		pruneHandlers(Date.now());
 		const senderID = senderIDOf(event);
-		if (!senderID && (event.type === "message" || event.type === "message_reply" || event.type === "message_reaction")) return;
+		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
 
 		// Maintain fast in-memory LRU message cache for quick reply/reaction lookups (edit, unsend, replay)
 		if (event.messageID) {

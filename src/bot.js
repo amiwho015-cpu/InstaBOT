@@ -408,7 +408,7 @@ function createBot(config) {
 		const message = String(error && (error.error || error.message) || error);
 		if (/connection closed|closed by user|aborted|socket hang up|ECONNRESET|ETIMEDOUT/i.test(message)) return;
 		onlineStatus.writeLine({ event: "listener_error", error: message });
-		if (/not logged in|login_required|logged.?out|unauthorized|session|forbidden/i.test(message)) {
+		if (/not logged in|login_required|logged.?out|unauthorized|session|forbidden|checkpoint|challenge|restriction|psma/i.test(message)) {
 			log.error("LISTEN", "Session is no longer valid or expired. Re-authenticating…", message);
 			scheduleRelogin();
 		}
