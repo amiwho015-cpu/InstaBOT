@@ -22,7 +22,7 @@ function createDispatcher({ api, config, registry, database }) {
 	const onReaction = new Map(); // messageID -> { commandName, handler, at }
 	const refreshedUsers = new Set();
 
-	// Expose global.GoatBot for Floppa commands
+	// Expose global.GoatBot for compatibility with GoatBot V2 commands
 	global.GoatBot = {
 		onReply,
 		onReaction,
@@ -71,7 +71,15 @@ function createDispatcher({ api, config, registry, database }) {
 	function roleOf(event, threadData) {
 		const senderID = senderIDOf(event);
 		if (isBotAdmin(senderID)) return ROLE_ADMIN_BOT;
-		if (event && (event.isGroup === false || String(event.threadID) === senderID || (threadData && threadData.isGroup === false))) return ROLE_ADMIN_BOX;
+
+		// Users are considered Level 1 Admins in their own DMs (Private Messages)
+		const isDM = event && (
+			event.isGroup === false || 
+			(event.threadID && senderID && String(event.threadID) === senderID) || 
+			(threadData && threadData.isGroup === false)
+		);
+		if (isDM) return ROLE_ADMIN_BOX;
+
 		const rawAdmins = (threadData && (threadData.adminIDs || threadData.adminIds || threadData.admin_ids)) || [];
 		const adminIDs = (Array.isArray(rawAdmins) ? rawAdmins : []).map(a => {
 			if (!a) return "";
@@ -793,7 +801,7 @@ function createDispatcher({ api, config, registry, database }) {
 					}
 				}
 
-				// Tap-to-replay & reaction unsend feature (Floppa compatible)
+				// Tap-to-replay & reaction unsend feature
 				const targetMsgID = event.targetMessageID || event.target_message_id || event.messageID;
 				const emoji = typeof event.reaction === 'string' ? event.reaction : event.reaction?.emoji || event.reaction_unicode;
 				if (targetMsgID && emoji && event.reactionStatus !== "deleted") {
