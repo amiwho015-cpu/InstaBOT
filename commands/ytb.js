@@ -4,6 +4,7 @@ const yts = require("yt-search");
 const ytdl = require("@distube/ytdl-core");
 const fs = require("fs-extra");
 const path = require("path");
+const musicHelper = require("./music");
 
 function safeReact(message, api, event, emoji) {
   if (message && typeof message.react === "function") {
@@ -40,12 +41,17 @@ async function resolveVideoInfo(query) {
     duration = first.timestamp || duration;
   }
 
-  const info = await ytdl.getBasicInfo(videoUrl, {
-    requestOptions: {
-      maxRetries: 3,
-      timeout: 15000
-    }
-  });
+  let info = null;
+hreat   try {
+    info = await ytdl.getBasicInfo(videoUrl, {
+      requestOptions: {
+        maxRetries: 3,
+        timeout: 15000
+      }
+    });
+  } catch (_) {
+    // If metadata fails, we still have the search title/url to try fallbacks
+  }
 
   const details = info && info.videoDetails ? info.videoDetails : {};
   title = details.title || title;
@@ -92,9 +98,9 @@ async function buildDownloadStream(videoUrl, isAudio) {
 module.exports = {
   config: {
     name: "ytb",
-    aliases: ["youtube", "ytdl"],
+    aliases: ["youtube", "ytdl", "ytd", "yt"],
     version: "2.0.1",
-    author: "frnAlt & Floppa Team",
+    author: "frnAlt & lazyneoaz",
     cooldown: 8,
     role: 0,
     category: "media",
@@ -123,23 +129,48 @@ module.exports = {
       await fs.ensureDir(tempDir);
       tempPath = path.join(tempDir, `ytb_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
 
-      const { stream } = await buildDownloadStream(videoUrl, isAudio);
-      const writer = fs.createWriteStream(tempPath);
-      stream.pipe(writer);
+      // Attempt native download with fallbacks
+      let downloadSuccess = false;
+      try {
+        const { stream } = await buildDownloadStream(videoUrl, isAudio);
+        const writer = fs.createWriteStream(tempPath);
+        stream.pipe(writer);
 
-      await new Promise((resolve, reject) => {
-        writer.on("finish", resolve);
-        writer.on("error", reject);
-        stream.on("error", reject);
-      });
+        await new Promise((resolve, reject) => {
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+          stream.on("error", reject);
+        });
+        if (fs.existsSync(tempPath) && (await fs.stat(tempPath)).size > 1000) {
+          downloadSuccess = true;
+        }
+      } catch (_) {
+        downloadSuccess = false;
+      }
+
+      // Use specialized fallback providers from music helper if native fails
+      if (!downloadSuccess) {
+        try {
+          const fallbackPath = isAudio 
+            ? await musicHelper.downloadYouTubeAudio(videoUrl, title)
+            : await musicHelper.downloadYouTubeMedia(videoUrl, title, false);
+          
+          if (fallbackPath && fs.existsSync(fallbackPath)) {
+            await fs.move(fallbackPath, tempPath, { overwrite: true });
+            downloadSuccess = true;
+          }
+        } catch (_) {}
+      }
+
+      if (!downloadSuccess) throw new Error("YouTube download failed with all providers.");
 
       await safeReact(message, api, event, "✅");
 
       const caption = `▶️ 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 [${isAudio ? "AUDIO" : "VIDEO"}]\n📝 ${String(title).slice(0, 100)}${duration ? `\n⏱️ [${duration}]` : ""}`;
       replyMessage = await message.reply({
         body: caption,
-        attachment: { path: tempPath, type: isAudio ? "audio" : "video" },
-        textFirst: true
+        attachment: { path: tempPath, type: isAudio ? "audio" : "video", mimetype: isAudio ? "audio/mp4" : "video/mp4" },
+        textFirst: false
       });
 
       setTimeout(() => {

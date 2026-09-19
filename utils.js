@@ -669,13 +669,13 @@ async function toshiroRequest(url, data, options = {}) {
 		method: 'POST',
 		url,
 		data,
-		timeout: 60000, // 60s timeout is safer for AI generation
+		timeout: 90000, // Increased to 90s for heavy AI generation tasks
 		...options
 	};
 
 	return await utils.withBackoff(async () => {
 		try {
-			const response = await axios(config);
+			const response = await axios({ ...config, timeout: config.timeout });
 			return response.data;
 		} catch (error) {
 			throw error;
@@ -928,15 +928,23 @@ const utils = {
 		try {
 			return await fn();
 		} catch (error) {
-			if (retries <= 0) throw error;
 			const errorMessage = error.message || String(error);
+			const isTimeout = errorMessage.includes('timeout') || error.code === 'ECONNABORTED';
+			
+			// If it's a timeout and we have no retries left, don't just throw, 
+			// provide a clearer message for the logs.
+			if (retries <= 0) {
+				if (isTimeout) throw new Error(`Request timed out after multiple attempts: ${errorMessage}`);
+				throw error;
+			}
 			
 			// Retry on rate limits, network timeouts, and connection resets
 			const isRetryable = errorMessage.includes('rate limit') || 
 				errorMessage.includes('spam') || 
 				errorMessage.includes('429') ||
-				errorMessage.includes('timeout') ||
-				errorMessage.includes('ECONNABORTED') ||
+				isTimeout ||
+				errorMessage.includes('ENOTFOUND') ||
+				errorMessage.includes('ETIMEDOUT') ||
 				errorMessage.includes('ECONNRESET');
 
 			if (isRetryable) {
