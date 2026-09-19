@@ -25,11 +25,11 @@ module.exports = {
 	onReaction: async function ({ api, event, role, config }) {
 		const reaction = typeof event?.reaction === "string"
 			? event.reaction
-			: event?.reaction?.emoji;
+			: event?.reaction?.emoji || event?.reaction_unicode;
 		if (!reaction || event.reactionStatus === "deleted") return;
 		if (!HAND_EMOJIS.some(emoji => reaction.includes(emoji))) return;
 
-		const targetID = event.targetMessageID || event.target_message_id;
+		const targetID = event.targetMessageID || event.target_message_id || event.messageID;
 		const threadID = event.threadID || event.thread_id;
 		if (!targetID || !threadID || !api?.unsendMessage) return;
 
@@ -40,7 +40,7 @@ module.exports = {
 			...(Array.isArray(config?.devUsers) ? config.devUsers : []),
 			...(Array.isArray(config?.DEV_USERS) ? config.DEV_USERS : [])
 		].map(String);
-		if (!(Number(role) >= 1 || admins.includes(uid) || event.isGroup === false || event.isGroup == null)) return;
+		if (!admins.includes(uid)) return;
 
 		await new Promise((resolve, reject) => {
 			api.unsendMessage(targetID, threadID, (error, result) =>

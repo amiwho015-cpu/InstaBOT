@@ -660,6 +660,29 @@ async function shortenURL(url) {
 	}
 }
 
+/**
+ * Centralized Toshiro API request handler with higher timeout and retries for AI tasks.
+ * This fixes the "timeout of 6000ms exceeded" issues seen in edit.js logs.
+ */
+async function toshiroRequest(url, data, options = {}) {
+	const config = {
+		method: 'POST',
+		url,
+		data,
+		timeout: 60000, // 60s timeout is safer for AI generation
+		...options
+	};
+
+	return await utils.withBackoff(async () => {
+		try {
+			const response = await axios(config);
+			return response.data;
+		} catch (error) {
+			throw error;
+		}
+	}, 3, 2000);
+}
+
 // TODO: This function relies on screen scraping imgbb.com to get an auth_token,
 // which is highly fragile and prone to breaking if the website structure changes.
 // Consider using a dedicated image upload API or a more stable method.
@@ -863,6 +886,7 @@ const utils = {
 	shortenURL,
 	uploadZippyshare,
 	uploadImgbb,
+	toshiroRequest,
 	GoatBotApis,
 
 	/**

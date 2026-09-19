@@ -385,9 +385,9 @@ module.exports = {
         // Call Toshiro AI edit API
         try {
           const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-          const editRes = await axios.get(editApiUrl, { timeout: 6000 });
-          if (editRes.data?.success && editRes.data?.url) {
-            generatedUrl = editRes.data.url;
+          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET' });
+          if (data?.success && data?.url) {
+            generatedUrl = data.url;
             try {
               finalBuffer = await downloadToBuffer(generatedUrl);
               appliedType = "AI Edit";
@@ -409,9 +409,9 @@ module.exports = {
               if (uploadedUrl && uploadedUrl !== targetUrl) {
                 targetUrl = uploadedUrl;
                 const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const editRes = await axios.get(editApiUrl, { timeout: 6000 });
-                if (editRes.data?.success && editRes.data?.url) {
-                  generatedUrl = editRes.data.url;
+                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET' });
+                if (data?.success && data?.url) {
+                  generatedUrl = data.url;
                   try {
                     finalBuffer = await downloadToBuffer(generatedUrl);
                     appliedType = "AI Edit";

@@ -772,17 +772,16 @@ function createDispatcher({ api, config, registry, database }) {
 				}
 
 				// Tap-to-replay & reaction unsend feature (Floppa compatible)
-				const targetMsgID = event.targetMessageID || event.messageID;
-				if (targetMsgID && event.reaction && event.reactionStatus !== "deleted") {
+				const targetMsgID = event.targetMessageID || event.target_message_id || event.messageID;
+				const emoji = typeof event.reaction === 'string' ? event.reaction : event.reaction?.emoji || event.reaction_unicode;
+				if (targetMsgID && emoji && event.reactionStatus !== "deleted") {
 					const UNSEND_EMOJIS = [
 						"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
 					];
 					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
-					if (UNSEND_EMOJIS.some(h => event.reaction.includes(h) || event.reaction === h)) {
-						const role = roleOf(event, threadData);
-						const isDM = !event.isGroup;
-						if (role >= ROLE_ADMIN_BOX || isDM) {
+					if (UNSEND_EMOJIS.some(h => emoji.includes(h) || emoji === h)) {
+						if (isBotAdmin(senderID)) {
 							const botID = String((api && typeof api.getCurrentUserID === "function" ? api.getCurrentUserID() : "") || "").trim();
 							const cached = (global.recentMessages && typeof global.recentMessages.get === "function") ? global.recentMessages.get(String(targetMsgID)) : null;
 							if (!cached || !cached.senderID || !botID || String(cached.senderID) === botID) {
@@ -793,12 +792,12 @@ function createDispatcher({ api, config, registry, database }) {
 								} catch (_) {}
 							}
 						}
-					} else if (REPLAY_EMOJIS.includes(event.reaction)) {
+					} else if (REPLAY_EMOJIS.includes(emoji)) {
 						try {
 							const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;
 							const text = targetMsg?.body || targetMsg?.text || "";
 							if (text) {
-								if (["🗣️", "🔊"].includes(event.reaction)) {
+								if (["🗣️", "🔊"].includes(emoji)) {
 									const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.slice(0, 200))}`;
 									if (typeof api.sendVoiceFromUrl === "function") {
 										await api.sendVoiceFromUrl(event.threadID, ttsUrl).catch(async () => {

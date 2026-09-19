@@ -95,7 +95,7 @@ function encodeArgs(args) {
 					return resolve(encodeBuffer(fs.readFileSync(arg), path.basename(arg)));
 				}
 			}
-			catch (_) { /* not a local file */ }
+			catch (error) { /* not a local file or permission denied */ }
 			return resolve(arg);
 		}
 		if (isReadable(arg)) {
