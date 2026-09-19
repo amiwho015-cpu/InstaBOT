@@ -474,36 +474,22 @@ function login(options, callback) {
 
 	const originalSetMessageReaction = api.setMessageReaction;
 	api.setMessageReaction = function (reaction, messageID, threadID, callback, force) {
-		let cb = callback;
+		// Pass arguments through. The original function in ica/index.js handles shifting.
+		// However, we infer the threadID here if it was omitted.
 		let tid = threadID;
-		let f = force;
-		if (typeof tid === "function") {
-			cb = tid;
-			tid = undefined;
-			f = callback;
-		} else if (typeof tid === "boolean") {
-			f = tid;
-			tid = undefined;
+		if (!tid || typeof tid === "function" || typeof tid === "boolean") {
+			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || threadID;
 		}
-		if (!tid) {
-			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || undefined;
-		}
-		if (!tid) {
-			if (typeof cb === "function") cb(null);
-			return Promise.resolve();
-		}
+
 		let p;
 		try {
-			const callArgs = [reaction, messageID, tid];
-			if (typeof cb === "function") callArgs.push(cb);
-			if (typeof f === "boolean") callArgs.push(f);
-			p = originalSetMessageReaction(...callArgs);
+			p = originalSetMessageReaction(reaction, messageID, tid, callback, force);
 		} catch (_) {
 			p = Promise.resolve();
 		}
-		const safePromise = (p && typeof p.then === "function") ? p.catch(() => {}) : Promise.resolve();
-		if (typeof cb === "function") {
-			safePromise.then(r => cb(null, r), () => cb(null));
+		const safePromise = (p && typeof p.then === "function") ? p.catch(() => { }) : Promise.resolve();
+		if (typeof callback === "function") {
+			safePromise.then(r => callback(null, r), () => callback(null));
 			return undefined;
 		}
 		return safePromise;
@@ -521,22 +507,24 @@ function login(options, callback) {
 		if (!tid) {
 			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || undefined;
 		}
-		if (typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
-			const cached = global.recentMessages.get(String(messageID));
-			const botID = String(api._userID || (api.getCurrentUserID ? api.getCurrentUserID() : "") || "");
-			if (cached && cached.senderID && botID && String(cached.senderID) !== botID) {
-				const err = new Error("Cannot unsend message sent by another user");
-				if (typeof cb === "function") {
-					cb(err);
-					return undefined;
+		// Only perform the senderID check if global.recentMessages is available and botID is known
+		const botID = String(api._userID || (api.getCurrentUserID ? api.getCurrentUserID() : "") || "");
+		if (botID && typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
+			const cachedMessage = global.recentMessages.get(String(messageID));
+			if (cachedMessage && cachedMessage.senderID) {
+				// If the message was sent by the bot, but the senderID doesn't match the current botID, prevent unsend
+				if (String(cachedMessage.senderID) !== botID) {
+					const err = new Error("Cannot unsend message sent by another user");
+					if (typeof cb === "function") {
+						cb(err);
+						return undefined;
+					}
+					return Promise.reject(err);
 				}
-				return Promise.reject(err);
 			}
 		}
-		if (tid) {
-			return originalUnsendMessage(messageID, tid, cb);
-		}
-		return originalUnsendMessage(messageID, cb);
+		// Always provide the inferred threadID to the server bridge to ensure API compatibility
+		return originalUnsendMessage(messageID, tid, cb);
 	};
 
 	const originalSendMessage = api.sendMessage;
@@ -665,8 +653,19 @@ function login(options, callback) {
 				const tid = event.threadID || event.threadId;
 				if (tid) {
 					api._lastThreadID = String(tid);
+
+					// Mark reactions and clear body to prevent incorrect detection as commands
+					const isReaction = !!(event.reaction || event.type === 'message_reaction' || event.type === 'reaction' || event.reaction_unicode);
+					if (isReaction) {
+						event.isReaction = true;
+						event.type = 'message_reaction';
+						event.isCommand = false;
+						event.body = null; // Clearing body ensures command dispatchers ignore this event
+					}
+
 					const mid = event.messageID || event.messageId;
-					if (mid) {
+					// Only cache thread context for actual messages (not reactions)
+					if (mid && !event.isReaction && (event.type === "message" || event.type === "message_reply" || !event.type)) {
 						api._recentMessageThreads.set(String(mid), String(tid));
 						if (api._recentMessageThreads.size > 1000) {
 							const firstKey = api._recentMessageThreads.keys().next().value;

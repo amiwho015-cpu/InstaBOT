@@ -660,6 +660,11 @@ async function shortenURL(url) {
 	}
 }
 
+// TODO: This function relies on screen scraping imgbb.com to get an auth_token,
+// which is highly fragile and prone to breaking if the website structure changes.
+// Consider using a dedicated image upload API or a more stable method.
+// The current implementation also uses 'multipart/form-data' without explicitly setting a boundary,
+// which might be handled by axios but could be more robust with a dedicated form-data library.
 async function uploadImgbb(file /* stream or image url */) {
 	let type = "file";
 	try {
@@ -703,6 +708,9 @@ async function uploadImgbb(file /* stream or image url */) {
 	}
 }
 
+// TODO: This function relies on screen scraping zippysha.re to extract the download URL,
+// which is highly fragile and prone to breaking if the website structure changes.
+// Consider using a dedicated file hosting API or a more stable method.
 async function uploadZippyshare(stream) {
 	const res = await axios({
 		method: 'POST',
@@ -898,9 +906,18 @@ const utils = {
 		} catch (error) {
 			if (retries <= 0) throw error;
 			const errorMessage = error.message || String(error);
-			if (errorMessage.includes('rate limit') || errorMessage.includes('spam') || errorMessage.includes('429')) {
+			
+			// Retry on rate limits, network timeouts, and connection resets
+			const isRetryable = errorMessage.includes('rate limit') || 
+				errorMessage.includes('spam') || 
+				errorMessage.includes('429') ||
+				errorMessage.includes('timeout') ||
+				errorMessage.includes('ECONNABORTED') ||
+				errorMessage.includes('ECONNRESET');
+
+			if (isRetryable) {
 				const backoffDelay = delay * 2;
-				utils.log.warn('BACKOFF', `Rate limit hit, retrying in ${backoffDelay}ms... (Retries left: ${retries})`);
+				utils.log.warn('BACKOFF', `Network error or rate limit, retrying in ${backoffDelay}ms... (Retries: ${retries})`);
 				await new Promise(resolve => setTimeout(resolve, backoffDelay));
 				return utils.withBackoff(fn, retries - 1, backoffDelay);
 			}
