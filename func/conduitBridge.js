@@ -253,7 +253,7 @@ class ConduitMessageBuilder extends ConduitBaseBuilder {
         api.sendMessage(payload, threadID, (err, info) => {
           if (typeof callback === "function") callback(err, info);
           if (err) reject(err);
-          else resolve(info);
+          else resolve(attachSentMessageHelpers(info, threadID, api));
         }, replyTo);
       });
     }
@@ -355,7 +355,11 @@ class ConduitMessageCollector extends EventEmitter {
 
 // ─── 5. SentMessage Helpers ──────────────────────────────────────────────────
 function attachSentMessageHelpers(info, threadID, api) {
-  if (!info || typeof info !== "object" || info.__helpersAttached) return info;
+  if (!info) return info;
+  if (typeof info === "string") {
+    info = { messageID: info };
+  }
+  if (typeof info !== "object" || info.__helpersAttached) return info;
   info.__helpersAttached = true;
   info.threadID = info.threadID || String(threadID || "");
 
@@ -368,9 +372,6 @@ function attachSentMessageHelpers(info, threadID, api) {
         max: 1,
         timeout,
         filter: (msg) => {
-          if (msg.messageReply?.messageID === info.messageID) {
-            return filter(msg);
-          }
           return filter(msg);
         }
       });
@@ -401,17 +402,20 @@ function attachSentMessageHelpers(info, threadID, api) {
         });
       });
     }
+    return Promise.reject(new Error("api.editMessage is not a function or not supported."));
   };
 
   info.unsend = function () {
-    if (typeof api?.unsendMessage === "function") {
+    const unsendFunc = api?.unsend || api?.unsendMessage;
+    if (typeof unsendFunc === "function") {
       return new Promise((resolve, reject) => {
-        api.unsendMessage(info.messageID, (err, res) => {
+        unsendFunc(info.messageID, (err, res) => {
           if (err) reject(err);
           else resolve(res);
         });
       });
     }
+    return Promise.reject(new Error("api.unsendMessage is not a function or not supported."));
   };
 
   info.react = function (reaction) {
@@ -423,6 +427,7 @@ function attachSentMessageHelpers(info, threadID, api) {
         }, true);
       });
     }
+    return Promise.reject(new Error("api.setMessageReaction is not a function or not supported."));
   };
 
   return info;
@@ -624,6 +629,7 @@ function createDomainNamespaces(api, queue, cache) {
             }, true);
           });
         }
+        return Promise.reject(new Error("api.setMessageReaction is not a function"));
       },
       unsend: (messageID) => {
         if (typeof api.unsendMessage === "function") {
@@ -634,6 +640,7 @@ function createDomainNamespaces(api, queue, cache) {
             });
           });
         }
+        return Promise.reject(new Error("api.unsendMessage is not a function"));
       },
       edit: (text, messageID) => {
         if (typeof api.editMessage === "function") {
@@ -644,6 +651,7 @@ function createDomainNamespaces(api, queue, cache) {
             });
           });
         }
+        return Promise.reject(new Error("api.editMessage is not a function"));
       }
     },
 

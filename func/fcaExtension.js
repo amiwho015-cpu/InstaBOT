@@ -117,16 +117,19 @@ function extendFCA(api) {
       }
 
       const wrappedCb = typeof cb === "function" ? (err, info) => {
-        if (!err && info) {
-          attachSentMessageHelpers(info, threadID, api);
+        let enrichedInfo = info;
+        if (!err && enrichedInfo) {
+          enrichedInfo = attachSentMessageHelpers(enrichedInfo, threadID, api);
         }
-        cb(err, info);
+        cb(err, enrichedInfo);
       } : undefined;
 
       const result = originalSendMessage.call(api, msg, threadID, wrappedCb, replyTo, group);
       if (result && typeof result.then === "function") {
         return result.then(info => {
-          if (info) attachSentMessageHelpers(info, threadID, api);
+          if (info) {
+            return attachSentMessageHelpers(info, threadID, api);
+          }
           return info;
         });
       }

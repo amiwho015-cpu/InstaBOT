@@ -59,7 +59,7 @@ module.exports = {
 	},
 	antichangeinfobox: {
 		description: "Turn on/off anti change info box",
-		guide: "   {pn} avt [on | off]: anti change avatar box chat\n   {pn} name [on | off]: anti change name box chat\n   {pn} theme [on | off]: anti change theme (chủ đề) box chat\n   {pn} emoji [on | off]: anti change emoji box chat",
+		guide: "   {pn} avt [on | off]: anti change avatar box chat\n   {pn} name [on | off]: anti change name box chat\n   {pn} theme [on | off]: anti change theme of box chat\n   {pn} emoji [on | off]: anti change emoji box chat",
 		text: {
 			antiChangeAvatarOn: "Turn on anti change avatar box chat",
 			antiChangeAvatarOff: "Turn off anti change avatar box chat",
@@ -387,7 +387,7 @@ module.exports = {
 		}
 	},
 	prefix: {
-		description: "Thay đổi dấu lệnh của bot trong box chat của bạn hoặc cả hệ thống bot (chỉ admin bot)",
+		description: "Change the bot's prefix in your box chat or the whole bot system (only for bot admins)",
 		guide: "   {pn} <new prefix>: change new prefix in your box chat\n   Example:\n    {pn} #\n\n   {pn} <new prefix> -g: change new prefix in global bot (only admin bot)\n   Example:\n    {pn} # -g\n\n   {pn} reset: change prefix in your box chat to default",
 		text: {
 			reset: "Your prefix has been reset to default: %1",
@@ -466,7 +466,7 @@ module.exports = {
 	},
 	setlang: {
 		description: "Set default language of bot for current chat or all chats",
-		guide: "   {pn} <language code ISO 639-1\n   Example:    {pn} en    {pn} vi    {pn} ja",
+		guide: "   {pn} <language code ISO 639-1>\n   Example:    {pn} en    {pn} vi    {pn} ja",
 		text: {
 			setLangForAll: "Set default language for all chats: %1",
 			setLangForCurrent: "Set default language for current chat: %1",
@@ -520,7 +520,7 @@ module.exports = {
 	setwelcome: {
 		description: "Edit welcome message content when new member join your group chat",
 		guide: {
-			body: "   {pn} text [<content> | reset]: edit text content or reset to default, with some shortcuts:\n  + {userName}: new member name\n  + {userNameTag}: new member name (tag)\n  + {boxName}:  group chat name\n  + {multiple}: you || you guys\n  + {session}:  session in day\n\n   Example:\n    {pn} text Hello {userName}, welcome to {boxName}, have a nice day {multiple}\n\n   Reply (phản hồi) or send a message with file with content {pn} file: to add file attachments to welcome message (image, video, audio)\n\n   Example:\n    {pn} file reset: delete file attachments",
+			body: "   {pn} text [<content> | reset]: edit text content or reset to default, with some shortcuts:\n  + {userName}: new member name\n  + {userNameTag}: new member name (tag)\n  + {boxName}:  group chat name\n  + {multiple}: you || you guys\n  + {session}:  session in day\n\n   Example:\n    {pn} text Hello {userName}, welcome to {boxName}, have a nice day {multiple}\n\n   Reply or send a message with file with content {pn} file: to add file attachments to welcome message (image, video, audio)\n\n   Example:\n    {pn} file reset: delete file attachments",
 			attachment: {
 				[`${process.cwd()}/scripts/cmds/assets/guide/setwelcome/setwelcome_en_1.png`]: "https://i.ibb.co/vsCz0ks/setwelcome-en-1.png"
 			}
@@ -640,7 +640,7 @@ module.exports = {
 	},
 	videofb: {
 		description: "Download video/story from facebook (public)",
-		guide: "   {pn} <url video/story>: tải video từ facebook",
+		guide: "   {pn} <url video/story>: download video from facebook",
 		text: {
 			missingUrl: "Please enter the facebook video/story (public) url you want to download",
 			error: "An error occurred while downloading the video",
