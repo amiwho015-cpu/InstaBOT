@@ -58,6 +58,15 @@ const METHODS = [
 	"getAppState", "setOptions", "logout"
 ];
 
+/**
+ * Methods that should not be automatically retried on network failure 
+ * because they have side effects (sending a message twice).
+ */
+const NON_IDEMPOTENT_METHODS = [
+	"sendMessage", "sendImage", "sendAudio", "sendVideo", "sendMusic",
+	"addUserToThread", "removeUserFromThread", "changeProfilePicture", "changeBio"
+];
+
 // Raw media is base64-encoded (+33%) and wrapped in JSON, so keep it well under
 // the server's request cap (IG_MAX_BODY_BYTES, default 8 MB). Override with
 // IG_MAX_MEDIA_BYTES on the bot if the server allows larger bodies.
@@ -190,6 +199,7 @@ function sessionHeaders(settings) {
 function doRequest(settings, method, args, callbackIndex, isRetry = false) {
 	return new Promise((resolve, reject) => {
 		const target = settings.base;
+		const canRetry = !NON_IDEMPOTENT_METHODS.includes(method);
 		const lib = target.protocol === "https:" ? https : http;
 		const payload = JSON.stringify({ method, args, callbackIndex: callbackIndex == null ? -1 : callbackIndex });
 
@@ -227,7 +237,7 @@ function doRequest(settings, method, args, callbackIndex, isRetry = false) {
 		req.on("error", err => {
 			req.destroy();
 			const msg = String(err && (err.message || err) || "");
-			if (!isRetry && /ECONNRESET|EPIPE|socket hang up|ETIMEDOUT/i.test(msg)) {
+			if (!isRetry && canRetry && /ECONNRESET|EPIPE|socket hang up|ETIMEDOUT/i.test(msg)) {
 				return doRequest(settings, method, args, callbackIndex, true).then(resolve, reject);
 			}
 			reject(err);
@@ -513,7 +523,10 @@ function login(options, callback) {
 		const botID = String(api._userID || (api.getCurrentUserID ? api.getCurrentUserID() : "") || "");
 		if (botID && typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
 			const cachedMessage = global.recentMessages.get(String(messageID));
-			if (cachedMessage && cachedMessage.senderID) {
+			// Guard: If we know who sent the message, only let the bot unsend its own messages
+			// unless it's an admin unsend (handled by command logic). 
+			// This prevents the bridge from attempting impossible unsends.
+			if (cachedMessage && cachedMessage.senderID && !cachedMessage.isBot) {
 				// If the message was sent by the bot, but the senderID doesn't match the current botID, prevent unsend
 				if (String(cachedMessage.senderID) !== botID) {
 					const err = new Error("Cannot unsend message sent by another user");

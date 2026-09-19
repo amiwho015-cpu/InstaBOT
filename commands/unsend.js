@@ -33,14 +33,7 @@ module.exports = {
 		const threadID = event.threadID || event.thread_id;
 		if (!targetID || !threadID || !api?.unsendMessage) return;
 
-		const uid = String(event.userID || event.senderID || "").trim();
-		const admins = [
-			...(Array.isArray(config?.adminBot) ? config.adminBot : []),
-			...(Array.isArray(config?.ADMIN_BOT) ? config.ADMIN_BOT : []),
-			...(Array.isArray(config?.devUsers) ? config.devUsers : []),
-			...(Array.isArray(config?.DEV_USERS) ? config.DEV_USERS : [])
-		].map(String);
-		if (!admins.includes(uid)) return;
+		if (role < 1) return;
 
 		await new Promise((resolve, reject) => {
 			api.unsendMessage(targetID, threadID, (error, result) =>

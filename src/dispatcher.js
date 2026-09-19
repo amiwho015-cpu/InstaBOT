@@ -15,6 +15,8 @@ const ROLE_ADMIN_BOX = 1;
 const ROLE_ADMIN_BOT = 2;
 
 function createDispatcher({ api, config, registry, database }) {
+	const processedEvents = new Set();
+	
 	const cooldowns = new Map();
 	const onReply = new Map(); // messageID -> { commandName, handler, at }
 	const onReaction = new Map(); // messageID -> { commandName, handler, at }
@@ -689,9 +691,19 @@ function createDispatcher({ api, config, registry, database }) {
 
 	async function handle(event) {
 		if (!event || !event.threadID) return;
+		
+		// Deduplication logic to prevent multiple outputs on restricted accounts
+		const eventKey = event.messageID ? `${event.type}:${event.messageID}` : (event.type === 'message_reaction' ? `react:${event.userID}:${event.targetMessageID}:${event.reaction}` : null);
+		if (eventKey) {
+			if (processedEvents.has(eventKey)) return;
+			processedEvents.add(eventKey);
+			// Maintain cache size
+			if (processedEvents.size > 1500) processedEvents.delete(processedEvents.values().next().value);
+		}
+
 		pruneHandlers(Date.now());
 		const senderID = senderIDOf(event);
-		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
+		if (!senderID && (event.type === "message" || event.type === "message_reply" || event.type === "message_reaction")) return;
 
 		// Maintain fast in-memory LRU message cache for quick reply/reaction lookups (edit, unsend, replay)
 		if (event.messageID) {
@@ -781,17 +793,9 @@ function createDispatcher({ api, config, registry, database }) {
 					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
 					if (UNSEND_EMOJIS.some(h => emoji.includes(h) || emoji === h)) {
-						if (isBotAdmin(senderID)) {
-							const botID = String((api && typeof api.getCurrentUserID === "function" ? api.getCurrentUserID() : "") || "").trim();
-							const cached = (global.recentMessages && typeof global.recentMessages.get === "function") ? global.recentMessages.get(String(targetMsgID)) : null;
-							if (!cached || !cached.senderID || !botID || String(cached.senderID) === botID) {
-								try {
-									if (typeof api.unsendMessage === "function") {
-										await api.unsendMessage(targetMsgID, event.threadID, () => {}).catch(() => {});
-									}
-								} catch (_) {}
-							}
-						}
+						// Unsend logic is now handled exclusively by commands/unsend.js 
+						// to prevent duplicate API calls and redundant processing.
+						return;
 					} else if (REPLAY_EMOJIS.includes(emoji)) {
 						try {
 							const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;

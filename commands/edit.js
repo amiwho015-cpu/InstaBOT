@@ -20,7 +20,7 @@ const { safeLoadImage, createCanvas } = require("../func/canvasHelper");
 const MAX_ATTACHMENT_BYTES = 35 * 1024 * 1024;
 
 async function extractImageUrlFromEvent(event, args = [], api = null) {
-  const extracted = await extractImageUrl(event, args, api);
+  const extracted = await (global.utils?.extractImageUrl || extractImageUrl)(event, args, api);
   if (extracted) return extracted;
 
   const reply = event.messageReply || event.repliedMessage || event.replyToMessage || event.reply_to_message || event.replyTo || event.replied_to_message || event.replied_to_item || event.reply_to_item || event.quoted_item || (event.raw && (event.raw.messageReply || event.raw.repliedMessage || event.raw.replyToMessage || event.raw.replied_to_message || event.raw.replied_to_item));
@@ -58,6 +58,7 @@ async function extractImageUrlFromEvent(event, args = [], api = null) {
     if (rawU) return rawU;
   }
 
+  
   if (event.messageReply?.attachments?.length > 0) {
     for (const a of event.messageReply.attachments) {
       const u = a.url || a.largePreviewUrl || a.large_preview_url || a.previewUrl || a.preview_url || a.thumbnailUrl || a.image || a.photo || a.candidate?.url || a.candidates?.[0]?.url;
