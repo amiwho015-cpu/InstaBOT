@@ -83,7 +83,50 @@ async function downloadUrlToTempFile(audioUrl) {
 	return tempPath;
 }
 
+/**
+ * Download YouTube media (video or audio) using multiple fallback providers.
+ * This fixes 403 Forbidden errors from native ytdl-core.
+ */
+async function downloadYouTubeMedia(videoUrl, videoTitle, isAudio = true) {
+	if (isAudio) return await downloadYouTubeAudio(videoUrl, videoTitle);
+	
+	const tempDir = path.join(process.cwd(), "temp");
+	await fs.ensureDir(tempDir);
+	const tempPath = path.join(tempDir, `yt_vdo_${Date.now()}.mp4`);
+
+	const providers = [
+		async () => {
+			const ttRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
+			return ttRes.data?.data?.play || ttRes.data?.data?.wmplay;
+		},
+		async () => {
+			const neoRes = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(videoUrl)}`, { timeout: 15000 });
+			const d = neoRes.data?.metadata?.data || neoRes.data?.data;
+			const dl = d?.downloads?.find(it => it.ext === "mp4" && !String(it.label).toLowerCase().includes("audio")) || d?.downloads?.[0];
+			return dl?.url;
+		},
+		async () => {
+			const res = await axios.post("https://api.cobalt.tools/api/json", { url: videoUrl, downloadMode: "auto" }, { headers: { Accept: "application/json" }, timeout: 15000 });
+			return res.data?.url;
+		}
+	];
+
+	for (const provider of providers) {
+		try {
+			const dlUrl = await provider();
+			if (dlUrl) {
+				const res = await axios.get(dlUrl.startsWith("http") ? dlUrl : `https://www.tikwm.com${dlUrl}`, { responseType: "arraybuffer", timeout: 45000 });
+				await fs.writeFile(tempPath, Buffer.from(res.data));
+				if ((await fs.stat(tempPath)).size > 1000) return tempPath;
+			}
+		} catch (_) {}
+	}
+	throw new Error("Could not extract downloadable YouTube video from any provider");
+}
+
 async function downloadYouTubeAudio(videoUrl, videoTitle) {
+	if (!videoUrl) throw new Error("No YouTube URL provided to downloader");
+
 	const tempDir = path.join(process.cwd(), "temp");
 	await fs.ensureDir(tempDir);
 	const tempPath = path.join(tempDir, `yt_music_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`);
@@ -347,4 +390,6 @@ module.exports = {
 	},
 	downloadYouTubeAudio,
 	downloadUrlToTempFile
+	downloadUrlToTempFile,
+	downloadYouTubeMedia
 };

@@ -42,7 +42,7 @@ async function resolveVideoInfo(query) {
   }
 
   let info = null;
-hreat   try {
+  try {
     info = await ytdl.getBasicInfo(videoUrl, {
       requestOptions: {
         maxRetries: 3,

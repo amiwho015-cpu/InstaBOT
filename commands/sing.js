@@ -234,29 +234,32 @@ module.exports = {
 				}
 
 				const tempPath = await downloadYouTubeAudio(video.url, video.title);
-				const caption = `🎶 ${video.title || "Unknown"}\n👤 ${video.author?.name || "YouTube"}\n⏱️ ${video.timestamp || (video.seconds ? formatDuration(video.seconds * 1000) : "0:00")}\n🔗 ${video.url || ""}`.trim();
+				const caption = `🎶 ${video.title || "YouTube Audio"}\n👤 ${video.author?.name || "YouTube"}\n⏱️ ${video.timestamp || (video.seconds ? formatDuration(video.seconds * 1000) : "0:00")}\n🔗 ${video.url || ""}`.trim();
+
+				const delivery = {
+					send: async () => await message.send({
+						body: caption,
+						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
+						textFirst: false
+					}),
+					reply: async () => await message.reply({
+						body: caption,
+						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
+						textFirst: false
+					})
+				};
 
 				let sent = null;
-				try {
-					sent = await message.send({
-						body: caption,
-						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
-						textFirst: false
-					});
-				} catch (_) {
-					sent = await message.reply({
-						body: caption,
-						attachment: { path: tempPath, type: "audio", mimetype: "audio/mp4" },
-						textFirst: false
-					});
-				}
+				try { sent = await delivery.send(); } 
+				catch (_) { sent = await delivery.reply().catch(() => null); }
 
 				await safeReact("✅");
 				setTimeout(() => fs.unlink(tempPath).catch(() => {}), 30000);
+				if (!sent) throw new Error("Download finished but bot could not deliver the audio file.");
 				return sent;
 			} catch (err) {
 				await safeReact("❌");
-				return message.reply(`❌ YouTube song download failed: ${err.message || err}`);
+				return message.reply(`❌ YouTube download failed: ${err.message || "Unknown error"}`);
 			}
 		}
 

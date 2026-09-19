@@ -669,13 +669,13 @@ async function toshiroRequest(url, data, options = {}) {
 		method: 'POST',
 		url,
 		data,
-		timeout: 90000, // Increased to 90s for heavy AI generation tasks
+		timeout: 90000, // 90s timeout is safer for AI generation
 		...options
 	};
 
 	return await utils.withBackoff(async () => {
 		try {
-			const response = await axios({ ...config, timeout: config.timeout });
+			const response = await axios(config);
 			return response.data;
 		} catch (error) {
 			throw error;

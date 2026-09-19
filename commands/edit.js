@@ -137,7 +137,7 @@ async function uploadImageToPublicHost(buffer) {
     form.append("files[]", buffer, { filename: "edit.jpg" });
     const res = await axios.post("https://uguu.se/upload", form, {
       headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      timeout: 15000 // Increased upload timeout
+      timeout: 20000
     });
     const u = res.data?.files?.[0]?.url;
     if (u && typeof u === "string" && u.startsWith("http")) return u;
@@ -149,7 +149,7 @@ async function uploadImageToPublicHost(buffer) {
     form.append("file", buffer, { filename: "edit.jpg" });
     const res = await axios.post("https://tmpfiles.org/api/v1/upload", form, {
       headers: form.getHeaders(),
-      timeout: 15000 // Increased upload timeout
+      timeout: 20000
     });
     const rawUrl = res.data?.data?.url;
     if (rawUrl && typeof rawUrl === "string") {
@@ -384,8 +384,8 @@ module.exports = {
 
         // Call Toshiro AI edit API
         try {
-          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;nd 
-          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET' });
+          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
+          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 90000 });
           if (data?.success && data?.url) {
             generatedUrl = data.url;
             try {
@@ -409,7 +409,7 @@ module.exports = {
               if (uploadedUrl && uploadedUrl !== targetUrl) {
                 targetUrl = uploadedUrl;
                 const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET' });
+                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 90000 });
                 if (data?.success && data?.url) {
                   generatedUrl = data.url;
                   try {
