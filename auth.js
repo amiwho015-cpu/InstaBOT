@@ -474,22 +474,24 @@ function login(options, callback) {
 
 	const originalSetMessageReaction = api.setMessageReaction;
 	api.setMessageReaction = function (reaction, messageID, threadID, callback, force) {
-		// Pass arguments through. The original function in ica/index.js handles shifting.
-		// However, we infer the threadID here if it was omitted.
-		let tid = threadID;
-		if (!tid || typeof tid === "function" || typeof tid === "boolean") {
-			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || threadID;
+		let tid = threadID, cb = callback, f = force;
+		// Handle shifted arguments before inference
+		if (typeof tid === "function") { cb = tid; f = callback; tid = undefined; }
+		else if (typeof tid === "boolean") { f = tid; tid = undefined; }
+
+		if (!tid) {
+			tid = api._recentMessageThreads.get(String(messageID)) || api._lastThreadID || undefined;
 		}
 
 		let p;
 		try {
-			p = originalSetMessageReaction(reaction, messageID, tid, callback, force);
+			p = originalSetMessageReaction(reaction, messageID, tid, cb, f);
 		} catch (_) {
 			p = Promise.resolve();
 		}
 		const safePromise = (p && typeof p.then === "function") ? p.catch(() => { }) : Promise.resolve();
-		if (typeof callback === "function") {
-			safePromise.then(r => callback(null, r), () => callback(null));
+		if (typeof cb === "function") {
+			safePromise.then(r => cb(null, r), () => cb(null));
 			return undefined;
 		}
 		return safePromise;
