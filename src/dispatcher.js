@@ -30,31 +30,47 @@ function createDispatcher({ api, config, registry, database }) {
 	// server may flush every event queued while we were offline. Without this
 	// set, users get duplicate/late responses to commands sent while the bot
 	// was down — and duplicated bot messages.
-	const processedEvents = new Map(); // eventKey -> first-seen timestamp
+	const processedEvents = new Map(); // eventKey -> expiry timestamp
 	const EVENT_DEDUP_TTL_MS = 10 * 60 * 1000; // remember ids for 10 minutes
+	const REACTION_DEDUP_TTL_MS = 90 * 1000; // reactions: short window only
 	const MAX_TRACKED_EVENTS = 5000;
 	const autoTalkLast = new Map(); // threadID -> last AI trigger timestamp
 	let lastEventCleanup = Date.now();
 	function isDuplicateEvent(event) {
-		const id = String(
-			event.messageID || event.messageId ||
-			(event.type === "message_reaction" && (event.targetMessageID || event.target_message_id)
-				? `${event.type}:${event.targetMessageID || event.target_message_id}:${event.reaction?.emoji || event.reaction || ""}:${event.senderID || ""}:${event.timestamp || ""}`
-				: "") ||
-			(event.type === "message_reaction"
-				? `${event.type}:${event.threadID}:${event.senderID}:${event.timestamp}`
-				: "")
-		);
+		// Key MUST be namespaced per event type. On reaction (and unsend) events
+		// bridges put the TARGET message's id in messageID — that id was already
+		// recorded when the original message event arrived, so a bare messageID
+		// key made every reaction look like a duplicate and silently killed the
+		// emoji-unsend feature.
+		let id;
+		if (event.type === "message_reaction") {
+			const target = String(event.targetMessageID || event.target_message_id || event.messageID || "");
+			const emoji = typeof event.reaction === "string"
+				? event.reaction
+				: (event.reaction?.emoji || event.reaction_unicode || "");
+			const sender = String(event.senderID || event.userID || "");
+			id = target ? `reaction:${target}:${emoji}:${sender}` : "";
+		} else if (event.type === "message_unsend") {
+			const mid = String(event.messageID || event.messageId || "");
+			id = mid ? `unsend:${mid}` : "";
+		} else {
+			id = String(event.messageID || event.messageId || "");
+		}
 		if (!id) return false;
 		const now = Date.now();
 		if (now - lastEventCleanup > 60 * 1000) {
 			lastEventCleanup = now;
-			for (const [key, ts] of processedEvents) {
-				if (now - ts > EVENT_DEDUP_TTL_MS) processedEvents.delete(key);
+			for (const [key, expiry] of processedEvents) {
+				if (expiry <= now) processedEvents.delete(key);
 			}
 		}
-		if (processedEvents.has(id)) return true;
-		processedEvents.set(id, now);
+		const existingExpiry = processedEvents.get(id);
+		if (existingExpiry && existingExpiry > now) return true; // fresh marker → duplicate
+		// Reactions get a short window: bridge redeliveries arrive within
+		// seconds, while a user removing and re-adding the same emoji later
+		// must still trigger the feature again.
+		const ttl = id.startsWith("reaction:") ? REACTION_DEDUP_TTL_MS : EVENT_DEDUP_TTL_MS;
+		processedEvents.set(id, now + ttl);
 		if (processedEvents.size > MAX_TRACKED_EVENTS) {
 			const firstKey = processedEvents.keys().next().value;
 			processedEvents.delete(firstKey);
@@ -811,24 +827,14 @@ function createDispatcher({ api, config, registry, database }) {
 		const senderID = senderIDOf(event);
 		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
 
-		// Self-message guard: with selfListen disabled the engine should never
-		// deliver our own messages on the live stream, but the server's
-		// reconnect/restart backlog DOES replay them — and every own message
-		// that slipped through made the bot react to itself (autotalk answering
-		// its own replies = the auto-spam loop, plus duplicate outputs).
-		// Operators who intentionally enable selfListen keep normal behaviour.
-		if (senderID && config.selfListen !== true && api && typeof api.getCurrentUserID === "function") {
-			try {
-				const botID = String(api.getCurrentUserID() || "").trim();
-				if (botID && senderID === botID) {
-					log.info("DISPATCH", `Skipped self message (own echo/backlog) in thread ${event.threadID}`);
-					return;
-				}
-			} catch (_) {}
-		}
-
 		// Maintain fast in-memory LRU message cache for quick reply/reaction lookups (edit, unsend, replay)
-		if (event.messageID) {
+		// Only actual messages are cached: reaction/unsend events carry the TARGET
+		// message's id in messageID, and caching those overwrote the original bot
+		// message entry with the reactor's senderID — which made unsend's
+		// ownership pre-check believe the message wasn't the bot's and silently
+		// refuse every admin reaction. This MUST run before the self-guard so
+		// the bot's own (echoed) messages stay resolvable for ownership checks.
+		if (event.messageID && (event.type === "message" || event.type === "message_reply")) {
 			global.recentMessages = global.recentMessages || new Map();
 			global.recentMessages.set(String(event.messageID), {
 				messageID: String(event.messageID),
@@ -851,6 +857,24 @@ function createDispatcher({ api, config, registry, database }) {
 				set: (id, val) => global.recentMessages?.set(String(id), val),
 				has: (id) => global.recentMessages?.has(String(id)) || false
 			};
+		}
+
+		// Self-message guard: with selfListen disabled the engine should never
+		// deliver our own messages on the live stream, but the server's
+		// reconnect/restart backlog DOES replay them — and every own message
+		// that slipped through made the bot react to itself (autotalk answering
+		// its own replies = the auto-spam loop, plus duplicate outputs).
+		// Operators who intentionally enable selfListen keep normal behaviour.
+		// Runs AFTER the cache block: own echoes are cached (so unsend/edit can
+		// resolve them) but never processed.
+		if (senderID && config.selfListen !== true && api && typeof api.getCurrentUserID === "function") {
+			try {
+				const botID = String(api.getCurrentUserID() || "").trim();
+				if (botID && senderID === botID) {
+					log.info("DISPATCH", `Skipped self message (own echo/backlog) in thread ${event.threadID}`);
+					return;
+				}
+			} catch (_) {}
 		}
 
 		if (!allowedByWhitelist(event)) return;

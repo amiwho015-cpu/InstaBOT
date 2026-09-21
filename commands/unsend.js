@@ -72,9 +72,11 @@ module.exports = {
 				].map(String);
 				authorised = admins.includes(senderID);
 			}
-			// role >= 1 covers thread admins and DM participants as computed
-			// by the dispatcher's roleOf() at reaction time.
-			if (!authorised && Number(role) >= 1) authorised = true;
+		// role >= 1 covers bot/thread admins and DM participants as computed by
+		// the dispatcher's roleOf() at reaction time. The bot deletes its OWN
+		// message (ownership is enforced by Instagram itself); the reaction is
+		// only a trigger, so thread admins / DM participants may trigger it.
+		if (!authorised && Number(role) >= 1) authorised = true;
 		}
 		if (!authorised) return;
 
