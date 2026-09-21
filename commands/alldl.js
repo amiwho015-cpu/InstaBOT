@@ -252,6 +252,8 @@ module.exports = {
         ? { path: tempFilePath, type: isAudio ? "audio" : "video", mimetype: isAudio ? "audio/mp4" : undefined }
         : { url: downloadUrl, type: isAudio ? "audio" : "video", mimetype: isAudio ? "audio/mp4" : undefined };
 
+      // Deliberately no body/caption: media-only delivery by design (tests
+      // assert "no extra text"); the title is resolved but not sent.
       let sent = null;
       try {
         sent = await message.reply({
