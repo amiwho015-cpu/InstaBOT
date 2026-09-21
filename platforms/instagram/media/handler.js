@@ -215,9 +215,18 @@ async function dispatchMediaMessage(apiOrForm, threadID, maybeFormOrApi, replyTo
 					} else {
 						res = await api.sendMessage({ body: caption, attachment: filePath, replyTo: replyTarget }, threadID, undefined, replyTarget);
 					}
-				}
-			} catch (err) {
-				if (replyTarget) {
+				}				} catch (err) {
+					// A timed-out media RPC almost always delivered (the response was
+					// lost, not the send). Falling back would post the same video/
+					// photo twice, minutes apart. Assume delivered, like the text path.
+					const msg = (err && (err.message || JSON.stringify(err))) || String(err || "");
+					const timedOut = /timed? ?out/i.test(msg) || (err && (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT"));
+					if (timedOut) {
+						logger.warn(`Media send RPC timed out (${kind}); assuming delivered, no fallback`);
+						if (isFirst) primaryResult = primaryResult || { threadID, messageID: "rpc_timeout_" + Date.now(), assumedDelivered: true };
+						continue;
+					}
+					if (replyTarget) {
 					try {
 						if (kind === "video") {
 							if (typeof api.sendVideo === "function") {

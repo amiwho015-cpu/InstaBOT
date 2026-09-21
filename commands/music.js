@@ -156,64 +156,58 @@ async function downloadYouTubeAudio(videoUrl, videoTitle) {
 		}
 	}
 
-	// 2. Ryzendesu YTMP3 API
-	try {
-		const ryzRes = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 20000 });
-		const downloadUrl = ryzRes.data?.url || ryzRes.data?.downloadUrl || ryzRes.data?.data?.url;
-		if (downloadUrl) {
-			const downloaded = await downloadUrlToTempFile(downloadUrl);
-			return await compressAudioFile(downloaded);
-		}
-	} catch (_) {}
-
-	// 3. NeoKEX AllDL Universal
-	try {
-		const neoRes = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(videoUrl)}`, { timeout: 20000 });
-		const data = (neoRes.data && (neoRes.data.metadata?.data || neoRes.data.data)) || neoRes.data;
-		const downloads = (data && data.downloads) || [];
-		if (downloads.length > 0) {
-			const dl = downloads.find(d => String(d.label || d.ext).toLowerCase().includes("audio") || d.ext === "mp3") || downloads[0];
-			if (dl && dl.url) {
-				const downloaded = await downloadUrlToTempFile(dl.url);
-				return await compressAudioFile(downloaded);
+	// 2–6. Provider APIs, raced in PARALLEL. Previously sequential: five
+	// providers × ~20s timeouts stacked ~94s of dead air before any fallback
+	// could run. First provider to return a usable audio URL wins; the rest
+	// are ignored.
+	{
+		const enc = encodeURIComponent(videoUrl);
+		const audioProviders = [
+			// Ryzendesu YTMP3
+			async () => {
+				const r = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${enc}`, { timeout: 15000 });
+				return r.data?.url || r.data?.downloadUrl || r.data?.data?.url;
+			},
+			// NeoKEX AllDL Universal
+			async () => {
+				const neo = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${enc}`, { timeout: 15000 });
+				const data = (neo.data && (neo.data.metadata?.data || neo.data.data)) || neo.data;
+				const downloads = (data && data.downloads) || [];
+				const dl = downloads.find(d => String(d.label || d.ext).toLowerCase().includes("audio") || d.ext === "mp3") || downloads[0];
+				return dl?.url;
+			},
+			// Cobalt
+			async () => {
+				const cob = await axios.post("https://api.cobalt.tools/api/json", {
+					url: videoUrl,
+					downloadMode: "audio"
+				}, {
+					headers: { Accept: "application/json", "Content-Type": "application/json" },
+					timeout: 15000
+				});
+				return cob.data?.url;
+			},
+			// Kaiz
+			async () => {
+				const kaiz = await axios.get(`https://kaiz-apis.gleeze.com/api/alldl?url=${enc}`, { timeout: 15000 });
+				return kaiz.data?.audio || kaiz.data?.url;
+			},
+			// Siputzx
+			async () => {
+				const sip = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${enc}`, { timeout: 15000 });
+				return sip.data?.data?.audio || sip.data?.data?.url || sip.data?.result?.audio;
 			}
-		}
-	} catch (_) {}
+		];
 
-	// 4. Cobalt API
-	try {
-		const cobRes = await axios.post("https://api.cobalt.tools/api/json", {
-			url: videoUrl,
-			downloadMode: "audio"
-		}, {
-			headers: { Accept: "application/json", "Content-Type": "application/json" },
-			timeout: 18000
-		});
-		if (cobRes.data?.url) {
-			const downloaded = await downloadUrlToTempFile(cobRes.data.url);
-			return await compressAudioFile(downloaded);
+		const results = await Promise.allSettled(audioProviders.map(p => p()));
+		for (const entry of results) {
+			if (entry.status !== "fulfilled" || !entry.value) continue;
+			try {
+				const downloaded = await downloadUrlToTempFile(entry.value);
+				return await compressAudioFile(downloaded);
+			} catch (_) { /* try next provider's URL */ }
 		}
-	} catch (_) {}
-
-	// 5. Kaiz API
-	try {
-		const kaizRes = await axios.get(`https://kaiz-apis.gleeze.com/api/alldl?url=${encodeURIComponent(videoUrl)}`, { timeout: 18000 });
-		const kaizAudio = kaizRes.data?.audio || kaizRes.data?.url;
-		if (kaizAudio) {
-			const downloaded = await downloadUrlToTempFile(kaizAudio);
-			return await compressAudioFile(downloaded);
-		}
-	} catch (_) {}
-
-	// 6. Siputzx API
-	try {
-		const sipRes = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${encodeURIComponent(videoUrl)}`, { timeout: 18000 });
-		const sipAudio = sipRes.data?.data?.audio || sipRes.data?.data?.url || sipRes.data?.result?.audio;
-		if (sipAudio) {
-			const downloaded = await downloadUrlToTempFile(sipAudio);
-			return await compressAudioFile(downloaded);
-		}
-	} catch (_) {}
+	}
 
 	// 7. Preview fallback via iTunes search if we have a song title
 	if (videoTitle) {

@@ -134,87 +134,75 @@ module.exports = {
         }
       }
 
-      // 2. Ryzendesu YTMP3 Audio Fast Path (for YouTube audio mode)
-      if (isAudio && !downloadUrl && !tempFilePath && /youtu\.?be/i.test(url)) {
-        try {
-          const ryzRes = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(url)}`, { timeout: 15000 });
-          const audioUrl = ryzRes.data?.url || ryzRes.data?.downloadUrl || ryzRes.data?.data?.url;
-          if (audioUrl) {
-            downloadUrl = audioUrl;
-            title = "YouTube Audio";
-          }
-        } catch (_) {}
-      }
-
-      // 3. TikTok Fast Path
-      if (!downloadUrl && !tempFilePath && /tiktok\.com/i.test(url)) {
-        try {
-          const ttRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, { timeout: 12000 });
-          const ttData = ttRes.data?.data;
-          if (ttData) {
-            downloadUrl = isAudio ? (ttData.music || ttData.play) : (ttData.play || ttData.wmplay);
-            title = ttData.title || "TikTok Video";
-          }
-        } catch (_) {}
-      }
-
-      // 4. NeoKEX AllDL Universal API
+      // 2–7. Provider APIs. Previously these six ran SEQUENTIALLY: a link that
+      // every provider failed on stacked up to ~95s of timeouts before the
+      // error surfaced (the long ⏳ hang). They now all race in parallel and
+      // the first usable download URL wins.
       if (!downloadUrl && !tempFilePath) {
-        try {
-          const neoRes = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${encodeURIComponent(url)}`, { timeout: 20000 });
-          const data = (neoRes.data && (neoRes.data.metadata?.data || neoRes.data.data)) || neoRes.data;
-          const downloads = (data && data.downloads) || [];
-          if (downloads.length > 0) {
-            if (isAudio) {
-              const dl = downloads.find(d => String(d.label || d.ext).toLowerCase().includes("audio") || d.ext === "mp3") || downloads[0];
-              downloadUrl = dl.url;
-            } else {
-              const dl = downloads.find(d => d.ext === "mp4" && !String(d.label).toLowerCase().includes("audio")) || downloads.find(d => !String(d.label).toLowerCase().includes("audio")) || downloads[0];
-              downloadUrl = dl.url;
-            }
-            title = data.title || title;
+        const enc = encodeURIComponent(url);
+        const providers = [
+          // Ryzendesu (YouTube audio)
+          /youtu\.?be/i.test(url) && !isAudio === false ? (async () => {
+            const r = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${enc}`, { timeout: 12000 });
+            const u = r.data?.url || r.data?.downloadUrl || r.data?.data?.url;
+            if (u) return { url: u, title: "YouTube Audio" };
+            throw new Error("ryz: none");
+          })() : null,
+          // TikTok fast path
+          /tiktok\.com/i.test(url) ? (async () => {
+            const r = await axios.get(`https://www.tikwm.com/api/?url=${enc}`, { timeout: 12000 });
+            const d = r.data?.data;
+            if (d) return { url: isAudio ? (d.music || d.play) : (d.play || d.wmplay), title: d.title || "TikTok Video" };
+            throw new Error("tikwm: none");
+          })() : null,
+          // NeoKEX universal
+          async () => {
+            const r = await axios.get(`https://alldl.neokex.xyz/api/alldl?url=${enc}`, { timeout: 18000 });
+            const data = (r.data && (r.data.metadata?.data || r.data.data)) || r.data;
+            const downloads = (data && data.downloads) || [];
+            if (!downloads.length) throw new Error("neokex: none");
+            let dl;
+            if (isAudio) dl = downloads.find(d => String(d.label || d.ext).toLowerCase().includes("audio") || d.ext === "mp3") || downloads[0];
+            else dl = downloads.find(d => d.ext === "mp4" && !String(d.label).toLowerCase().includes("audio")) || downloads.find(d => !String(d.label).toLowerCase().includes("audio")) || downloads[0];
+            if (!dl?.url) throw new Error("neokex: no url");
+            return { url: dl.url, title: data.title || title };
+          },
+          // Kaiz
+          async () => {
+            const r = await axios.get(`https://kaiz-apis.gleeze.com/api/alldl?url=${enc}`, { timeout: 18000 });
+            const d = r.data;
+            const u = d && (isAudio ? (d.audio || d.url || d.video) : (d.video || d.url || d.hd || d.sd));
+            if (u) return { url: u, title: d.title || title };
+            throw new Error("kaiz: none");
+          },
+          // Siputzx
+          async () => {
+            const r = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${enc}`, { timeout: 12000 });
+            const data = r.data?.data || r.data?.result;
+            const u = data && (isAudio ? (data.audio || data.url || data.video) : (data.video || data.url || data.hd || data.sd));
+            if (u) return { url: u, title: (data && data.title) || title };
+            throw new Error("siputzx: none");
+          },
+          // Cobalt
+          async () => {
+            const r = await axios.post(`https://api.cobalt.tools/api/json`, {
+              url,
+              downloadMode: isAudio ? "audio" : "auto"
+            }, {
+              headers: { Accept: "application/json", "Content-Type": "application/json" },
+              timeout: 12000
+            });
+            if (r.data?.url) return { url: r.data.url, title };
+            throw new Error("cobalt: none");
           }
-        } catch (_) {}
-      }
+        ].filter(Boolean);
 
-      // 5. Kaiz API
-      if (!downloadUrl && !tempFilePath) {
-        try {
-          const kaizRes = await axios.get(`https://kaiz-apis.gleeze.com/api/alldl?url=${encodeURIComponent(url)}`, { timeout: 20000 });
-          const d = kaizRes.data;
-          if (d) {
-            downloadUrl = isAudio ? (d.audio || d.url || d.video) : (d.video || d.url || d.hd || d.sd);
-            title = d.title || title;
-          }
-        } catch (_) {}
-      }
-
-      // 6. Siputzx Universal API
-      if (!downloadUrl && !tempFilePath) {
-        try {
-          const sipRes = await axios.get(`https://api.siputzx.my.id/api/d/all?url=${encodeURIComponent(url)}`, { timeout: 15000 });
-          const data = sipRes.data?.data || sipRes.data?.result;
-          if (data) {
-            downloadUrl = isAudio ? (data.audio || data.url || data.video) : (data.video || data.url || data.hd || data.sd);
-            title = data.title || title;
-          }
-        } catch (_) {}
-      }
-
-      // 7. Cobalt API
-      if (!downloadUrl && !tempFilePath) {
-        try {
-          const cobRes = await axios.post(`https://api.cobalt.tools/api/json`, {
-            url,
-            downloadMode: isAudio ? "audio" : "auto"
-          }, {
-            headers: { Accept: "application/json", "Content-Type": "application/json" },
-            timeout: 15000
-          });
-          if (cobRes.data?.url) {
-            downloadUrl = cobRes.data.url;
-          }
-        } catch (_) {}
+        const results = await Promise.allSettled(providers.map(p => (typeof p === "function" ? p() : p)));
+        const winner = results.find(r => r.status === "fulfilled" && r.value?.url);
+        if (winner) {
+          downloadUrl = winner.value.url;
+          title = winner.value.title || title;
+        }
       }
 
       if (!downloadUrl && !tempFilePath) {

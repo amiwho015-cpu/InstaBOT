@@ -174,12 +174,30 @@ function createAPIWrapper(rawClient, config = {}) {
 				};
 				const dropMarker = () => { if (dedupKey) recentOutbound.delete(dedupKey); };
 
+				// A send RPC that TIMES OUT (the bridge's 60s cap) usually means the
+				// server actually delivered the message but the response was lost.
+				// Falling back after a timeout both re-sends the same content (the
+				// "bot replies twice, second copy arrives very late" bug) and keeps
+				// the command hanging for another full timeout window. Definitive
+				// errors (bad request, cannot-reply-to-media, etc.) still fall back.
+				const isTimeoutErr = (e) => {
+					const msg = (e && (e.message || JSON.stringify(e))) || String(e || "");
+					return /timed? ?out/i.test(msg) || (e && (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT"));
+				};
+				const assumeDelivered = (stage) => {
+					logger.warn(`Send RPC timed out at ${stage}; assuming delivered to avoid a duplicate send (no fallback)`);
+					return recordSend({ messageID: "rpc_timeout_" + Date.now(), threadID, assumedDelivered: true });
+				};
+
 				try {
 					if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
 						try {
 							const textToSend = typeof payload === "object" && payload !== null ? (payload.body != null ? payload.body : payload) : payload;
 							return recordSend(await ig.replyToMessage(threadID, textToSend, replyToMessageID));
-						} catch (_) {}
+						} catch (err) {
+							if (isTimeoutErr(err)) return assumeDelivered("reply");
+							// definitive failure → continue into the sendMessage chain
+						}
 					}
 
 					if (ig) {
@@ -190,6 +208,7 @@ function createAPIWrapper(rawClient, config = {}) {
 										ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res), replyToMessageID);
 									}));
 								} catch (replyErr) {
+									if (isTimeoutErr(replyErr)) return assumeDelivered("reply");
 									// Bridges occasionally reject with undefined/empty errors;
 									// stringify so the log line always carries the reason.
 									const replyErrText = replyErr?.message || (replyErr && JSON.stringify(replyErr)) || String(replyErr) || "unknown error";
@@ -199,10 +218,16 @@ function createAPIWrapper(rawClient, config = {}) {
 											ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
 										}));
 									} catch (plainErr) {
+										if (isTimeoutErr(plainErr)) return assumeDelivered("plain send");
 										if (typeof payload === "object" && payload !== null && payload.body != null) {
-											return recordSend(await new Promise((resolve, reject) => {
-												ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
-											}));
+											try {
+												return recordSend(await new Promise((resolve, reject) => {
+													ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+												}));
+											} catch (bodyErr) {
+												if (isTimeoutErr(bodyErr)) return assumeDelivered("plain text");
+												throw bodyErr;
+											}
 										}
 										throw plainErr;
 									}
@@ -213,12 +238,18 @@ function createAPIWrapper(rawClient, config = {}) {
 									ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
 								}));
 							} catch (sendErr) {
+								if (isTimeoutErr(sendErr)) return assumeDelivered("plain send");
 								if (typeof payload === "object" && payload !== null && payload.body != null) {
 									const sendErrText = sendErr?.message || (sendErr && JSON.stringify(sendErr)) || String(sendErr) || "unknown error";
 									logger.warn(`Failed to send rich payload, falling back to plain text: ${sendErrText}`);
-									return recordSend(await new Promise((resolve, reject) => {
-										ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
-									}));
+									try {
+										return recordSend(await new Promise((resolve, reject) => {
+											ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+										}));
+									} catch (bodyErr) {
+										if (isTimeoutErr(bodyErr)) return assumeDelivered("plain text");
+										throw bodyErr;
+									}
 								}
 								throw sendErr;
 							}

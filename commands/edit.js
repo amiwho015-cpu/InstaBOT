@@ -68,60 +68,70 @@ async function safeLoadJimp(source) {
 async function uploadImageToPublicHost(buffer) {
   const FormData = require("form-data");
 
-  // 1. uguu.se (clean fast direct image file host)
-  try {
-    const form = new FormData();
-    form.append("files[]", buffer, { filename: "edit.jpg" });
-    const res = await axios.post("https://uguu.se/upload", form, {
-      headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      timeout: 20000
-    });
-    const u = res.data?.files?.[0]?.url;
-    if (u && typeof u === "string" && u.startsWith("http")) return u;
-  } catch (_) {}
+  // All hosts race in parallel — sequential attempts stacked up to ~53s of
+  // dead time before the AI fallbacks could even start (the "stuck on ⏳"
+  // delay). First successful URL wins; losers are simply ignored.
+  const attempts = [
+    // uguu.se (clean fast direct image file host)
+    (async () => {
+      const form = new FormData();
+      form.append("files[]", buffer, { filename: "edit.jpg" });
+      const res = await axios.post("https://uguu.se/upload", form, {
+        headers: { ...form.getHeaders(), "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        timeout: 15000
+      });
+      const u = res.data?.files?.[0]?.url;
+      if (u && typeof u === "string" && u.startsWith("http")) return u;
+      throw new Error("uguu: no url");
+    })(),
+    // tmpfiles.org (reliable direct download url)
+    (async () => {
+      const form = new FormData();
+      form.append("file", buffer, { filename: "edit.jpg" });
+      const res = await axios.post("https://tmpfiles.org/api/v1/upload", form, {
+        headers: form.getHeaders(),
+        timeout: 15000
+      });
+      const rawUrl = res.data?.data?.url;
+      if (rawUrl && typeof rawUrl === "string") {
+        return rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+      }
+      throw new Error("tmpfiles: no url");
+    })(),
+    // qu.ax fallback
+    (async () => {
+      const form = new FormData();
+      form.append("files[]", buffer, { filename: "edit.jpg" });
+      const res = await axios.post("https://qu.ax/upload.php", form, {
+        headers: form.getHeaders(),
+        timeout: 10000
+      });
+      const u = res.data?.files?.[0]?.url;
+      if (u && typeof u === "string" && u.startsWith("http")) return u;
+      throw new Error("qu.ax: no url");
+    })(),
+    // freeimage.host fallback
+    (async () => {
+      const form = new FormData();
+      form.append("key", "6d207e02198a847aa98d0a2a901485a5");
+      form.append("action", "upload");
+      form.append("source", buffer.toString("base64"));
+      form.append("format", "json");
+      const res = await axios.post("https://freeimage.host/api/1/upload", form, {
+        headers: form.getHeaders(),
+        timeout: 10000
+      });
+      const url = res.data?.image?.url;
+      if (url && typeof url === "string" && url.startsWith("http")) return url;
+      throw new Error("freeimage: no url");
+    })()
+  ];
 
-  // 2. tmpfiles.org (reliable direct download url)
   try {
-    const form = new FormData();
-    form.append("file", buffer, { filename: "edit.jpg" });
-    const res = await axios.post("https://tmpfiles.org/api/v1/upload", form, {
-      headers: form.getHeaders(),
-      timeout: 20000
-    });
-    const rawUrl = res.data?.data?.url;
-    if (rawUrl && typeof rawUrl === "string") {
-      return rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-    }
-  } catch (_) {}
-
-  // 3. qu.ax fallback
-  try {
-    const form = new FormData();
-    form.append("files[]", buffer, { filename: "edit.jpg" });
-    const res = await axios.post("https://qu.ax/upload.php", form, {
-      headers: form.getHeaders(),
-      timeout: 6000
-    });
-    const u = res.data?.files?.[0]?.url;
-    if (u && typeof u === "string" && u.startsWith("http")) return u;
-  } catch (_) {}
-
-  // 4. freeimage.host fallback
-  try {
-    const form = new FormData();
-    form.append("key", "6d207e02198a847aa98d0a2a901485a5");
-    form.append("action", "upload");
-    form.append("source", buffer.toString("base64"));
-    form.append("format", "json");
-    const res = await axios.post("https://freeimage.host/api/1/upload", form, {
-      headers: form.getHeaders(),
-      timeout: 7000
-    });
-    const url = res.data?.image?.url;
-    if (url && typeof url === "string" && url.startsWith("http")) return url;
-  } catch (_) {}
-
-  return null;
+    return await Promise.any(attempts);
+  } catch (_) {
+    return null;
+  }
 }
 
 module.exports = {
@@ -322,7 +332,10 @@ module.exports = {
         // Call Toshiro AI edit API
         try {
           const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 90000 });
+          // 45s cap: with the previous 90s the first Toshiro attempt alone could
+          // hold the command for 1.5 min with the ⏳ reaction frozen ("stuck on
+          // load emoji"). Toshiro normally answers well inside 45s.
+          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 45000 });
           if (data?.success && data?.url) {
             generatedUrl = data.url;
             try {
@@ -346,7 +359,7 @@ module.exports = {
               if (uploadedUrl && uploadedUrl !== targetUrl) {
                 targetUrl = uploadedUrl;
                 const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 90000 });
+                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 45000 });
                 if (data?.success && data?.url) {
                   generatedUrl = data.url;
                   try {
