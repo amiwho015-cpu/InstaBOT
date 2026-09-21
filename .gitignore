@@ -14,6 +14,7 @@ checkOriginCodeChanged.js
 *.dev.*
 *.rar
 *test.*
+!commands/selftest.js
 *.test.*
 test.js
 

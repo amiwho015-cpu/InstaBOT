@@ -19,6 +19,11 @@ const ROLE_ADMIN_BOT = 2;
 // behaviour. 2 minutes covers clock skew and slow delivery.
 const STALE_EVENT_CUTOFF_MS = 2 * 60 * 1000;
 
+// Auto-talk (AI replies to non-command messages): minimum gap between two AI
+// replies in the same thread. Prevents per-message AI flooding when a user
+// (or another bot) sends many messages in a row.
+const AUTOTALK_COOLDOWN_MS = 15 * 1000;
+
 function createDispatcher({ api, config, registry, database }) {
 	// Deduplication of realtime events. The MQTT/SSE transport can redeliver
 	// the same event (reconnect replay, QoS redelivery) and after a restart the
@@ -28,6 +33,7 @@ function createDispatcher({ api, config, registry, database }) {
 	const processedEvents = new Map(); // eventKey -> first-seen timestamp
 	const EVENT_DEDUP_TTL_MS = 10 * 60 * 1000; // remember ids for 10 minutes
 	const MAX_TRACKED_EVENTS = 5000;
+	const autoTalkLast = new Map(); // threadID -> last AI trigger timestamp
 	let lastEventCleanup = Date.now();
 	function isDuplicateEvent(event) {
 		const id = String(
@@ -264,23 +270,36 @@ function createDispatcher({ api, config, registry, database }) {
 			return message.reply(text.replace(/\{pn\}/g, activePrefix));
 		}
 		
-		// Automation: Auto-Talk AI trigger when autotalk is enabled and no command matches
+		// Automation: Auto-Talk AI trigger when autotalk is enabled and no command matches.
+		// Per-thread cooldown: without it a chatty user (or a bot-to-bot exchange)
+		// fires the AI on every single message and floods the chat.
 		if (!command && threadData?.settings?.autotalk && !hasPrefix && body.length > 1) {
-			const aiCmd = registry.resolve("ai") || registry.resolve("ritchi");
-			if (aiCmd) {
-				return aiCmd.onStart({
-					api,
-					message,
-					event,
-					args: body.split(/\s+/),
-					config,
-					setReplyHandler: (handler, mid) => {
-						const key = mid != null ? mid : event.messageID;
-						if (key) onReply.set(String(key), { commandName: "ai", handler, at: Date.now() });
-					},
-					usersData: database.users,
-					threadsData: database.threads
-				}).catch(() => {});
+			const threadKey = String(event.threadID);
+			const lastAuto = autoTalkLast.get(threadKey) || 0;
+			if (Date.now() - lastAuto < AUTOTALK_COOLDOWN_MS) {
+				log.info("DISPATCH", `Auto-talk skipped in thread ${event.threadID} (cooldown ${AUTOTALK_COOLDOWN_MS}ms)`);
+			} else {
+				autoTalkLast.set(threadKey, Date.now());
+				if (autoTalkLast.size > 500) {
+					const oldest = autoTalkLast.keys().next().value;
+					autoTalkLast.delete(oldest);
+				}
+				const aiCmd = registry.resolve("ai") || registry.resolve("ritchi");
+				if (aiCmd) {
+					return aiCmd.onStart({
+						api,
+						message,
+						event,
+						args: body.split(/\s+/),
+						config,
+						setReplyHandler: (handler, mid) => {
+							const key = mid != null ? mid : event.messageID;
+							if (key) onReply.set(String(key), { commandName: "ai", handler, at: Date.now() });
+						},
+						usersData: database.users,
+						threadsData: database.threads
+					}).catch(() => {});
+				}
 			}
 		}
 
@@ -791,6 +810,22 @@ function createDispatcher({ api, config, registry, database }) {
 
 		const senderID = senderIDOf(event);
 		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
+
+		// Self-message guard: with selfListen disabled the engine should never
+		// deliver our own messages on the live stream, but the server's
+		// reconnect/restart backlog DOES replay them — and every own message
+		// that slipped through made the bot react to itself (autotalk answering
+		// its own replies = the auto-spam loop, plus duplicate outputs).
+		// Operators who intentionally enable selfListen keep normal behaviour.
+		if (senderID && config.selfListen !== true && api && typeof api.getCurrentUserID === "function") {
+			try {
+				const botID = String(api.getCurrentUserID() || "").trim();
+				if (botID && senderID === botID) {
+					log.info("DISPATCH", `Skipped self message (own echo/backlog) in thread ${event.threadID}`);
+					return;
+				}
+			} catch (_) {}
+		}
 
 		// Maintain fast in-memory LRU message cache for quick reply/reaction lookups (edit, unsend, replay)
 		if (event.messageID) {

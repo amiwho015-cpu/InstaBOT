@@ -5,6 +5,12 @@
  * Author: Saifullah Al Neoaz (https://github.com/lazyneoaz)
  */
 
+// Load .env (gitignored, per-deployment secrets like IG_ADMIN_BOT) before any
+// config value is read. dotenv never overrides variables already set in the
+// real environment, so deployments and tests that set env vars explicitly are
+// unaffected. The legacy config/index.js also calls this; dotenv is idempotent.
+try { require("dotenv").config(); } catch (_) { /* dotenv optional */ }
+
 const fs = require("fs");
 const path = require("path");
 

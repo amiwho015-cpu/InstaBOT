@@ -36,11 +36,11 @@ const TESTS = [
 	["gpt", ["hi"], 45000, (b) => b.length > 0]
 ];
 
-async function runSelfTest({ dispatcher, config, threadID }) {
+async function runSelfTest({ dispatcher, config, threadID, tests = TESTS } = {}) {
 	const results = [];
 	const sandboxThread = `selftest_${Date.now()}`;
 
-	for (const [name, args, timeoutMs, validate] of TESTS) {
+	for (const [name, args, timeoutMs, validate] of tests) {
 		if (threadID && threadID !== sandboxThread && threadID !== "__all__") {
 			// single-test mode appends names to threadID; handled by caller
 		}
