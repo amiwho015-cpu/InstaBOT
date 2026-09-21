@@ -773,10 +773,19 @@ function createDispatcher({ api, config, registry, database }) {
 		// ignored; reactions and membership changes are never replayed as
 		// messages, so only message types need the check.
 		if ((event.type === "message" || event.type === "message_reply") && event.timestamp) {
-			const ageMs = Date.now() - Number(event.timestamp);
-			if (Number.isFinite(ageMs) && ageMs > STALE_EVENT_CUTOFF_MS) {
-				log.info("DISPATCH", `Skipped stale event (${event.type}) from ${new Date(Number(event.timestamp)).toISOString()} in thread ${event.threadID}`);
-				return;
+			// Instagram transports mostly use ms, but payloads in the wild also
+			// carry seconds (10 digits) and microseconds (16 digits,
+			// timestampAbsolute). Normalize to ms so the age math is correct
+			// regardless of which unit a bridge forwarded.
+			let tsMs = Number(event.timestamp);
+			if (Number.isFinite(tsMs) && tsMs > 0) {
+				if (tsMs < 1e12) tsMs *= 1000;            // seconds -> ms
+				else if (tsMs > 1e15) tsMs = Math.round(tsMs / 1000); // µs -> ms
+				const ageMs = Date.now() - tsMs;
+				if (ageMs > STALE_EVENT_CUTOFF_MS) {
+					log.info("DISPATCH", `Skipped stale event (${event.type}) from ${new Date(tsMs).toISOString()} in thread ${event.threadID}`);
+					return;
+				}
 			}
 		}
 

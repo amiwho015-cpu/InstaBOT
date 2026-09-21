@@ -10,10 +10,26 @@
  * - Transparent node-style callbacks and Promise support.
  * - Automatic typing indicator option and media dispatch routing.
  * - Graceful fallbacks for unsupported Facebook-only methods to avoid bot crashes.
+ * - Outbound text-send deduplication (anti-spam): fallback chains and
+ *   redelivered realtime events must never deliver the same body twice.
  */
 
 const { dispatchMediaMessage } = require("../media/handler");
 const logger = require("../../../utils/logger");
+
+// ── outbound text dedup (anti-spam) ─────────────────────────────────────
+// Keyed by threadID+body. The RPC bridge can time out AFTER the server
+// actually delivered the message; the reply→plain fallback chains then send
+// a second copy. Redelivered events can also re-run a command. This map
+// makes identical text in the same thread within the window deliver once.
+const recentOutbound = new Map(); // key -> { at, result }
+const OUTBOUND_DEDUP_MS = 8000;
+
+function outboundKey(threadID, payload) {
+	const body = typeof payload === "string" ? payload : (payload && payload.body != null ? String(payload.body) : "");
+	if (!body) return null;
+	return `${threadID}::${body.slice(0, 300)}`;
+}
 
 function createAPIWrapper(rawClient, config = {}) {
 	const ig = rawClient;
@@ -126,61 +142,100 @@ function createAPIWrapper(rawClient, config = {}) {
 				}
 
 				const payload = (form && typeof form === "object") ? form : String(form || "");
-				if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
-					try {
-						const textToSend = typeof payload === "object" && payload !== null ? (payload.body != null ? payload.body : payload) : payload;
-						return await ig.replyToMessage(threadID, textToSend, replyToMessageID);
-					} catch (_) {}
-				}
 
-				if (ig) {
-					if (typeof ig.sendMessage === "function") {
-						if (replyToMessageID) {
-							try {
-								return await new Promise((resolve, reject) => {
-									ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res), replyToMessageID);
-								});								} catch (replyErr) {
+				// ── outbound anti-spam dedup (plain text only) ──
+				const dedupKey = outboundKey(threadID, payload);
+				if (dedupKey) {
+					const existing = recentOutbound.get(dedupKey);
+					if (existing) {
+						const age = Date.now() - existing.at;
+						if (age < OUTBOUND_DEDUP_MS) {
+							if (existing.result) {
+								logger.info(`[DEDUP] Suppressed duplicate send in thread ${threadID} (already delivered ${Math.round(age / 1000)}s ago)`);
+								return existing.result;
+							}
+							// Same text in flight from another call: don't add another copy.
+							logger.info(`[DEDUP] Suppressed concurrent duplicate send in thread ${threadID}`);
+							return { messageID: "dedup_" + Date.now(), threadID, duplicate: true };
+						}
+						recentOutbound.delete(dedupKey);
+					}
+					recentOutbound.set(dedupKey, { at: Date.now(), result: null });
+				}
+				const recordSend = (res) => {
+					if (dedupKey && res) {
+						recentOutbound.set(dedupKey, { at: Date.now(), result: res });
+						if (recentOutbound.size > 500) {
+							const cutoff = Date.now() - OUTBOUND_DEDUP_MS;
+							for (const [k, v] of recentOutbound) if (v.at < cutoff) recentOutbound.delete(k);
+						}
+					}
+					return res;
+				};
+				const dropMarker = () => { if (dedupKey) recentOutbound.delete(dedupKey); };
+
+				try {
+					if (replyToMessageID && ig && typeof ig.replyToMessage === "function") {
+						try {
+							const textToSend = typeof payload === "object" && payload !== null ? (payload.body != null ? payload.body : payload) : payload;
+							return recordSend(await ig.replyToMessage(threadID, textToSend, replyToMessageID));
+						} catch (_) {}
+					}
+
+					if (ig) {
+						if (typeof ig.sendMessage === "function") {
+							if (replyToMessageID) {
+								try {
+									return recordSend(await new Promise((resolve, reject) => {
+										ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res), replyToMessageID);
+									}));
+								} catch (replyErr) {
 									// Bridges occasionally reject with undefined/empty errors;
 									// stringify so the log line always carries the reason.
 									const replyErrText = replyErr?.message || (replyErr && JSON.stringify(replyErr)) || String(replyErr) || "unknown error";
 									logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send: ${replyErrText}`);
-								try {
-									return await new Promise((resolve, reject) => {
-										ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
-									});
-								} catch (plainErr) {
-									if (typeof payload === "object" && payload !== null && payload.body != null) {
-										return await new Promise((resolve, reject) => {
-											ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
-										});
+									try {
+										return recordSend(await new Promise((resolve, reject) => {
+											ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
+										}));
+									} catch (plainErr) {
+										if (typeof payload === "object" && payload !== null && payload.body != null) {
+											return recordSend(await new Promise((resolve, reject) => {
+												ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+											}));
+										}
+										throw plainErr;
 									}
-									throw plainErr;
 								}
 							}
-						}
-						try {
-							return await new Promise((resolve, reject) => {
-								ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
-							});
-						}						catch (sendErr) {
-							if (typeof payload === "object" && payload !== null && payload.body != null) {
-								const sendErrText = sendErr?.message || (sendErr && JSON.stringify(sendErr)) || String(sendErr) || "unknown error";
-								logger.warn(`Failed to send rich payload, falling back to plain text: ${sendErrText}`);
-								return await new Promise((resolve, reject) => {
-									ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
-								});
+							try {
+								return recordSend(await new Promise((resolve, reject) => {
+									ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
+								}));
+							} catch (sendErr) {
+								if (typeof payload === "object" && payload !== null && payload.body != null) {
+									const sendErrText = sendErr?.message || (sendErr && JSON.stringify(sendErr)) || String(sendErr) || "unknown error";
+									logger.warn(`Failed to send rich payload, falling back to plain text: ${sendErrText}`);
+									return recordSend(await new Promise((resolve, reject) => {
+										ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
+									}));
+								}
+								throw sendErr;
 							}
-							throw sendErr;
+						}
+						if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
+							return recordSend(await ig.sendMessage.toThread(threadID, replyToMessageID ? { body: typeof payload === "object" ? payload.body : payload, replyTo: replyToMessageID } : payload));
+						}
+						if (typeof ig.sendDirectMessage === "function") {
+							return recordSend(await ig.sendDirectMessage(threadID, typeof payload === "object" ? payload.body : payload));
 						}
 					}
-					if (ig.sendMessage && typeof ig.sendMessage.toThread === "function") {
-						return await ig.sendMessage.toThread(threadID, replyToMessageID ? { body: typeof payload === "object" ? payload.body : payload, replyTo: replyToMessageID } : payload);
-					}
-					if (typeof ig.sendDirectMessage === "function") {
-						return await ig.sendDirectMessage(threadID, typeof payload === "object" ? payload.body : payload);
-					}
+					dropMarker();
+					return { messageID: "mock_" + Date.now() };
+				} catch (err) {
+					dropMarker();
+					throw err;
 				}
-				return { messageID: "mock_" + Date.now() };
 			})();
 
 			return wrapCallback(promise, callback);

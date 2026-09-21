@@ -673,25 +673,31 @@ async function toshiroRequest(url, data, options = {}) {
 		...options
 	};
 
-	return await utils.withBackoff(async () => {
-		try {
-			// Route through axios.get/axios.post so test mocks and code that
-			// patches those helpers (instead of the axios function itself)
-			// intercept these requests.
-			const method = String(config.method || 'get').toLowerCase();
-			let response;
-			if (method === 'get' && typeof axios.get === 'function') {
-				response = await axios.get(config.url, { timeout: config.timeout, ...config });
-			} else if (method === 'post' && typeof axios.post === 'function') {
-				response = await axios.post(config.url, config.data, { timeout: config.timeout, ...config });
-			} else {
-				response = await axios(config);
-			}
-			return response.data;
-		} catch (error) {
-			throw error;
+	const attempt = async () => {
+		// Route through axios.get/axios.post so test mocks and code that
+		// patches those helpers (instead of the axios function itself)
+		// intercept these requests.
+		const method = String(config.method || 'get').toLowerCase();
+		if (method === 'get' && typeof axios.get === 'function') {
+			return (await axios.get(config.url, { timeout: config.timeout, ...config })).data;
 		}
-	}, 3, 2000);
+		if (method === 'post' && typeof axios.post === 'function') {
+			return (await axios.post(config.url, config.data, { timeout: config.timeout, ...config })).data;
+		}
+		return (await axios(config)).data;
+	};
+
+	try {
+		return await attempt();
+	} catch (error) {
+		const msg = error?.message || String(error);
+		const isTimeout = /timed? ?out/i.test(msg) || error.code === 'ECONNABORTED';
+		// NEVER retry timeouts: a 90s timeout x withBackoff's 3 retries froze
+		// commands for ~5 minutes with no output. Transient connect errors are
+		// still retried; timeouts surface immediately so callers can fall back.
+		if (isTimeout) throw error;
+		return await utils.withBackoff(attempt, 2, 1500);
+	}
 }
 
 // TODO: This function relies on screen scraping imgbb.com to get an auth_token,
