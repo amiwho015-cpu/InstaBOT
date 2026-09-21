@@ -1,4 +1,9 @@
-const { getTime } = global.utils;
+// Resolved lazily inside handlers: global.utils may not exist yet at module
+// load time depending on loader order, and destructuring here would throw.
+function getTimeSafe() {
+	try { return global.utils && typeof global.utils.getTime === "function" ? global.utils.getTime : null; }
+	catch (_) { return null; }
+}
 
 module.exports = {
 	config: {
@@ -247,7 +252,8 @@ module.exports = {
 				if (!reason)
 					reason = "No reason";
 				const dataWarnOfUser = warnList.find(item => item.uid == uid);
-				const dateTime = getTime("DD/MM/YYYY hh:mm:ss");
+				const getTimeFn = getTimeSafe();
+				const dateTime = getTimeFn ? getTimeFn("DD/MM/YYYY hh:mm:ss") : new Date().toLocaleString("en-GB", { hour12: false });
 				if (!dataWarnOfUser)
 					warnList.push({
 						uid,

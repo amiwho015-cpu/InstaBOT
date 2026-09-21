@@ -14,9 +14,48 @@ const ROLE_USER = 0;
 const ROLE_ADMIN_BOX = 1;
 const ROLE_ADMIN_BOT = 2;
 
+// Events older than this are considered stale backlog flushed after downtime;
+// answering them produces the "bot replies to commands sent while it was off"
+// behaviour. 2 minutes covers clock skew and slow delivery.
+const STALE_EVENT_CUTOFF_MS = 2 * 60 * 1000;
+
 function createDispatcher({ api, config, registry, database }) {
-	const processedEvents = new Set();
-	
+	// Deduplication of realtime events. The MQTT/SSE transport can redeliver
+	// the same event (reconnect replay, QoS redelivery) and after a restart the
+	// server may flush every event queued while we were offline. Without this
+	// set, users get duplicate/late responses to commands sent while the bot
+	// was down — and duplicated bot messages.
+	const processedEvents = new Map(); // eventKey -> first-seen timestamp
+	const EVENT_DEDUP_TTL_MS = 10 * 60 * 1000; // remember ids for 10 minutes
+	const MAX_TRACKED_EVENTS = 5000;
+	let lastEventCleanup = Date.now();
+	function isDuplicateEvent(event) {
+		const id = String(
+			event.messageID || event.messageId ||
+			(event.type === "message_reaction" && (event.targetMessageID || event.target_message_id)
+				? `${event.type}:${event.targetMessageID || event.target_message_id}:${event.reaction?.emoji || event.reaction || ""}:${event.senderID || ""}:${event.timestamp || ""}`
+				: "") ||
+			(event.type === "message_reaction"
+				? `${event.type}:${event.threadID}:${event.senderID}:${event.timestamp}`
+				: "")
+		);
+		if (!id) return false;
+		const now = Date.now();
+		if (now - lastEventCleanup > 60 * 1000) {
+			lastEventCleanup = now;
+			for (const [key, ts] of processedEvents) {
+				if (now - ts > EVENT_DEDUP_TTL_MS) processedEvents.delete(key);
+			}
+		}
+		if (processedEvents.has(id)) return true;
+		processedEvents.set(id, now);
+		if (processedEvents.size > MAX_TRACKED_EVENTS) {
+			const firstKey = processedEvents.keys().next().value;
+			processedEvents.delete(firstKey);
+		}
+		return false;
+	}
+
 	const cooldowns = new Map();
 	const onReply = new Map(); // messageID -> { commandName, handler, at }
 	const onReaction = new Map(); // messageID -> { commandName, handler, at }
@@ -720,6 +759,27 @@ function createDispatcher({ api, config, registry, database }) {
 	async function handle(event) {
 		if (!event || !event.threadID) return;
 		pruneHandlers(Date.now());
+
+		// Drop duplicated realtime deliveries (reconnect replay, queued backlog
+		// flushed after a restart). Applied for all event kinds.
+		if (isDuplicateEvent(event)) {
+			log.info("DISPATCH", `Skipped duplicate event (${event.type || "unknown"}) in thread ${event.threadID}`);
+			return;
+		}
+
+		// Drop stale events: if an event was queued server-side while the bot was
+		// offline, replying to it now produces the "response arrives long after
+		// the command" behaviour. Messages older than the cutoff are logged and
+		// ignored; reactions and membership changes are never replayed as
+		// messages, so only message types need the check.
+		if ((event.type === "message" || event.type === "message_reply") && event.timestamp) {
+			const ageMs = Date.now() - Number(event.timestamp);
+			if (Number.isFinite(ageMs) && ageMs > STALE_EVENT_CUTOFF_MS) {
+				log.info("DISPATCH", `Skipped stale event (${event.type}) from ${new Date(Number(event.timestamp)).toISOString()} in thread ${event.threadID}`);
+				return;
+			}
+		}
+
 		const senderID = senderIDOf(event);
 		if (!senderID && (event.type === "message" || event.type === "message_reply")) return;
 
@@ -801,42 +861,50 @@ function createDispatcher({ api, config, registry, database }) {
 					}
 				}
 
-				// Tap-to-replay & reaction unsend feature
+				// Tap-to-replay & reaction unsend target resolution. On Instagram
+				// transports the reacted-to message id may arrive as
+				// targetMessageID; some bridges put it straight in messageID.
 				const targetMsgID = event.targetMessageID || event.target_message_id || event.messageID;
 				const emoji = typeof event.reaction === 'string' ? event.reaction : event.reaction?.emoji || event.reaction_unicode;
-				if (targetMsgID && emoji && event.reactionStatus !== "deleted") {
-					const UNSEND_EMOJIS = [
-						"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
-					];
-					const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
 
-					if (UNSEND_EMOJIS.some(h => emoji.includes(h) || emoji === h)) {
-						// Unsend logic is now handled exclusively by commands/unsend.js 
-						// to prevent duplicate API calls and redundant processing.
-						return;
-					} else if (REPLAY_EMOJIS.includes(emoji)) {
-						try {
-							const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;
-							const text = targetMsg?.body || targetMsg?.text || "";
-							if (text) {
-								if (["🗣️", "🔊"].includes(emoji)) {
-									const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.slice(0, 200))}`;
-									if (typeof api.sendVoiceFromUrl === "function") {
-										await api.sendVoiceFromUrl(event.threadID, ttsUrl).catch(async () => {
-											await message.reply(`🎙️ Replay:\n"${text}"`);
-										});
-									} else {
+				// Emoji sets used by reaction features. Reaction-based unsend is
+				// owned by commands/unsend.js (see the broadcast below); replay
+				// is handled here because no command claims it.
+				const UNSEND_EMOJIS = [
+					"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
+				];
+				const REPLAY_EMOJIS = ["🔁", "🔄", "💬", "🗣️", "🔊", "▶️"];
+
+				if (targetMsgID && emoji && UNSEND_EMOJIS.some(h => emoji.includes(h) || emoji === h)) {
+					// Handled by commands/unsend.js via the cmd.onReaction broadcast
+					// above; nothing to do here. (Do NOT return: the flush below
+					// must still run.)
+				} else if (targetMsgID && emoji && REPLAY_EMOJIS.includes(emoji)) {
+					// Tap-to-replay: repeat the message text (as voice for the mic
+					// emoji) when we still have the original body cached.
+					try {
+						const targetMsg = database.messages ? database.messages.get(targetMsgID) : null;
+						const text = targetMsg?.body || targetMsg?.text || "";
+						if (text) {
+							if (["🗣️", "🔊"].includes(emoji)) {
+								const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text.slice(0, 200))}`;
+								if (typeof api.sendVoiceFromUrl === "function") {
+									await api.sendVoiceFromUrl(event.threadID, ttsUrl).catch(async () => {
 										await message.reply(`🎙️ Replay:\n"${text}"`);
-									}
+									});
 								} else {
-									await message.reply(`🔁 Replay:\n"${text}"`);
+									await message.reply(`🎙️ Replay:\n"${text}"`);
 								}
+							} else {
+								await message.reply(`🔁 Replay:\n"${text}"`);
 							}
-						} catch (_) {}
-					}
+						}
+					} catch (_) {					}
 				}
 				break;
 			default:
+				// join, leave and every other event type: fan out to event
+				// scripts (onJoin/onLeave greet members here).
 				await runEventScripts(event, message, threadData, userData);
 				break;
 		}

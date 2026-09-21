@@ -139,9 +139,11 @@ function createAPIWrapper(rawClient, config = {}) {
 							try {
 								return await new Promise((resolve, reject) => {
 									ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res), replyToMessageID);
-								});
-							} catch (replyErr) {
-								logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send:`, replyErr?.message || replyErr);
+								});								} catch (replyErr) {
+									// Bridges occasionally reject with undefined/empty errors;
+									// stringify so the log line always carries the reason.
+									const replyErrText = replyErr?.message || (replyErr && JSON.stringify(replyErr)) || String(replyErr) || "unknown error";
+									logger.warn(`Failed to send reply to message ${replyToMessageID}, falling back to plain send: ${replyErrText}`);
 								try {
 									return await new Promise((resolve, reject) => {
 										ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
@@ -160,9 +162,10 @@ function createAPIWrapper(rawClient, config = {}) {
 							return await new Promise((resolve, reject) => {
 								ig.sendMessage(payload, threadID, (err, res) => err ? reject(err) : resolve(res));
 							});
-						} catch (sendErr) {
+						}						catch (sendErr) {
 							if (typeof payload === "object" && payload !== null && payload.body != null) {
-								logger.warn("Failed to send rich payload, falling back to plain text:", sendErr?.message || sendErr);
+								const sendErrText = sendErr?.message || (sendErr && JSON.stringify(sendErr)) || String(sendErr) || "unknown error";
+								logger.warn(`Failed to send rich payload, falling back to plain text: ${sendErrText}`);
 								return await new Promise((resolve, reject) => {
 									ig.sendMessage(String(payload.body), threadID, (err, res) => err ? reject(err) : resolve(res));
 								});

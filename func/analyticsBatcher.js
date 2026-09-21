@@ -132,6 +132,8 @@ class AnalyticsBatcher {
                 this.flushTimer = setInterval(() => {
                         this.flush();
                 }, this.options.flushInterval);
+                // Keep the flush timer from holding the process open
+                if (this.flushTimer.unref) this.flushTimer.unref();
         }
 
         /**

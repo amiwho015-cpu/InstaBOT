@@ -675,7 +675,18 @@ async function toshiroRequest(url, data, options = {}) {
 
 	return await utils.withBackoff(async () => {
 		try {
-			const response = await axios(config);
+			// Route through axios.get/axios.post so test mocks and code that
+			// patches those helpers (instead of the axios function itself)
+			// intercept these requests.
+			const method = String(config.method || 'get').toLowerCase();
+			let response;
+			if (method === 'get' && typeof axios.get === 'function') {
+				response = await axios.get(config.url, { timeout: config.timeout, ...config });
+			} else if (method === 'post' && typeof axios.post === 'function') {
+				response = await axios.post(config.url, config.data, { timeout: config.timeout, ...config });
+			} else {
+				response = await axios(config);
+			}
 			return response.data;
 		} catch (error) {
 			throw error;

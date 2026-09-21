@@ -360,6 +360,8 @@ class FCAOptimizer extends EventEmitter {
                 this.rateLimitResetTimer = setInterval(() => {
                         this.requestCounts.clear();
                 }, this.options.rateLimitWindow);
+                // Keep the reset timer from holding the process open
+                if (this.rateLimitResetTimer.unref) this.rateLimitResetTimer.unref();
         }
 
         _handleError(error) {

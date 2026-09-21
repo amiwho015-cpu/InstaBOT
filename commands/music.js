@@ -389,7 +389,6 @@ module.exports = {
 		return sent;
 	},
 	downloadYouTubeAudio,
-	downloadUrlToTempFile
 	downloadUrlToTempFile,
 	downloadYouTubeMedia
 };

@@ -16,10 +16,19 @@ module.exports = {
 		usage: { en: "Reply to a message with {p}unsend or react with ✋/🗑️ to unsend" }
 	},
 
-	onStart: async function ({ message, event }) {
+	onStart: async function ({ message, event, api }) {
 		const replied = event.messageReply || event.repliedMessage;
 		if (!replied?.messageID) return;
-		await message.unsend(replied.messageID).catch(() => {});
+		if (message && typeof message.unsend === "function") {
+			await message.unsend(replied.messageID).catch(() => {});
+		} else if (api && typeof api.unsendMessage === "function") {
+			// Fallback for direct command invocation with a bare api (tests,
+			// RPC bridge gaps).
+			await new Promise(resolve => {
+				try { api.unsendMessage(replied.messageID, event.threadID, () => resolve()); }
+				catch (_) { resolve(); }
+			});
+		}
 	},
 
 	onReaction: async function ({ api, event, role, config }) {
