@@ -44,34 +44,29 @@ module.exports = {
     try {
       let imageUrls = [];
 
-      // Primary Endpoint
-      try {
-        const res = await axios.get(`https://api.siputzx.my.id/api/s/pinterest?query=${encodeURIComponent(query)}`, { timeout: 10000 });
-        if (res.data?.data && Array.isArray(res.data.data)) {
-          imageUrls = res.data.data.slice(0, count);
-        } else if (Array.isArray(res.data?.result)) {
-          imageUrls = res.data.result.slice(0, count);
+      // Three search endpoints race in PARALLEL — sequential attempts stacked
+      // up to 30s of timeouts before the "no results" reply. First non-empty
+      // result set wins.
+      const enc = encodeURIComponent(query);
+      const searches = [
+        axios.get(`https://api.siputzx.my.id/api/s/pinterest?query=${enc}`, { timeout: 10000 }).then(res => {
+          if (res.data?.data && Array.isArray(res.data.data)) return res.data.data.slice(0, count);
+          if (Array.isArray(res.data?.result)) return res.data.result.slice(0, count);
+          return [];
+        }),
+        axios.get(`https://widpe.com/pinterest?query=${enc}`, { timeout: 10000 }).then(res =>
+          Array.isArray(res.data?.result) ? res.data.result.slice(0, count) : []
+        ),
+        axios.get(`https://api.unsplash.com/search/photos?client_id=d627d35368a73b9e59ff2ae3081e779a1f26f2a677464ce780d60be1c43db814&query=${enc}&per_page=${count}`, { timeout: 10000 }).then(res =>
+          res.data?.results ? res.data.results.map(r => r.urls?.regular || r.urls?.small).filter(Boolean) : []
+        )
+      ];
+      const settled = await Promise.allSettled(searches);
+      for (const entry of settled) {
+        if (entry.status === "fulfilled" && Array.isArray(entry.value) && entry.value.length) {
+          imageUrls = entry.value;
+          break;
         }
-      } catch (_) {}
-
-      // Fallback 1: widpe
-      if (imageUrls.length === 0) {
-        try {
-          const res = await axios.get(`https://widpe.com/pinterest?query=${encodeURIComponent(query)}`, { timeout: 10000 });
-          if (Array.isArray(res.data?.result)) {
-            imageUrls = res.data.result.slice(0, count);
-          }
-        } catch (_) {}
-      }
-
-      // Fallback 2: Unsplash
-      if (imageUrls.length === 0) {
-        try {
-          const res = await axios.get(`https://api.unsplash.com/search/photos?client_id=d627d35368a73b9e59ff2ae3081e779a1f26f2a677464ce780d60be1c43db814&query=${encodeURIComponent(query)}&per_page=${count}`, { timeout: 10000 });
-          if (res.data?.results) {
-            imageUrls = res.data.results.map(r => r.urls?.regular || r.urls?.small).filter(Boolean);
-          }
-        } catch (_) {}
       }
 
       if (imageUrls.length === 0) {

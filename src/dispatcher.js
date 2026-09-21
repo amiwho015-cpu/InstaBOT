@@ -886,11 +886,18 @@ function createDispatcher({ api, config, registry, database }) {
 		// Resolve the real thread type before any command or event script runs,
 		// and feed the answer back onto the event so join/leave scripts and
 		// group-only commands see the truth.
-		const group = await resolveThreadGroup(event, threadData);
-		event.isGroup = group.isGroup;
-		if (group.known) {
-			threadData.isGroup = group.isGroup;
-			threadData.groupKnown = true;
+		// Reaction/unsend events SKIP this: they never run commands, and on a
+		// thread with a cold cache resolveThreadGroup can await getThreadInfo
+		// (2s timer) — that was the "emoji unsend sometimes delayed" bug.
+		if (event.type === "message_reaction" || event.type === "message_unsend") {
+			event.isGroup = threadData.groupKnown ? threadData.isGroup === true : event.isGroup === true;
+		} else {
+			const group = await resolveThreadGroup(event, threadData);
+			event.isGroup = group.isGroup;
+			if (group.known) {
+				threadData.isGroup = group.isGroup;
+				threadData.groupKnown = true;
+			}
 		}
 
 		const message = createMessageContext({ api, event, log });
@@ -907,26 +914,30 @@ function createDispatcher({ api, config, registry, database }) {
 				await runEventScripts(event, message, threadData, userData);
 				await runReactionHandlers(event, message, threadData, userData);
 
-				// Broadcast to commands exporting onReaction (e.g. unsend)
-				for (const cmd of registry.commands.values()) {
-					if (typeof cmd.onReaction === "function") {
-						try {
-							await cmd.onReaction({
-								api,
-								event,
-								message,
-								role: roleOf(event, threadData),
-								isBotAdmin,
-								usersData: database.users,
-								threadsData: database.threads,
-								userData,
-								threadData,
-								config
-							});
-						} catch (err) {
-							log.error("REACTION", `Error running onReaction for ${cmd.config?.name}:`, err);
-						}
+				// Broadcast to commands exporting onReaction (e.g. unsend).
+				// Commands run in PARALLEL: one slow onReaction must not delay
+				// the others (unsend-on-emoji latency).
+				{
+					const reactionCommands = [];
+					for (const cmd of registry.commands.values()) {
+						if (typeof cmd.onReaction === "function") reactionCommands.push(cmd);
 					}
+					await Promise.allSettled(reactionCommands.map(cmd =>
+						Promise.resolve(cmd.onReaction({
+							api,
+							event,
+							message,
+							role: roleOf(event, threadData),
+							isBotAdmin,
+							usersData: database.users,
+							threadsData: database.threads,
+							userData,
+							threadData,
+							config
+						})).catch(err => {
+							log.error("REACTION", `Error running onReaction for ${cmd.config?.name}:`, err);
+						})
+					));
 				}
 
 				// Tap-to-replay & reaction unsend target resolution. On Instagram

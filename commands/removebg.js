@@ -54,14 +54,21 @@ module.exports = {
         }
       } catch (_) {}
 
-      const res = await axios.get(`https://kaiz-apis.gleeze.com/api/removebg?url=${encodeURIComponent(targetUrl)}`, {
-        responseType: "arraybuffer",
-        timeout: 30000
-      }).catch(async () => {
-        return await axios.get(`https://api.siputzx.my.id/api/iloveimg/removebg?url=${encodeURIComponent(targetUrl)}`, {
+      // Both background-removal APIs race in PARALLEL (previously the fallback
+      // stacked two 30s timeouts = up to 60s of ⏳ before failing). First
+      // usable response wins.
+      const res = await Promise.any([
+        axios.get(`https://kaiz-apis.gleeze.com/api/removebg?url=${encodeURIComponent(targetUrl)}`, {
           responseType: "arraybuffer",
           timeout: 30000
-        });
+        }),
+        axios.get(`https://api.siputzx.my.id/api/iloveimg/removebg?url=${encodeURIComponent(targetUrl)}`, {
+          responseType: "arraybuffer",
+          timeout: 30000
+        })
+      ]).catch(async () => {
+        // Both failed or timed out — last resort without a public URL
+        throw new Error("Background removal services are unavailable right now.");
       });
 
       const tempDir = path.join(process.cwd(), "temp");
