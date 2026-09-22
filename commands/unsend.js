@@ -1,8 +1,15 @@
 "use strict";
 
+// Broad hand-emoji list (mirrors the working Floppa-Chatbot unsend): any
+// hand gesture or trash emoji reacting on a bot message deletes it.
 const HAND_EMOJIS = [
-	"✋", "👌", "👍", "👏", "🙌", "👐", "🤲", "🙏", "🗑️", "🗑"
+	"✋", "🖐️", "🖐", "🤚", "👋", "👌", "👍", "👎", "✍️", "🤝",
+	"🖕", "👊", "🤛", "🤜", "🤞", "🫰", "🤟", "🤘", "🤙",
+	"👈", "👉", "👆", "👇", "☝️", "👏", "🙌", "👐", "🤲", "🙏",
+	"🗑️", "🗑"
 ];
+
+const MAX_BATCH_UNSEND = 25;
 
 module.exports = {
 	config: {
@@ -12,36 +19,84 @@ module.exports = {
 		category: "utility",
 		cooldown: 1,
 		role: 0,
-		description: { en: "Unsend a message: reply to any message and the bot removes it, or react with hand/trash emoji as admin" },
-		usage: { en: "Reply to a message with {p}unsend or react with ✋/🗑️ to unsend" }
+		description: { en: "Unsend bot messages: reply with unsend, use unsend <count>, or react with a hand emoji on the bot's message" },
+		usage: { en: "Reply to a bot message with {p}unsend | {p}unsend <number> | react with ✋ on the bot's message" }
 	},
 
-	onStart: async function ({ message, event, api }) {
-		const replied = event.messageReply || event.repliedMessage;
-		if (!replied?.messageID) return;
-		if (message && typeof message.unsend === "function") {
-			await message.unsend(replied.messageID).catch(() => {});
-		} else if (api && typeof api.unsendMessage === "function") {
-			// Fallback for direct command invocation with a bare api (tests,
-			// RPC bridge gaps).
-			await new Promise(resolve => {
-				try { api.unsendMessage(replied.messageID, event.threadID, () => resolve()); }
-				catch (_) { resolve(); }
-			});
+	onStart: async function ({ message, event, api, args }) {
+		const botID = String((api && typeof api.getCurrentUserID === "function" && api.getCurrentUserID()) || "").trim();
+		const threadID = event.threadID;
+
+		// Mode 1: unsend the last N bot messages in this thread.
+		if (args && args.length && /^\d+$/.test(args[0])) {
+			const count = Math.min(parseInt(args[0], 10) || 0, MAX_BATCH_UNSEND);
+			if (count <= 0) return message.reply("Please enter a valid number greater than 0.");
+			const registry = global.botSentMessages;
+			const threadBotMsgs = (registry && registry.get(String(threadID))) || [];
+			if (!threadBotMsgs.length)
+				return message.reply("No recent bot messages recorded in this chat to unsend.");
+			const toUnsend = threadBotMsgs.splice(-count);
+			let unsent = 0;
+			for (const mid of toUnsend.reverse()) {
+				try {
+					await new Promise((resolve, reject) => {
+						const r = api.unsendMessage(mid, threadID, (e, res) => e ? reject(e) : resolve(res));
+						if (r && typeof r.then === "function") r.then(resolve, reject);
+					});
+					unsent++;
+					await new Promise(r => setTimeout(r, 250));
+				} catch (_) { /* already gone or too old */ }
+			}
+			if (!unsent) return message.reply("Could not unsend messages. They may have already been unsent or are too old.");
+			return message.reply(`Cleaned up ${unsent} bot message(s).`);
 		}
+
+		// Mode 2: unsend the replied-to message.
+		const replied = event.messageReply || event.repliedMessage;
+		if (replied && replied.messageID) {
+			// If the replied message is provably someone else's (and not the
+			// bot's), say so instead of firing a doomed RPC.
+			const cached = global.recentMessages && global.recentMessages.get(String(replied.messageID));
+			if (botID && cached && cached.senderID && String(cached.senderID) !== botID && cached.isBot !== true) {
+				return message.reply("I can only unsend messages sent by me!");
+			}
+			if (message && typeof message.unsend === "function") {
+				return message.unsend(replied.messageID).catch(() => {});
+			}
+			await new Promise(resolve => {
+				try {
+					const r = api.unsendMessage(replied.messageID, threadID, () => resolve());
+					if (r && typeof r.then === "function") r.then(() => resolve(), () => resolve());
+				} catch (_) { resolve(); }
+			});
+			return;
+		}
+
+		// Mode 3: no reply, no count — remove the newest bot message here.
+		const registry = global.botSentMessages;
+		const threadBotMsgs = (registry && registry.get(String(threadID))) || [];
+		if (threadBotMsgs.length) {
+			const lastMID = threadBotMsgs[threadBotMsgs.length - 1];
+			try {
+				await new Promise((resolve, reject) => {
+					const r = api.unsendMessage(lastMID, threadID, (e, res) => e ? reject(e) : resolve(res));
+					if (r && typeof r.then === "function") r.then(resolve, reject);
+				});
+				return;
+			} catch (_) { /* fall through to notice */ }
+		}
+		return message.reply("No bot message to unsend. Reply to a bot message with unsend, or use unsend <number>.");
 	},
 
 	/**
-	 * Reaction unsend: an authorised user reacting with a hand/trash emoji
-	 * removes the targeted message. Instagram only lets the bot unsend its
-	 * OWN messages, so the effective feature is "admin reacts → bot deletes
-	 * its message".
+	 * Reaction unsend: reacting with a hand/trash emoji on a message removes
+	 * it. Instagram only lets the bot unsend its OWN messages, so the target
+	 * must be the bot's — verified via the send-time registry
+	 * (global.botSentMessages) first, then the stream-echo cache.
 	 *
 	 * Authorisation (any one of):
-	 *   - bot admin (injected isBotAdmin checker OR config.adminBot/devUsers)
+	 *   - bot admin (injected checker OR config.adminBot/devUsers)
 	 *   - thread admin / DM participant (dispatcher-computed role >= 1)
-	 * Ownership is enforced again inside apiWrapper/auth.js; here we only
-	 * skip early when the cache proves the message is not the bot's.
 	 */
 	onReaction: async function ({ api, event, role, isBotAdmin, config }) {
 		const reaction = typeof event?.reaction === "string"
@@ -49,14 +104,16 @@ module.exports = {
 			: event?.reaction?.emoji || event?.reaction_unicode;
 		if (!reaction) return;
 		if (event.reactionStatus === "deleted" || event.reaction_status === "deleted") return;
-		if (!HAND_EMOJIS.some(emoji => reaction.includes(emoji))) return;
+		if (!HAND_EMOJIS.some(h => reaction.includes(h) || reaction === h)) return;
 
+		// On Instagram transports the reacted-to message id may arrive as
+		// targetMessageID or directly as messageID; accept both.
 		const targetID = String(event.targetMessageID || event.target_message_id || event.messageID || "").trim();
 		const threadID = event.threadID || event.thread_id;
 		if (!targetID || !threadID) return;
 		if (!api || typeof api.unsendMessage !== "function") return;
 
-		// ── authorisation (self-computed, not just the passed role) ──
+		// ── authorisation ──
 		const senderID = String(event.senderID || event.userID || "").trim();
 		let authorised = false;
 		if (senderID) {
@@ -72,19 +129,23 @@ module.exports = {
 				].map(String);
 				authorised = admins.includes(senderID);
 			}
-		// role >= 1 covers bot/thread admins and DM participants as computed by
-		// the dispatcher's roleOf() at reaction time. The bot deletes its OWN
-		// message (ownership is enforced by Instagram itself); the reaction is
-		// only a trigger, so thread admins / DM participants may trigger it.
-		if (!authorised && Number(role) >= 1) authorised = true;
+			if (!authorised && Number(role) >= 1) authorised = true;
 		}
 		if (!authorised) return;
 
 		// ── ownership pre-check (bot can only unsend its own messages) ──
-		let botID = "";
-		try { botID = String((typeof api.getCurrentUserID === "function" && api.getCurrentUserID()) || "").trim(); } catch (_) { botID = ""; }
-		const cached = global.recentMessages?.get?.(String(targetID));
-		if (cached?.senderID && botID && String(cached.senderID) !== botID) return;
+		// The send-time registry is authoritative: if the id is listed there,
+		// it is the bot's — unsend without further checks. The echo cache can
+		// veto only when it positively identifies a DIFFERENT human sender.
+		const inRegistry = global.botSentMessages?.get?.(String(threadID))?.includes(targetID)
+			|| (global.botSentMessages && typeof global.botSentMessages.values === "function"
+				? [...global.botSentMessages.values()].some(list => list.includes(targetID))
+				: false);
+		if (!inRegistry) {
+			const botID = String((typeof api.getCurrentUserID === "function" && api.getCurrentUserID()) || "").trim();
+			const cached = global.recentMessages?.get?.(targetID);
+			if (cached?.senderID && botID && String(cached.senderID) !== botID && cached.isBot !== true) return;
+		}
 
 		try {
 			await new Promise((resolve, reject) => {
@@ -93,6 +154,12 @@ module.exports = {
 					if (result && typeof result.then === "function") result.then(resolve, reject);
 				} catch (e) { reject(e); }
 			});
+			// Keep the registry in sync (apiWrapper also forgets on success).
+			const list = global.botSentMessages?.get?.(String(threadID));
+			if (list) {
+				const idx = list.indexOf(targetID);
+				if (idx !== -1) list.splice(idx, 1);
+			}
 		} catch (_) { /* refused (not bot's message / already gone) — stay silent */ }
 	}
 };

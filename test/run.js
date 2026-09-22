@@ -755,7 +755,7 @@ async function main() {
 		}
 	});
 
-	await test("sing: lists full songs from the music server", async () => {
+	await test("sing: sends the music server's song directly as audio (no list)", async () => {
 		const api = fakeApi();
 		const db = makeDatabase();
 		const originalFetch = global.fetch;
@@ -776,16 +776,21 @@ async function main() {
 		finally {
 			global.fetch = originalFetch;
 		}
-		assert.ok(/1\./.test(out) && /2\./.test(out), "expected a numbered full-song list");
-		assert.ok(/Full A/.test(out), "expected the server's title");
+		// Media-only output: the first match is delivered directly, no numbered
+		// list and no menu text.
+		assert.ok(api.calls.some(c => c.method === "sendAudio" && c.src === "https://cdn.example/a.m4a"), "expected the top match to be delivered as audio");
+		assert.ok(!/1\./.test(out) && !/Reply with/.test(out), "must NOT print a numbered list or reply instructions");
 	});
 
-	await test("sing: numeric pick streams the full song as audio", async () => {
+	await test("sing: falls back to Instagram and streams the first match", async () => {
+		// Instagram's search_v2 track carries progressive_download_url; the server
+		// surfaces it as `url`, so `sing` must deliver those songs directly.
 		const api = fakeApi();
 		const db = makeDatabase();
-		db.users.set("999", { userID: "999", banned: { status: false }, settings: {}, data: { lastSong: { query: "x", tracks: [{ title: "A", artist: "B", url: "https://cdn.example/a.mp3" }] } } });
-		await runCommand("-sing 1", { api, db, config: makeConfig() });
-		assert.ok(api.calls.some(c => c.method === "sendAudio" && c.src === "https://cdn.example/a.mp3"), "expected the full-song URL to be streamed as audio");
+		const out = await runCommand("-sing instagram song", { api, db, config: makeConfig() });
+		assert.ok(api.calls.some(c => c.method === "musicSearch" && c.query === "instagram song"), "expected the Instagram fallback");
+		assert.ok(api.calls.some(c => c.method === "sendAudio"), "expected an audio delivery");
+		assert.ok(!/Reply with/.test(out), "no list instructions in media-only output");
 	});
 
 	await test("sing: single result is sent immediately", async () => {
@@ -803,31 +808,15 @@ async function main() {
 		assert.ok(api.calls.some(c => c.method === "sendAudio" && c.src === "https://cdn.example/only.m4a"));
 	});
 
-	await test("sing: falls back to Instagram and lists full songs when it has URLs", async () => {
-		// Instagram's search_v2 track carries progressive_download_url; the server
-		// surfaces it as `url`, so `sing` must list those songs.
-		const api = fakeApi();
-		const db = makeDatabase();
-		const out = await runCommand("-sing instagram song", { api, db, config: makeConfig() });
-		assert.ok(/1\./.test(out) && /2\./.test(out), "expected a numbered full-song list");
-		assert.ok(api.calls.some(c => c.method === "musicSearch" && c.query === "instagram song"), "expected the Instagram fallback");
-	});
-
-	await test("sing: sends the Instagram progressive URL as audio", async () => {
-		const api = fakeApi();
-		const db = makeDatabase();
-		db.users.set("999", { userID: "999", banned: { status: false }, settings: {}, data: { lastSong: { query: "x", tracks: [{ title: "A", artist: "B", url: "https://cdn.example/ig.mp4" }] } } });
-		await runCommand("-sing 1", { api, db, config: makeConfig() });
-		assert.ok(api.calls.some(c => c.method === "sendAudio" && c.src === "https://cdn.example/ig.mp4"), "expected the Instagram track URL to be streamed");
-	});
-
 	await test("sing: reports when Instagram returns no audio URL", async () => {
-		// A metadata-only result (no progressive URL) must not send junk.
+		// A metadata-only result (no progressive URL) must never deliver junk
+		// audio. Whether the YouTube fallback fails offline or the search comes
+		// back empty, the only acceptable outcome is a text notice — no audio.
 		const api = fakeApi({ musicSearch: (q, cb) => cb(null, { tracks: [{ title: "No Url", artist: "X", audioClusterID: "1" }] }) });
 		const db = makeDatabase();
 		const out = await runCommand("-sing no url somewhere", { api, db, config: makeConfig() });
-		assert.ok(/no full songs|no audio url|search failed/i.test(out), "expected a clear message");
-		assert.strictEqual(api.calls.filter(c => c.method === "sendAudio").length, 0);
+		assert.ok(/no full songs|no audio url|search failed|could not/i.test(out), "expected a clear message, got: " + out);
+		assert.strictEqual(api.calls.filter(c => c.method === "sendAudio").length, 0, "metadata-only results must not produce audio");
 	});
 
 	await test("avatarfx: rejects an unknown effect", async () => {
@@ -2067,16 +2056,21 @@ async function main() {
 		assert.strictEqual(calls[0].threadID, "t1");
 	});
 
-	await test("unsend: does nothing without a reply", async () => {
+	await test("unsend: without a reply unsend the newest bot message from the registry", async () => {
 		const command = registry.resolve("unsend");
-		let called = false;
-		const api = { unsendMessage: () => { called = true; } };
-		await command.onStart({
-			api,
-			message: { reply: () => { throw new Error("unsend must not reply"); } },
-			event: { threadID: "t1", messageID: "evt" }
-		});
-		assert.strictEqual(called, false, "no reply target means no unsend");
+		const unsent = [];
+		const api = { unsendMessage: (id, tid, cb) => { unsent.push(id); cb && cb(null, {}); } };
+		global.botSentMessages = new Map([["t1", ["bm1", "bm2"]]]);
+		try {
+			await command.onStart({
+				api,
+				message: { reply: () => Promise.resolve({}) },
+				event: { threadID: "t1", messageID: "evt" }
+			});
+		} finally {
+			delete global.botSentMessages;
+		}
+		assert.deepStrictEqual(unsent, ["bm2"], "no reply target removes the newest bot message");
 	});
 
 	await test("unsend: swallows a refused unsend without replying", async () => {
@@ -3513,7 +3507,7 @@ async function main() {
 		}
 	});
 
-	await test("sing: -y without song query prompts for usage", async () => {
+	await test("sing: without a query prompts for usage", async () => {
 		const command = registry.resolve("sing");
 		let replyMsg = "";
 		const message = {
@@ -3522,11 +3516,11 @@ async function main() {
 		await command.onStart({
 			api: {},
 			event: { threadID: "t1", messageID: "m1" },
-			args: ["-y"],
+			args: [],
 			message,
 			config: { prefix: "*" }
 		});
-		assert.ok(replyMsg.includes("Usage: *sing -y"), "missing query in sing -y mode must show usage");
+		assert.ok(replyMsg.includes("Usage: *sing"), "missing query must show usage");
 	});
 
 	await test("sing: -y downloads YouTube audio and delivers without extra text", async () => {
@@ -3569,7 +3563,7 @@ async function main() {
 			assert.ok(sentMessage && sentMessage.attachment, "attachment must be sent");
 			assert.strictEqual(sentMessage.attachment.type, "audio", "must be audio attachment");
 			assert.strictEqual(sentMessage.textFirst, false, "textFirst must be false to avoid extra text");
-			assert.ok(sentMessage.body && sentMessage.body.includes("🎶"), "caption must contain song title");
+			assert.strictEqual(sentMessage.body, undefined, "media-only output: no caption body");
 			assert.ok(reactions.includes("⏳") && reactions.includes("✅"), "must react with ⏳ and ✅");
 		} finally {
 			axios.get = originalGet;
@@ -3784,6 +3778,201 @@ async function main() {
 		const valid1 = ValidationUtils.validateThreadID("12345:67890");
 		assert.strictEqual(valid1.valid, true);
 		assert.strictEqual(valid1.id, "12345:67890");
+	});
+
+	/* ── regression: non-prefix commands, autotalk revival, AI flag wiring, ica fixes ── */
+
+	// config.json ships adminBot: []; the old noPrefix gate required isBotAdmin,
+	// so bare commands never responded for normal users.
+	await test("dispatcher: noPrefix commands answer for non-admin users (bare)", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const config = makeConfig({ noPrefix: true, adminBot: [] });
+		const out = await runCommand("ping", { api, db, config, senderID: "777" });
+		assert.ok(out.length > 0, "bare `ping` should respond without admin rights");
+	});
+
+	await test("dispatcher: bare execution of non-noPrefix commands stays off without config.noPrefix", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const config = makeConfig({ noPrefix: false, adminBot: [] });
+		const out = await runCommand("ping", { api, db, config, senderID: "777" });
+		assert.strictEqual(out, "", "bare `ping` must stay silent when config.noPrefix is off");
+	});
+
+	// The autotalk trigger used to sit AFTER the not-found return (dead code) and
+	// referenced an undefined `threadID` (ReferenceError). It now lives inside the
+	// not-found branch with real cooldown keys.
+	await test("dispatcher: autotalk fires the ai command on plain chat in an opted-in thread", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const config = makeConfig();
+		db.threads.set("t", { threadID: "t", settings: { autotalk: true }, autotalk: true, adminIDs: [], isGroup: false, groupKnown: true });
+		const originalFetch = global.fetch;
+		global.fetch = async () => ({ ok: true, json: async () => ({ status: "success", reply: "AI reply body" }) });
+		try {
+			await runCommand("hello there bot friend", { api, db, config, senderID: "777" });
+		}
+		finally {
+			global.fetch = originalFetch;
+		}
+		assert.ok(api.calls.some(c => c.method === "sendMessage" && /AI reply body/.test(c.form.body || "")), "autotalk should send an AI reply");
+	});
+
+	await test("dispatcher: autotalk respects the per-thread cooldown (no auto-spam)", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const config = makeConfig();
+		db.threads.set("t", { threadID: "t", settings: { autotalk: true }, autotalk: true, adminIDs: [], isGroup: false, groupKnown: true });
+		const originalFetch = global.fetch;
+		global.fetch = async () => ({ ok: true, json: async () => ({ status: "success", reply: "cool reply" }) });
+		try {
+			// One dispatcher instance: in production the cooldown map lives for the
+			// process lifetime, so both events must go through the same instance.
+			const dispatcher = createDispatcher({ api, config, registry, database: db });
+			const evt = body => ({ type: "message", threadID: "t", messageID: "evt-" + Math.random(), senderID: "777", body, isGroup: false });
+			await dispatcher.handle(evt("first message here"));
+			await dispatcher.handle(evt("second message here"));
+		}
+		finally {
+			global.fetch = originalFetch;
+		}
+		const aiReplies = api.calls.filter(c => c.method === "sendMessage" && /cool reply/.test(c.form.body || ""));
+		assert.ok(aiReplies.length <= 1, `expected at most 1 AI reply in cooldown window, got ${aiReplies.length}`);
+	});
+
+	await test("dispatcher: autotalk ignores emoji-only spam", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const config = makeConfig();
+		db.threads.set("t", { threadID: "t", settings: { autotalk: true }, autotalk: true, adminIDs: [], isGroup: false, groupKnown: true });
+		const originalFetch = global.fetch;
+		let fetched = 0;
+		global.fetch = async () => { fetched++; return { ok: true, json: async () => ({ content: [{ text: "reply" }] }) }; };
+		try {
+			await runCommand("😀😀😀", { api, db, config, senderID: "777" });
+		}
+		finally {
+			global.fetch = originalFetch;
+		}
+		assert.strictEqual(fetched, 0, "emoji-only messages must not trigger the AI");
+	});
+
+	// commands/ai.js: the autoTalk flag must suppress the decorative reaction.
+	await test("ai: autoTalk flag suppresses the decorative emoji reaction", async () => {
+		const api = fakeApi();
+		const db = makeDatabase();
+		const ai = require("../commands/ai");
+		const originalFetch = global.fetch;
+		global.fetch = async () => ({ ok: true, json: async () => ({ status: "success", reply: "direct reply" }) });
+		const reactions = [];
+		const message = createMessageContext({ api, event: { threadID: "t", messageID: "m-ai" } });
+		const origReact = message.react.bind(message);
+		message.react = (emoji) => { reactions.push(emoji); return origReact(emoji); };
+		try {
+			await ai.onStart({
+				api,
+				message,
+				event: { threadID: "t", messageID: "m-ai", senderID: "777" },
+				args: ["hello", "there"],
+				config: makeConfig(),
+				autoTalk: true
+			});
+		}
+		finally {
+			global.fetch = originalFetch;
+		}
+		assert.ok(api.calls.some(c => c.method === "sendMessage" && /direct reply/.test(c.form.body || "")), "AI reply sent");
+		assert.strictEqual(reactions.length, 0, "autoTalk must not react");
+	});
+
+	// Self-conversation guard: the echo of the bot's own reply must not re-enter
+	// the continuation (that was the infinite auto-spam loop).
+	await test("ai: continuation ignores the bot's own echoed messages", async () => {
+		const api = fakeApi();
+		const ai = require("../commands/ai");
+		const originalFetch = global.fetch;
+		let fetched = 0;
+		global.fetch = async () => { fetched++; return { ok: true, json: async () => ({ content: [{ text: "loop reply" }] }) }; };
+		try {
+			const handler = ai._internal.continuation({ session: { history: [] }, key: "k" });
+			if (typeof handler !== "function") throw new Error("continuation factory unavailable");
+			await handler({
+				api,
+				message: { reply: async () => { throw new Error("must not reply"); } },
+				event: { threadID: "t", messageID: "echo-1", senderID: "100", body: "hello from myself" }
+			});
+		}
+		finally {
+			global.fetch = originalFetch;
+		}
+		assert.strictEqual(fetched, 0, "own echo must not reach the AI");
+	});
+
+	// ica: the wrapper used to call client.sendReaction(messageID, reaction, ...)
+	// while the client expects (reaction, messageID, ...) — swapped arguments.
+	await test("ica: setMessageReaction passes (reaction, messageID) in the client's order", async () => {
+		const login = require("../ica/index.js");
+		const seen = [];
+		const fakeClient = {
+			getCurrentUserID: () => "100",
+			listen: () => () => { },
+			sendReaction: (reaction, messageID) => { seen.push({ reaction, messageID }); return Promise.resolve(true); },
+			removeReaction: () => Promise.resolve(true)
+		};
+		const api = login.buildApi(fakeClient);
+		await api.setMessageReaction("❤️", "msg-1");
+		assert.deepStrictEqual(seen, [{ reaction: "❤️", messageID: "msg-1" }], "emoji and message id must not be swapped");
+	});
+
+	// ica: registry-authoritative unsend ownership (fca/Floppa pattern).
+	await test("ica: unsend allows bot-owned ids straight from botSentMessages", async () => {
+		const UnsendMessage = require("../ica/src/methods/unsend");
+		global.botSentMessages = new Map([["t1", ["bot-msg-9"]]]);
+		global.recentMessages = new Map();
+		const calls = [];
+		const fake = {
+			getCsrfToken: () => "csrf",
+			postForm: async (url) => { calls.push(url); return { status: "ok" }; },
+			getRememberedThread: () => "t1"
+		};
+		const unsend = new UnsendMessage(fake, { uuid: "u" });
+		unsend.resolveThreadID = async () => "t1";
+		try {
+			const ok = await unsend.unsend("bot-msg-9", null);
+			assert.strictEqual(ok, true, "registry-listed message must unsend without veto");
+			assert.strictEqual(calls.length, 1);
+		}
+		finally {
+			delete global.botSentMessages;
+			delete global.recentMessages;
+		}
+	});
+
+	await test("ica: unsend refuses ids positively owned by a human sender", async () => {
+		const UnsendMessage = require("../ica/src/methods/unsend");
+		global.botSentMessages = new Map();
+		global.recentMessages = new Map([["human-msg-1", { senderID: "999", isBot: false }]]);
+		const calls = [];
+		const fake = {
+			getCsrfToken: () => "csrf",
+			postForm: async (url) => { calls.push(url); return { status: "ok" }; },
+			getRememberedThread: () => "t1",
+			getCookieValue: () => "100"
+		};
+		const unsend = new UnsendMessage(fake, { uuid: "u" });
+		unsend.resolveThreadID = async () => "t1";
+		try {
+			await assert.rejects(
+				() => unsend.unsend("human-msg-1", null),
+				/Cannot unsend message sent by another user/
+			);
+			assert.strictEqual(calls.length, 0, "no HTTP call for a human-owned message");
+		}
+		finally {
+			delete global.botSentMessages;
+			delete global.recentMessages;
+		}
 	});
 
 	/* ── summary ── */

@@ -25,10 +25,52 @@ const logger = require("../../../utils/logger");
 const recentOutbound = new Map(); // key -> { at, result }
 const OUTBOUND_DEDUP_MS = 8000;
 
+// ── bot-sent message registry (per thread) ──────────────────────────────
+// Every message the bot successfully delivers is recorded here so unsend
+// features can (a) find the bot's own messages without replying and
+// (b) verify ownership without trusting stream echoes. Mirrors the working
+// Floppa-Chatbot design.
+const BOT_SENT_LIMIT_PER_THREAD = 50;
+function recordBotSentMessage(threadID, messageID) {
+	if (!threadID || !messageID) return;
+	if (String(messageID).startsWith("rpc_timeout_") || String(messageID).startsWith("mock_")) return;
+	global.botSentMessages = global.botSentMessages || new Map();
+	const key = String(threadID);
+	const list = global.botSentMessages.get(key) || [];
+	list.push(String(messageID));
+	while (list.length > BOT_SENT_LIMIT_PER_THREAD) list.shift();
+	global.botSentMessages.set(key, list);
+}
+function forgetBotSentMessage(threadID, messageID) {
+	if (!threadID || !messageID || !global.botSentMessages) return;
+	const list = global.botSentMessages.get(String(threadID));
+	if (!list) return;
+	const idx = list.indexOf(String(messageID));
+	if (idx !== -1) list.splice(idx, 1);
+}
+
+// A timed-out send RPC usually DELIVERED (the response was lost, not the
+// message). Retrying after a timeout posts a second copy minutes later —
+// the duplicate-output bug. Media fallbacks must treat timeouts as
+// "assume delivered" exactly like the text path does.
+function isTimeoutError(err) {
+	const msg = (err && (err.message || JSON.stringify(err))) || String(err || "");
+	return /timed? ?out/i.test(msg) || (err && (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT"));
+}
+
 function outboundKey(threadID, payload) {
 	const body = typeof payload === "string" ? payload : (payload && payload.body != null ? String(payload.body) : "");
 	if (!body) return null;
 	return `${threadID}::${body.slice(0, 300)}`;
+}
+
+// Attach thread context and register a successfully sent message in the
+// bot-sent registry. Used by the media wrappers whose raw results often
+// carry only a bare messageID.
+function recordBotSend(res, threadID) {
+	if (res && res.messageID) recordBotSentMessage(threadID, res.messageID);
+	if (res && typeof res === "object" && !res.threadID && threadID) res.threadID = threadID;
+	return res;
 }
 
 function createAPIWrapper(rawClient, config = {}) {
@@ -170,6 +212,7 @@ function createAPIWrapper(rawClient, config = {}) {
 							for (const [k, v] of recentOutbound) if (v.at < cutoff) recentOutbound.delete(k);
 						}
 					}
+					if (res && res.messageID) recordBotSentMessage(threadID, res.messageID);
 					return res;
 				};
 				const dropMarker = () => { if (dedupKey) recentOutbound.delete(dedupKey); };
@@ -291,11 +334,16 @@ function createAPIWrapper(rawClient, config = {}) {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendPhoto === "function") {
 					try {
-						return await ig.sendPhoto(threadID, pathOrUrl, opts);
+						return recordBotSend(await ig.sendPhoto(threadID, pathOrUrl, opts), threadID);
 					} catch (err) {
+						// A timed-out photo RPC usually DELIVERED — never re-send it.
+						if (isTimeoutError(err)) {
+							logger.warn(`sendPhoto RPC timed out; assuming delivered (no duplicate fallback)`);
+							return { threadID, messageID: "rpc_timeout_" + Date.now(), assumedDelivered: true };
+						}
 						if (replyTo) {
 							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
-							return await ig.sendPhoto(threadID, pathOrUrl, fallbackOpts);
+							return recordBotSend(await ig.sendPhoto(threadID, pathOrUrl, fallbackOpts), threadID);
 						}
 						throw err;
 					}
@@ -303,12 +351,16 @@ function createAPIWrapper(rawClient, config = {}) {
 				if (ig && typeof ig.sendImage === "function") {
 					if (replyTo) {
 						try {
-							return await ig.sendImage(pathOrUrl, threadID, opts.caption || "", undefined, replyTo);
-						} catch (_) {
+							return recordBotSend(await ig.sendImage(pathOrUrl, threadID, opts.caption || "", undefined, replyTo), threadID);
+						} catch (err) {
+							if (isTimeoutError(err)) {
+								logger.warn(`sendImage RPC timed out; assuming delivered (no duplicate fallback)`);
+								return { threadID, messageID: "rpc_timeout_" + Date.now(), assumedDelivered: true };
+							}
 							return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
 						}
 					}
-					return await ig.sendImage(pathOrUrl, threadID, opts.caption || "");
+					return recordBotSend(await ig.sendImage(pathOrUrl, threadID, opts.caption || ""), threadID);
 				}
 				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
@@ -331,23 +383,27 @@ function createAPIWrapper(rawClient, config = {}) {
 					if (ig.sendVideoFromUrl || ig.sendMedia) {
 						if (replyTo) {
 							try {
-								return await ig.sendVideo(threadID, pathOrUrl, opts, undefined, replyTo);
-							} catch (_) {
+								return recordBotSend(await ig.sendVideo(threadID, pathOrUrl, opts, undefined, replyTo), threadID);
+							} catch (err) {
+								if (isTimeoutError(err)) {
+									logger.warn("sendVideo RPC timed out; assuming delivered (no duplicate fallback)");
+									return { threadID, messageID: "rpc_timeout_" + Date.now(), assumedDelivered: true };
+								}
 								const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
-								return await ig.sendVideo(threadID, pathOrUrl, fallbackOpts);
+								return recordBotSend(await ig.sendVideo(threadID, pathOrUrl, fallbackOpts), threadID);
 							}
 						}
-						return await ig.sendVideo(threadID, pathOrUrl, opts);
+						return recordBotSend(await ig.sendVideo(threadID, pathOrUrl, opts), threadID);
 					} else {
-						return await new Promise((resolve, reject) => {
-							const cb = (err, res) => err ? reject(err) : resolve(res);
-							if (replyTo) {
-								ig.sendVideo(pathOrUrl, threadID, cb, replyTo);
-							} else {
-								ig.sendVideo(pathOrUrl, threadID, cb);
-							}
-						});
-					}
+							return recordBotSend(await new Promise((resolve, reject) => {
+								const cb = (err, res) => err ? reject(err) : resolve(res);
+								if (replyTo) {
+									ig.sendVideo(pathOrUrl, threadID, cb, replyTo);
+								} else {
+									ig.sendVideo(pathOrUrl, threadID, cb);
+								}
+							}), threadID);
+						}
 				}
 				return await wrapper.sendMessage({ body: opts.caption || "", attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
@@ -360,17 +416,21 @@ function createAPIWrapper(rawClient, config = {}) {
 				const replyTo = opts.replyToMessageID || opts.replyTo;
 				if (ig && typeof ig.sendVoice === "function") {
 					try {
-						return await ig.sendVoice(threadID, pathOrUrl, opts);
+						return recordBotSend(await ig.sendVoice(threadID, pathOrUrl, opts), threadID);
 					} catch (err) {
+						if (isTimeoutError(err)) {
+							logger.warn("sendVoice RPC timed out; assuming delivered (no duplicate fallback)");
+							return { threadID, messageID: "rpc_timeout_" + Date.now(), assumedDelivered: true };
+						}
 						if (replyTo) {
 							const fallbackOpts = Object.assign({}, opts, { replyToMessageID: undefined, replyTo: undefined });
-							return await ig.sendVoice(threadID, pathOrUrl, fallbackOpts);
+							return recordBotSend(await ig.sendVoice(threadID, pathOrUrl, fallbackOpts), threadID);
 						}
 						throw err;
 					}
 				}
 				if (ig && typeof ig.sendAudio === "function") {
-					return await new Promise((resolve, reject) => {
+					return recordBotSend(await new Promise((resolve, reject) => {
 						const cb = (err, res) => err ? reject(err) : resolve(res);
 						if (replyTo) {
 							try {
@@ -381,9 +441,9 @@ function createAPIWrapper(rawClient, config = {}) {
 						} else {
 							ig.sendAudio(pathOrUrl, threadID, cb);
 						}
-					});
-				}
-				return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
+						}), threadID);
+					}
+					return await wrapper.sendMessage({ attachment: pathOrUrl, replyTo }, threadID, undefined, replyTo);
 			})();
 			return wrapCallback(promise, callback);
 		},
@@ -447,17 +507,26 @@ function createAPIWrapper(rawClient, config = {}) {
 				if (typeof maybeCallback === "function") callback = maybeCallback;
 			}
 			const promise = (async () => {
-				if (global.recentMessages && typeof global.recentMessages.get === "function") {
+				// Ownership pre-check: only skip the RPC when the registry PROVES the
+				// message is someone else's. The botSentMessages registry (recorded
+				// at send time) is authoritative; the stream-echo cache is only a
+				// fallback and its absence must never block a legitimate unsend.
+				const known = global.botSentMessages && global.botSentMessages.size
+					? [...global.botSentMessages.values()].some(list => list.includes(String(messageID)))
+					: false;
+				if (!known && global.recentMessages && typeof global.recentMessages.get === "function") {
 					const cached = global.recentMessages.get(String(messageID));
 					const currentUID = wrapper.getCurrentUserID();
-					if (cached && cached.senderID && currentUID && String(cached.senderID) !== String(currentUID)) {
+					if (cached && cached.senderID && currentUID && String(cached.senderID) !== String(currentUID) && cached.isBot !== true) {
 						const err = new Error("Cannot unsend message sent by another user");
 						err.code = "NOT_OWN_MESSAGE";
 						throw err;
 					}
 				}
 				if (ig && typeof ig.unsendMessage === "function") {
-					return await ig.unsendMessage(messageID, threadID);
+					const res = await ig.unsendMessage(messageID, threadID);
+					forgetBotSentMessage(threadID, messageID);
+					return res;
 				}
 				return { success: false, unsupported: true };
 			})();

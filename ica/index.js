@@ -69,6 +69,39 @@ function resolveMediaArgs(a, b, c, d, defaultKind = 'photo') {
 }
 
 function buildApi(client) {
+  // Shared reaction dispatcher so sendReaction/setMessageReaction/removeReaction
+  // all funnel through ONE argument-normalizing implementation (previously
+  // sendReaction re-entered buildApi().setMessageReaction, which then called
+  // client.sendReaction(messageID, reaction, ...) — SWAPPED arguments, so every
+  // reaction through the wrapper hit the API with emoji and message id
+  // exchanged and silently failed).
+  const dispatchReaction = (reaction, messageID, threadIDOrCallback, callbackOrForce, maybeForce) => {
+    let actualThreadID = threadIDOrCallback;
+    let actualCallback = callbackOrForce;
+    let actualForce = maybeForce;
+
+    // Argument shifting: threadID may arrive as the callback or the force flag.
+    if (typeof actualThreadID === 'function') {
+      actualCallback = actualThreadID;
+      actualThreadID = undefined;
+      actualForce = (typeof actualCallback === 'boolean') ? actualCallback : (typeof actualForce === 'boolean' ? actualForce : undefined);
+      actualCallback = (typeof callbackOrForce === 'function') ? callbackOrForce : undefined;
+    } else if (typeof actualThreadID === 'boolean') {
+      actualForce = actualThreadID;
+      actualThreadID = undefined;
+      if (typeof callbackOrForce === 'function') actualCallback = callbackOrForce;
+    }
+    if (typeof actualCallback !== 'function') actualCallback = undefined;
+    if (typeof actualForce !== 'boolean') actualForce = undefined;
+
+    if (!reaction) {
+      // client.removeReaction expects (messageID, threadID, cb)
+      return client.removeReaction(messageID, actualThreadID, actualCallback);
+    }
+    // client.sendReaction expects (reaction, messageID, threadID, cb, force)
+    return client.sendReaction(reaction, messageID, actualThreadID, actualCallback, actualForce);
+  };
+
   return {
     // Identity
     getCurrentUserID: () => {
@@ -158,57 +191,13 @@ function buildApi(client) {
     },
 
     // Reactions
-    sendReaction:       (reaction, messageID, threadID, cb) => {
-      // Directly call the consolidated logic
-      return buildApi(client).setMessageReaction(reaction, messageID, threadID, cb);
-    },
+    sendReaction:       (reaction, messageID, threadID, cb) => dispatchReaction(reaction, messageID, threadID, cb),
     removeReaction:     (messageID, threadID, cb)           => {
       if (typeof threadID === "function") { cb = threadID; threadID = undefined; }
-      // Assuming client.removeReaction expects (messageID, threadID, cb)
       return client.removeReaction(messageID, threadID, cb);
     },
-    setMessageReaction: (reaction, messageID, threadID, cb, force) => {
-      // This function acts as a dispatcher for sendReaction or removeReaction
-      // It needs to correctly parse its own flexible arguments.
-      let actualThreadID = threadID;
-      let actualCallback = cb;
-      let actualForce = force;
-
-      // Handle argument shifting if threadID is actually the callback or force
-      if (typeof threadID === "function") {
-        actualCallback = threadID;
-        actualThreadID = undefined;
-        // Force is only relevant if passed as the 4th argument in this specific shift
-        actualForce = (typeof cb === "boolean") ? cb : undefined;
-      } else if (typeof threadID === "boolean") {
-        actualForce = threadID;
-        actualThreadID = undefined;
-        if (typeof cb === "function") actualCallback = cb;
-      }
-
-      // Ensure actualCallback is a function or undefined
-      if (typeof actualCallback !== "function") {
-        actualCallback = undefined;
-      }
-      // Ensure actualForce is a boolean or undefined
-      if (typeof actualForce !== "boolean") {
-        actualForce = undefined;
-      }
-
-      // If threadID is still undefined, and callback is present, and it's not a string/number,
-      // it implies threadID was never provided.
-      // For this layer, if actualThreadID is undefined, we proceed with it as undefined.
-      // The auth.js layer is responsible for inferring threadID if it's truly missing.
-
-      if (!reaction) {
-        // client.removeReaction expects (messageID, threadID, cb)
-        return client.removeReaction(messageID, actualThreadID, actualCallback);
-      } else {
-        // client.sendReaction expects (messageID, reaction, threadID, cb) 
-        // Note: some underlying clients may use 'force' as an extra option
-        return client.sendReaction(messageID, reaction, actualThreadID, actualCallback, actualForce);
-      }
-    },
+    setMessageReaction: (reaction, messageID, threadIDOrCallback, callbackOrForce, maybeForce) =>
+      dispatchReaction(reaction, messageID, threadIDOrCallback, callbackOrForce, maybeForce),
 
     // Threads
     getThreadInfo:      (threadID, cb)                    => client.getThreadInfo(threadID, cb),

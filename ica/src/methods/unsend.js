@@ -27,10 +27,24 @@ class UnsendMessage {
         throw new Error('Message ID is required');
       }
 
-      if (typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
+      // ── ownership pre-check (fca/Floppa pattern) ──
+      // The send-time registry (global.botSentMessages, filled by the bot's
+      // apiWrapper on every successful send) is AUTHORITATIVE: an id listed
+      // there is always the bot's own message — unsend without further
+      // checks. The stream-echo cache (global.recentMessages) may only VETO
+      // when it positively identifies a different HUMAN sender; its absence
+      // must never block a legitimate unsend (echo overwrites and
+      // reaction-event cache entries used to make every admin unsend fail
+      // silently).
+      const inRegistry = (typeof global !== "undefined" && global.botSentMessages && typeof global.botSentMessages.values === "function")
+        ? [...global.botSentMessages.values()].some(list => Array.isArray(list) && list.includes(String(messageID)))
+        : false;
+      if (!inRegistry && typeof global !== "undefined" && global.recentMessages && global.recentMessages.get) {
         const cached = global.recentMessages.get(String(messageID));
         const botID = this.http?.getCookieValue?.('ds_user_id');
-        if (cached && cached.senderID && botID && String(cached.senderID) !== String(botID)) {
+        if (cached && cached.senderID && botID
+          && String(cached.senderID) !== String(botID)
+          && cached.isBot !== true) {
           const notOurMessageErr = new Error('Cannot unsend message sent by another user');
           if (callback) return callback(notOurMessageErr);
           throw notOurMessageErr;

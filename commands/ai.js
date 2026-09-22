@@ -191,7 +191,7 @@ function messageIDOf(sent) {
 	return null;
 }
 
-async function generateAndSend({ message, session, key, userText, setReplyHandler }) {
+async function generateAndSend({ message, session, key, userText, setReplyHandler, autoTalk }) {
 	pushHistory(session, "user", userText);
 
 	let replyText;
@@ -232,9 +232,14 @@ async function generateAndSend({ message, session, key, userText, setReplyHandle
 
 	persistState();
 
-	const emoji = reaction && REACTIONS[reaction];
-	if (emoji) {
-		try { await message.react(emoji); } catch (_) { }
+	// The decorative emoji reaction only happens for explicitly invoked
+	// requests. Auto-talk (bot replying to every chat message) must NOT react:
+	// in a spammy thread that reads as the bot reacting to all spam.
+	if (!autoTalk) {
+		const emoji = reaction && REACTIONS[reaction];
+		if (emoji) {
+			try { await message.react(emoji); } catch (_) { }
+		}
 	}
 	return sent;
 }
@@ -244,15 +249,28 @@ function continuation({ session, key }) {
 	// property of it. Taking it from `replyEvent` left it undefined, so the
 	// handler for the newest bot reply was never armed and the conversation
 	// stopped after the second exchange.
-	return async function ({ message: replyMessage, event: replyEvent, setReplyHandler }) {
+	return async function ({ api, message: replyMessage, event: replyEvent, setReplyHandler }) {
 		const body = typeof replyEvent.body === "string" ? replyEvent.body.trim() : "";
 		if (!body) return;
+		// Never let the bot reply to itself: a continuation armed on the bot's
+		// own message + an echo of that message = an infinite self-conversation
+		// (the auto-spam loop).
+		const senderID = String(replyEvent.senderID || replyEvent.userID || "");
+		if (replyEvent.__fromBot === true) return;
+		try {
+			// Bridges that never set __fromBot: compare against the bot's own id.
+			// Without this, the echo of our own reply re-triggers the AI — the
+			// infinite self-conversation loop.
+			const botID = api && typeof api.getCurrentUserID === "function" ? String(api.getCurrentUserID() || "").trim() : "";
+			if (botID && senderID === botID) return;
+		} catch (_) { }
 		await generateAndSend({
 			message: replyMessage,
 			session,
 			key,
 			userText: body,
-			setReplyHandler
+			setReplyHandler,
+			autoTalk: true // continuations are conversation follow-ups, not fresh commands
 		});
 	};
 }
@@ -269,7 +287,7 @@ module.exports = {
 		usage: { en: "{p}ai <message> | {p}ai clear" }
 	},
 
-	async onStart({ message, args, event, config, setReplyHandler }) {
+	async onStart({ message, args, event, config, setReplyHandler, autoTalk }) {
 		ensureStateFile(config);
 		restoreState();
 
@@ -278,7 +296,9 @@ module.exports = {
 		const key = sessionKey(userID, threadID);
 
 		const sub = (args[0] || "").toLowerCase();
-		if (sub === "clear" || sub === "reset") {
+		// Only a BARE "clear"/"reset" wipes memory. Auto-talk feeds every chat
+		// message here, so "clear the table" must not reset the session.
+		if ((sub === "clear" || sub === "reset") && args.length === 1) {
 			sessions.delete(key);
 			persistState();
 			return message.reply("Conversation memory cleared. Starting fresh.");
@@ -288,8 +308,10 @@ module.exports = {
 		if (!text)
 			return message.reply("Ritchi is online. Send a message to begin.");
 
-		return generateAndSend({ message, session: getSession(key), key, userText: text, setReplyHandler });
+		// autoTalk: the dispatcher's auto-talk trigger passes true so the reply
+		// carries no decorative reaction (the bot must not react to all chat).
+		return generateAndSend({ message, session: getSession(key), key, userText: text, setReplyHandler, autoTalk: autoTalk === true });
 	}
 };
 
-module.exports._internal = { sessions, sessionKey, getSession, buildPrompt, askClaude, askGrok, resolveReaction, humanDelay, normalizeReaction, REACTIONS };
+module.exports._internal = { sessions, sessionKey, getSession, buildPrompt, askClaude, askGrok, resolveReaction, humanDelay, normalizeReaction, REACTIONS, continuation, generateAndSend };

@@ -22,7 +22,12 @@ const STALE_EVENT_CUTOFF_MS = 2 * 60 * 1000;
 // Auto-talk (AI replies to non-command messages): minimum gap between two AI
 // replies in the same thread. Prevents per-message AI flooding when a user
 // (or another bot) sends many messages in a row.
-const AUTOTALK_COOLDOWN_MS = 15 * 1000;
+const AUTOTALK_COOLDOWN_MS = 60 * 1000;
+const AUTOTALK_USER_COOLDOWN_MS = 30 * 1000;
+// Emoji-only / one-word pokes are not conversation: answering them is the
+// "bot reacts to all my spam messages" behaviour.
+const AUTOTALK_MIN_BODY = 4;
+const AUTOTALK_MAX_EMOJI_RATIO = 0.6;
 
 function createDispatcher({ api, config, registry, database }) {
 	// Deduplication of realtime events. The MQTT/SSE transport can redeliver
@@ -35,6 +40,7 @@ function createDispatcher({ api, config, registry, database }) {
 	const REACTION_DEDUP_TTL_MS = 90 * 1000; // reactions: short window only
 	const MAX_TRACKED_EVENTS = 5000;
 	const autoTalkLast = new Map(); // threadID -> last AI trigger timestamp
+	const autoTalkUserLast = new Map(); // userID -> last AI trigger timestamp
 	let lastEventCleanup = Date.now();
 	function isDuplicateEvent(event) {
 		// Key MUST be namespaced per event type. On reaction (and unsend) events
@@ -245,9 +251,17 @@ function createDispatcher({ api, config, registry, database }) {
 		const bare = registry.resolve(rawName);
 		const bareAllowed = !!bare && bare.config.noPrefix === true &&
 			(isBotAdmin(senderID) || bare.config.noPrefixRole === 0);
-		const noPrefixAllowed = config.noPrefix === true && isBotAdmin(senderID);
+		// config.noPrefix === true lets commands answer WITHOUT the prefix for
+		// everyone. It used to be admin-only while config.json ships
+		// adminBot: [], which silently disabled every bare command — the
+		// "non-prefix commands never respond" bug. Admin-only commands are
+		// still gated by the needRole check below.
+		const noPrefixAllowed = config.noPrefix === true;
+		// Threads with autotalk enabled must reach the not-found branch so
+		// plain chat can trigger the AI reply.
+		const autotalkEnabled = threadData?.settings?.autotalk === true || threadData?.autotalk === true;
 
-		if (!hasPrefix && !bareAllowed && !noPrefixAllowed && !emptyPrefixMode) return;
+		if (!hasPrefix && !bareAllowed && !noPrefixAllowed && !emptyPrefixMode && !autotalkEnabled) return;
 
 		const args = rawArgs.slice();
 		const name = (args.shift() || "").toLowerCase();
@@ -277,6 +291,58 @@ function createDispatcher({ api, config, registry, database }) {
 		const command = registry.resolve(name);
 
 		if (!command) {
+			// ── Auto-Talk: AI reply to plain (non-command) chat when the thread
+			// opted in. Anti-spam guards: minimum body length, emoji-only
+			// filter, per-thread AND per-user cooldowns; banned users are never
+			// answered. This lives INSIDE the not-found branch: placed after
+			// it, the trigger was dead code that could never run.
+			const emojiLike = (() => {
+				if (!body) return true;
+				const chars = [...body];
+				const emojiCount = chars.filter(ch => /\p{Extended_Pictographic}/u.test(ch)).length;
+				return emojiCount > 0 && emojiCount / chars.length >= AUTOTALK_MAX_EMOJI_RATIO;
+			})();
+			if (autotalkEnabled && !hasPrefix && body.length >= AUTOTALK_MIN_BODY && !emojiLike
+				&& !(userData && userData.banned && userData.banned.status)) {
+				const threadKey = String(event.threadID);
+				const userKey = `${event.threadID}:${senderID}`;
+				const now = Date.now();
+				if (now - (autoTalkLast.get(threadKey) || 0) < AUTOTALK_COOLDOWN_MS) {
+					log.info("DISPATCH", `Auto-talk skipped in thread ${event.threadID} (thread cooldown)`);
+				} else if (now - (autoTalkUserLast.get(userKey) || 0) < AUTOTALK_USER_COOLDOWN_MS) {
+					log.info("DISPATCH", `Auto-talk skipped for user ${senderID} (user cooldown)`);
+				} else {
+					autoTalkLast.set(threadKey, now);
+					autoTalkUserLast.set(userKey, now);
+					if (autoTalkLast.size > 500) {
+						const oldest = autoTalkLast.keys().next().value;
+						autoTalkLast.delete(oldest);
+					}
+					if (autoTalkUserLast.size > 1000) {
+						const oldest = autoTalkUserLast.keys().next().value;
+						autoTalkUserLast.delete(oldest);
+					}
+					const aiCmd = registry.resolve("ai") || registry.resolve("ritchi");
+					if (aiCmd) {
+						return aiCmd.onStart({
+							api,
+							message,
+							event,
+							args: body.split(/\s+/),
+							config,
+							// Auto-triggered: suppress the decorative emoji reaction so
+							// the bot does not react to every message in a spammy chat.
+							autoTalk: true,
+							setReplyHandler: (handler, mid) => {
+								const key = mid != null ? mid : event.messageID;
+								if (key) onReply.set(String(key), { commandName: "ai", handler, at: Date.now() });
+							},
+							usersData: database.users,
+							threadsData: database.threads
+						}).catch(() => { });
+					}
+				}
+			}
 			log.info("DISPATCH", `Command not found: "${name}" from ${senderID} in thread ${event.threadID}`);
 			if (config.hideNotiMessage.commandNotFound || !hasPrefix) return;
 			const suggestion = suggestionFor(name);
@@ -284,39 +350,6 @@ function createDispatcher({ api, config, registry, database }) {
 			const key = suggestion ? "commandNotFoundSuggestion" : "commandNotFound";
 			const text = t(config.language, key, suggestion || "");
 			return message.reply(text.replace(/\{pn\}/g, activePrefix));
-		}
-		
-		// Automation: Auto-Talk AI trigger when autotalk is enabled and no command matches.
-		// Per-thread cooldown: without it a chatty user (or a bot-to-bot exchange)
-		// fires the AI on every single message and floods the chat.
-		if (!command && threadData?.settings?.autotalk && !hasPrefix && body.length > 1) {
-			const threadKey = String(event.threadID);
-			const lastAuto = autoTalkLast.get(threadKey) || 0;
-			if (Date.now() - lastAuto < AUTOTALK_COOLDOWN_MS) {
-				log.info("DISPATCH", `Auto-talk skipped in thread ${event.threadID} (cooldown ${AUTOTALK_COOLDOWN_MS}ms)`);
-			} else {
-				autoTalkLast.set(threadKey, Date.now());
-				if (autoTalkLast.size > 500) {
-					const oldest = autoTalkLast.keys().next().value;
-					autoTalkLast.delete(oldest);
-				}
-				const aiCmd = registry.resolve("ai") || registry.resolve("ritchi");
-				if (aiCmd) {
-					return aiCmd.onStart({
-						api,
-						message,
-						event,
-						args: body.split(/\s+/),
-						config,
-						setReplyHandler: (handler, mid) => {
-							const key = mid != null ? mid : event.messageID;
-							if (key) onReply.set(String(key), { commandName: "ai", handler, at: Date.now() });
-						},
-						usersData: database.users,
-						threadsData: database.threads
-					}).catch(() => {});
-				}
-			}
 		}
 
 		const commandName = command.config.name.toLowerCase();

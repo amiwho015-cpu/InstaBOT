@@ -29,9 +29,9 @@ async function downloadToBuffer(fileUrl) {
   if (typeof fileUrl === "string" && !/^https?:\/\//i.test(fileUrl) && fs.existsSync(fileUrl)) {
     return await fs.readFile(fileUrl);
   }
-  const res = await axios.get(fileUrl, {
+  const download = (url) => axios.get(url, {
     responseType: "arraybuffer",
-    timeout: 25000,
+    timeout: 20000,
     maxContentLength: MAX_ATTACHMENT_BYTES,
     maxBodyLength: MAX_ATTACHMENT_BYTES,
     headers: {
@@ -39,7 +39,21 @@ async function downloadToBuffer(fileUrl) {
       "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
     }
   });
-  const buf = Buffer.from(res.data);
+  let buf;
+  try {
+    const res = await download(fileUrl);
+    buf = Buffer.from(res.data);
+  } catch (err) {
+    // Floppa-style multi-host fallback: some CDNs block plain fetches from
+    // datacenter IPs or expire quickly; wsrv.nl proxies and normalizes them.
+    try {
+      const proxied = `https://wsrv.nl/?url=${encodeURIComponent(fileUrl)}&n=-1`;
+      const res = await download(proxied);
+      buf = Buffer.from(res.data);
+    } catch (_) {
+      throw err;
+    }
+  }
   if (buf.length > 50 && (buf.subarray(0, 50).toString().toLowerCase().includes("<html") || buf.subarray(0, 50).toString().toLowerCase().includes("<!doctype"))) {
     throw new Error("URL returned an HTML error response instead of image data");
   }
@@ -316,92 +330,88 @@ module.exports = {
         const isProtectedHost = !/^https?:\/\//i.test(targetUrl) ||
           /cdninstagram\.com|fbcdn\.net|instagram\.com/i.test(targetUrl);
 
-        // If the URL is an Instagram/Facebook CDN or local file, relay it through our direct public host first
-        if (isProtectedHost) {
+        // Relay protected (Instagram/Facebook CDN) sources through a public
+        // host FIRST so the remote AI engines can fetch them. Runs while the
+        // AI engines below are already starting on the raw URL — never ahead
+        // of them.
+        const relayPromise = (async () => {
+          if (!isProtectedHost) return targetUrl;
           try {
-            sourceBuffer = await downloadToBuffer(imageUrl);
+            if (!sourceBuffer) sourceBuffer = await downloadToBuffer(imageUrl);
             const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
-            if (uploadedUrl) {
-              targetUrl = uploadedUrl;
-            }
+            return uploadedUrl || targetUrl;
           } catch (e) {
             logger?.warn?.(`[EDIT] Failed to relay image to public host: ${e.message}`);
+            return targetUrl;
           }
-        }
+        })();
 
-        // Call Toshiro AI edit API
-        try {
-          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-          // 45s cap: with the previous 90s the first Toshiro attempt alone could
-          // hold the command for 1.5 min with the ⏳ reaction frozen ("stuck on
-          // load emoji"). Toshiro normally answers well inside 45s.
-          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 45000 });
+        const toshiroEdit = async (url, timeout) => {
+          const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(url)}&prompt=${encodeURIComponent(prompt)}`;
+          const data = await global.utils.toshiroRequest(editApiUrl, null, { method: "GET", timeout });
           if (data?.success && data?.url) {
-            generatedUrl = data.url;
+            return await downloadToBuffer(data.url);
+          }
+          return null;
+        };
+
+        // RACE all strategies at once. Previously they ran SERIALLY
+        // (Toshiro 45s → Toshiro retry 45s → Pollinations 25s → Jimp), so any
+        // slow/hung upstream stacked into a 2–10 minute frozen ⏳ — the
+        // "edit completed in 599500ms" bug. First usable buffer wins.
+        const strategies = [
+          // a) Toshiro on the raw URL
+          (async () => {
             try {
-              finalBuffer = await downloadToBuffer(generatedUrl);
-              appliedType = "AI Edit";
-            } catch (_) {}
-          }
-        } catch (e) {
-          logger?.warn?.(`[EDIT] Initial Toshiro call failed: ${e.message}`);
-        }
-
-        // If direct attempt failed (e.g. targetUrl wasn't flagged as protected but external fetch failed),
-        // download locally and upload to public host, then retry Toshiro
-        if (!finalBuffer && !generatedUrl) {
-          try {
-            if (!sourceBuffer) {
-              sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
+              const buf = await toshiroEdit(targetUrl, 45000);
+              if (buf) return { buf, type: "AI Edit" };
+            } catch (e) {
+              logger?.warn?.(`[EDIT] Toshiro direct failed: ${e.message}`);
             }
-            if (sourceBuffer) {
-              const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
-              if (uploadedUrl && uploadedUrl !== targetUrl) {
-                targetUrl = uploadedUrl;
-                const editApiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/edit?url=${encodeURIComponent(targetUrl)}&prompt=${encodeURIComponent(prompt)}`;
-                const data = await global.utils.toshiroRequest(editApiUrl, null, { method: 'GET', timeout: 45000 });
-                if (data?.success && data?.url) {
-                  generatedUrl = data.url;
-                  try {
-                    finalBuffer = await downloadToBuffer(generatedUrl);
-                    appliedType = "AI Edit";
-                  } catch (_) {}
-                }
+            return null;
+          })(),
+          // b) Toshiro on the relayed public URL (resolves once the upload
+          //    finishes, then races against the others)
+          (async () => {
+            try {
+              const relayed = await relayPromise;
+              if (relayed && relayed !== targetUrl) {
+                const buf = await toshiroEdit(relayed, 45000);
+                if (buf) return { buf, type: "AI Edit" };
               }
+            } catch (e) {
+              logger?.warn?.(`[EDIT] Toshiro relay failed: ${e.message}`);
             }
-          } catch (e) {
-            logger?.warn?.(`[EDIT] Toshiro retry attempt failed: ${e.message}`);
-          }
+            return null;
+          })(),
+          // c) Pollinations Turbo img2img on the relayed URL
+          (async () => {
+            try {
+              const relayed = await relayPromise;
+              const seed = Math.floor(Math.random() * 1000000);
+              const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?image=${encodeURIComponent(relayed)}&width=768&height=768&seed=${seed}&model=turbo&nologo=true`;
+              const buf = await downloadToBuffer(turboUrl);
+              return { buf, type: "AI Turbo Edit", url: turboUrl };
+            } catch (_) {
+              return null;
+            }
+          })()
+        ];
+
+        const winner = (await Promise.allSettled(strategies))
+          .map(r => (r.status === "fulfilled" ? r.value : null))
+          .find(Boolean);
+
+        if (winner) {
+          finalBuffer = winner.buf;
+          appliedType = winner.type;
+          generatedUrl = winner.url || null;
         }
 
-        // 3. Fallback: Pollinations Image-to-Image / Variation
+        // 3. Last resort: local Jimp enhancement (no network involved).
         if (!finalBuffer) {
           try {
-            if (!targetUrl || /cdninstagram\.com|fbcdn\.net|instagram\.com/i.test(targetUrl) || !/^https?:\/\//i.test(targetUrl)) {
-              if (!sourceBuffer) {
-                sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
-              }
-              if (sourceBuffer) {
-                const uploadedUrl = await uploadImageToPublicHost(sourceBuffer);
-                if (uploadedUrl) targetUrl = uploadedUrl;
-              }
-            }
-            const seed = Math.floor(Math.random() * 1000000);
-            const turboUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?image=${encodeURIComponent(targetUrl)}&width=768&height=768&seed=${seed}&model=turbo&nologo=true`;
-            generatedUrl = turboUrl;
-            appliedType = "AI Turbo Edit";
-            try {
-              finalBuffer = await downloadToBuffer(turboUrl);
-            } catch (_) {}
-          } catch (_) {}
-        }
-
-        // 4. Final Fallback: Jimp Image Adjustment on original image
-        if (!finalBuffer) {
-          try {
-            if (!sourceBuffer) {
-              sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
-            }
+            if (!sourceBuffer) sourceBuffer = await downloadToBuffer(imageUrl).catch(() => null);
             if (sourceBuffer) {
               const jimg = await safeLoadJimp(sourceBuffer);
               jimg.contrast(0.2);
