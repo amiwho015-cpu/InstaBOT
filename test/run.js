@@ -2743,6 +2743,81 @@ async function main() {
 		assert.strictEqual(server.enabled, false, "port 0 disables the server (pure worker mode)");
 	});
 
+	await test("bot: a silent server after relogin recovers instead of hanging forever", async () => {
+		// Regression for "bot online but never responds": the server announced a
+		// relogin, then kept the SSE open with ping comments only (no real events).
+		// The transport's stall watch was happy, so the bot sat silent forever.
+		// The bot must notice the dead session itself and rebuild/re-auth.
+		const { createBot } = require(path.join(root, "src/bot"));
+		const http = require("http");
+		const os = require("os");
+		let sseRes = null;
+		let loginCalls = 0;
+		const clients = new Set();
+		const server = http.createServer((req, res) => {
+			let body = "";
+			req.on("data", c => { body += c; });
+			req.on("end", () => {
+				if (String(req.url).startsWith("/events")) {
+					res.writeHead(200, { "Content-Type": "text/event-stream" });
+					res.write(": connected\n\n");
+					clients.add(res);
+					sseRes = res;
+					return;
+				}
+				let rpc = {};
+				try { rpc = JSON.parse(body || "{}"); } catch (_) { }
+				if (rpc.method === "getCurrentUserID") {
+					loginCalls++;
+					res.writeHead(200, { "Content-Type": "application/json" });
+					return res.end(JSON.stringify({ ok: true, result: "BOT123" }));
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ ok: true, result: null }));
+			});
+		});
+		await new Promise(r => server.listen(0, "127.0.0.1", r));
+		const port = server.address().port;
+		const config = {
+			botName: "TestBot", prefix: "/", adminBot: [], env: {},
+			server: { url: "http://127.0.0.1:" + port, token: "t", botId: "default", timeout: 2000 },
+			account: {}, database: { dir: path.join(os.tmpdir(), "igbot-test-relogin-" + process.pid) },
+			logEvents: { disableAll: true },
+			onlineStatus: { enable: false },
+			silenceWindowMs: 1000,   // shrink the watchdog so the test runs fast
+			reloginGraceMs: 1000,    // shrink the relogin grace window too
+			welcome: { enable: false }, leave: { enable: false }
+		};
+		const bot = createBot(config);
+		await bot.start();
+		// The SSE GET is issued before start() resolves but the server accepts
+		// it a tick later; poll briefly instead of asserting synchronously.
+		for (let i = 0; i < 30 && !sseRes; i++) await new Promise(r => setTimeout(r, 100));
+		assert.ok(sseRes, "the bot should have opened the event stream");
+
+		// 1. The server goes half-dead: announce a relogin, then only ping.
+		sseRes.write("data: " + JSON.stringify({ __internal: "relogin", reason: "silent-and-unreachable" }) + "\n\n");
+		for (let i = 0; i < 20 && bot.state.reloginGraceTimer == null; i++) await new Promise(r => setTimeout(r, 100));
+		assert.ok(bot.state.reloginGraceTimer != null, "the relogin notice must arm the recovery grace timer");
+
+		// 2. Only ping comments arrive — the grace timer must fire and cycle the
+		//    listener, and repeated silence must escalate to a re-auth.
+		const ping = setInterval(() => { if (sseRes && !sseRes.destroyed) sseRes.write(": ping\n\n"); }, 200);
+		try {
+			await new Promise(r => setTimeout(r, 5500));
+			assert.ok(bot.state.reloginTimer != null || loginCalls >= 2, "repeated silence must escalate to a re-authentication");
+			// Recovery: the next real event clears the silence escalation.
+			sseRes.write("data: " + JSON.stringify({ type: "message", threadID: "t1", messageID: "m1", senderID: "5", body: "hello" }) + "\n\n");
+			await new Promise(r => setTimeout(r, 300));
+			assert.strictEqual(bot.state.silenceRestarted, false, "real traffic must reset the silence escalation");
+		} finally {
+			clearInterval(ping);
+			await bot.stop();
+			server.close();
+			for (const c of clients) { try { c.end(); } catch (_) { } }
+		}
+	});
+
 	/* ── rate-limit vs not-found ── */
 	await test("isRateLimitError: recognises 429 and Instagram throttle wording", () => {
 		assert.strictEqual(utils.isRateLimitError({ error: "parseAndCheckLogin got status code: 429. Bailing out" }), true);

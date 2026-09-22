@@ -259,6 +259,11 @@ function createBot(config) {
 		listenerGeneration: 0,
 		restartTimer: null,
 		retireListener: null,
+		reloginGraceTimer: null,
+		reloginTimer: null,
+		silenceWatchdog: null,
+		silenceStrikes: 0,
+		silenceRestarted: false,
 		running: false,
 		stopping: false,
 		commandCount: 0,
@@ -374,6 +379,7 @@ function createBot(config) {
 			if (rawEvent.__internal === "relogin") {
 				log.warn("LISTEN", "Server is re-logging in; waiting for the stream to resume");
 				onlineStatus.writeLine({ event: "relogin", reason: rawEvent.reason || null });
+				armReloginGraceTimer();
 			}
 			else if (rawEvent.__internal === "error") {
 				handleListenerError(rawEvent.error || { message: "server error" });
@@ -382,6 +388,11 @@ function createBot(config) {
 		}
 		const event = normalizeEvent(rawEvent);
 		if (!event || event.type === "ready") return;
+		// Real traffic: the session recovered on its own, so stand down the
+		// relogin grace timer and reset the silence escalation.
+		clearReloginGraceTimer();
+		state.silenceStrikes = 0;
+		state.silenceRestarted = false;
 
 		state.messagesHandled++;
 
@@ -433,6 +444,7 @@ function createBot(config) {
 		});
 		state.listening = true;
 		log.success("LISTEN", "Realtime listener started");
+		armSilenceWatchdog();
 
 		if (state.restartTimer) clearInterval(state.restartTimer);
 		const interval = Number(config.restartListenInterval) || 0;
@@ -443,6 +455,11 @@ function createBot(config) {
 	}
 
 	function restartListening() {
+		clearReloginGraceTimer();
+		state.silenceStrikes = 0;
+		// NOTE: silenceRestarted is deliberately NOT reset here — the silence
+		// watchdog uses it to remember it already cycled the listener. It is
+		// cleared when real traffic arrives or by the watchdog on escalation.
 		try {
 			if (typeof state.stopListening === "function") state.stopListening();
 		}
@@ -453,10 +470,64 @@ function createBot(config) {
 		log.info("LISTEN", "Listener restarted");
 	}
 
+	// After the server announces a re-login the stream usually resumes on its
+	// own. But when the session actually died the stream stays open and keeps
+	// sending ping comments, so the transport's stall watch never fires and
+	// the bot sits silent forever ("bot online" yet nothing responds). Give
+	// the server a grace window; if NO event at all arrives in it, rebuild
+	// the listener ourselves.
+	function armReloginGraceTimer() {
+		clearReloginGraceTimer();
+		const graceMs = Math.max(1000, Number(config.reloginGraceMs) || 60000);
+		state.reloginGraceTimer = setTimeout(() => {
+			state.reloginGraceTimer = null;
+			log.warn("LISTEN", `No events for ${Math.round(graceMs / 1000)}s after server relogin — rebuilding the listener`);
+			onlineStatus.writeLine({ event: "relogin_stalled", graceMs });
+			restartListening();
+		}, graceMs);
+		if (state.reloginGraceTimer.unref) state.reloginGraceTimer.unref();
+	}
+
+	function clearReloginGraceTimer() {
+		if (state.reloginGraceTimer) { clearTimeout(state.reloginGraceTimer); state.reloginGraceTimer = null; }
+	}
+
+	// Silence watchdog: catches a stream that never carries real traffic —
+	// ping comments keep it "alive" at the transport level while Instagram
+	// delivers nothing (e.g. after a half-finished relogin). Two consecutive
+	// empty windows first recycle the listener, then force a full re-auth.
+	function armSilenceWatchdog() {
+		if (state.silenceWatchdog) return;
+		const windowMs = Math.max(1000, Number(config.silenceWindowMs) || 300000);
+		state.silenceWatchdog = setInterval(() => {
+			if (state.stopping || !state.listening) return;
+			state.silenceStrikes++;
+			if (state.silenceStrikes < 2) return;
+			state.silenceStrikes = 0;
+			log.warn("LISTEN", `No real events for ~${Math.round((windowMs * 2) / 1000)}s — cycling the listener`);
+			onlineStatus.writeLine({ event: "silence_restart", windowMs });
+			// If the previous window was already silent after a listener cycle,
+			// the session itself is gone: escalate to a full re-authentication.
+			if (state.silenceRestarted) {
+				state.silenceRestarted = false;
+				log.warn("LISTEN", "Listener cycle did not restore traffic — forcing a full re-authentication");
+				onlineStatus.writeLine({ event: "silence_reauth", windowMs });
+				scheduleRelogin();
+				return;
+			}
+			state.silenceRestarted = true;
+			restartListening();
+		}, windowMs);
+		if (state.silenceWatchdog.unref) state.silenceWatchdog.unref();
+	}
+
 	function scheduleRelogin() {
-		if (state.retireListener) return;
-		state.retireListener = setTimeout(async () => {
-			state.retireListener = null;
+		// Use a dedicated handle so a pending listener-recycle timer (which
+		// also lives in state.retireListener) can never swallow a needed
+		// re-authentication, and so a scheduled relogin cannot be double-booked.
+		if (state.reloginTimer) return;
+		state.reloginTimer = setTimeout(async () => {
+			state.reloginTimer = null;
 			log.info("LOGIN", "Re-authenticating session and reconnecting realtime listener…");
 			try {
 				if (typeof state.stopListening === "function") state.stopListening();
@@ -469,7 +540,7 @@ function createBot(config) {
 				scheduleRelogin();
 			}
 		}, 5000);
-		if (state.retireListener.unref) state.retireListener.unref();
+		if (state.reloginTimer.unref) state.reloginTimer.unref();
 	}
 
 	async function start() {
@@ -526,6 +597,9 @@ function createBot(config) {
 		// could recreate the listener after stop().
 		if (state.restartTimer) { clearInterval(state.restartTimer); state.restartTimer = null; }
 		if (state.retireListener) { clearTimeout(state.retireListener); state.retireListener = null; }
+		clearReloginGraceTimer();
+		if (state.reloginTimer) { clearTimeout(state.reloginTimer); state.reloginTimer = null; }
+		if (state.silenceWatchdog) { clearInterval(state.silenceWatchdog); state.silenceWatchdog = null; }
 		database.flush();
 		// Deliberately DO NOT call api.logout() on shutdown.
 		//
